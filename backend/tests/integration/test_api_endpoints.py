@@ -1,0 +1,129 @@
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from apps.api.dependencies import get_container
+from apps.api.main import app
+
+
+@pytest.fixture(autouse=True)
+def reset_api_container() -> None:
+    """Сбрасываем singleton-контейнер между тестами, чтобы не протекало состояние."""
+
+    get_container.cache_clear()
+    yield
+    get_container.cache_clear()
+
+
+@pytest.fixture()
+def client() -> TestClient:
+    """Создает тестовый HTTP-клиент FastAPI."""
+
+    return TestClient(app)
+
+
+def _create_task(client: TestClient) -> str:
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "evidence pack retrieval",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology"],
+            },
+            "task_context": {"requester": "integration-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    return payload["task_id"]
+
+
+def test_health_endpoint_returns_ok(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
+def test_start_endpoint_returns_task_id(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "langgraph retrieval",
+            "filters": {"project_id": "p1"},
+            "task_context": {},
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "completed"
+    assert body["task_id"]
+
+
+def test_status_endpoint_returns_task_state(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    response = client.get(f"/api/v1/tasks/{task_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_id"] == task_id
+    assert payload["status"] == "completed"
+
+
+def test_status_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks/unknown")
+
+    assert response.status_code == 404
+
+
+def test_evidence_endpoint_returns_evidence_pack(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    response = client.get(f"/api/v1/tasks/{task_id}/evidence")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_id"] == task_id
+    assert len(payload["evidence_pack"]["selected_blocks"]) >= 1
+
+
+def test_evidence_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks/unknown/evidence")
+
+    assert response.status_code == 404
+
+
+def test_resume_endpoint_returns_completed_status(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    response = client.post(
+        f"/api/v1/tasks/{task_id}/resume",
+        json={
+            "decision": "rerun",
+            "comment": "integration rerun",
+            "metadata": {"source": "integration-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+    assert payload["details"]["resume_decision"] == "rerun"
+
+
+def test_resume_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/tasks/unknown/resume",
+        json={
+            "decision": "rerun",
+            "comment": "integration rerun",
+            "metadata": {"source": "integration-test"},
+        },
+    )
+
+    assert response.status_code == 404
