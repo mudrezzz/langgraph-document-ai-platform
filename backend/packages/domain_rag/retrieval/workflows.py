@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from framework.rag.pipeline import HierarchicalRAGPipeline
 from framework.workflows.base import BaseWorkflow
 from schemas.workflow.states import RetrievalWorkflowState
@@ -11,16 +9,19 @@ class RetrievalPackWorkflow(BaseWorkflow):
     """Первый рабочий вертикальный срез retrieval workflow."""
 
     def __init__(self, pipeline: HierarchicalRAGPipeline) -> None:
-        super().__init__()
+        super().__init__(use_langgraph_runtime=True)
         self._pipeline = pipeline
+        self.compile()
 
     def state_schema(self) -> type[RetrievalWorkflowState]:
         return RetrievalWorkflowState
 
-    def invoke(self, payload: RetrievalWorkflowState | dict[str, Any]) -> RetrievalWorkflowState:
-        state = self.state_schema().model_validate(payload)
-        trace = self._pipeline.run_with_trace(query=state.query, filters=state.filters)
+    def execute(self, state: RetrievalWorkflowState) -> RetrievalWorkflowState:
+        # Базовая валидация входного запроса для error-ветки API.
+        if not state.query.strip():
+            raise ValueError("Пустой query недопустим для retrieval workflow")
 
+        trace = self._pipeline.run_with_trace(query=state.query, filters=state.filters)
         confidence = self._calculate_confidence([item.score for item in trace.reranked_blocks])
 
         return state.model_copy(
@@ -34,9 +35,9 @@ class RetrievalPackWorkflow(BaseWorkflow):
             }
         )
 
-    def resume(self, payload: RetrievalWorkflowState | dict[str, Any]) -> RetrievalWorkflowState:
-        # В retrieval-сценарии базовый resume пока только валидирует состояние.
-        return self.state_schema().model_validate(payload)
+    def execute_resume(self, state: RetrievalWorkflowState) -> RetrievalWorkflowState:
+        # Для retrieval-сценария resume выполняет ту же бизнес-логику пересборки evidence.
+        return self.execute(state)
 
     @staticmethod
     def _calculate_confidence(scores: list[float]) -> float:

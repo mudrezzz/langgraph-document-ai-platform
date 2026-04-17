@@ -7,3 +7,7 @@ class TaskNotFoundError(KeyError):
 
 class InvalidTaskStateError(ValueError):
     """Состояние задачи не соответствует ожидаемому контракту."""
+
+
+class WorkflowExecutionError(RuntimeError):
+    """Ошибка исполнения workflow на application-уровне."""

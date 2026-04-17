@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import Depends, FastAPI, HTTPException, status
 
-from application.errors import InvalidTaskStateError, TaskNotFoundError
+from application.errors import InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError
 from apps.api.dependencies import ApiContainer, get_container
 from schemas.api.contracts import (
     EvidencePackResponse,
@@ -29,7 +29,10 @@ def start_retrieval_task(
 ) -> StartTaskResponse:
     """Запускает retrieval workflow и возвращает task id."""
 
-    return container.retrieval_service.start(request)
+    try:
+        return container.retrieval_service.start(request)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)

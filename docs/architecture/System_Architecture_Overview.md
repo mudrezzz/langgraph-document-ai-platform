@@ -20,6 +20,7 @@
 
 - framework и schemas layer;
 - concrete adapter skeleton (`vLLM`, `TEI`, `postgres`, `pgvector`, `retrieval`);
+- `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - рабочий `RetrievalPackWorkflow` и bootstrap wiring;
 - application services:
   - `TaskApplicationService`;
@@ -30,14 +31,14 @@
   - `GET /api/v1/tasks/{task_id}/evidence`;
   - `POST /api/v1/tasks/{task_id}/resume`;
   - `GET /health`.
-- test coverage:
+- тестовое покрытие:
   - unit tests;
-  - integration tests на каждый endpoint;
+  - integration tests на endpoint-ы, включая error/interrupt/resume ветки;
   - smoke script для реального HTTP прогона.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- BaseWorkflow пока не подключен к реальному LangGraph graph execution;
+- LangGraph интегрирован как runtime-движок базового workflow, но без checkpointer/postgres saver;
 - adapters используют in-memory поведение вместо production DB/serving;
 - API работает синхронно в рамках одного процесса;
 - нет FastMCP runtime-серверов, есть только framework-base;
@@ -45,15 +46,15 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Нет фактической runtime-интеграции с LangGraph compile/invoke/resume.
-2. Нет production persistence слоя на реальном PostgreSQL/pgvector.
-3. Нет полноценных MCP сервисов по контрактам из blueprint.
-4. Нет ingestion/authoring/assembly workflows.
-5. Нет эксплуатационного слоя observability/audit/metrics.
+1. Нет production persistence слоя на реальном PostgreSQL/pgvector.
+2. Нет полноценных MCP сервисов по контрактам из blueprint.
+3. Нет ingestion/authoring/assembly workflows.
+4. Нет эксплуатационного слоя observability/audit/metrics.
+5. Нет multi-service deployment topology и очередей long-running задач.
 
 ## 5. План следующего инкремента
 
-1. Расширить `BaseWorkflow` до интеграции с LangGraph graph builder.
-2. Добавить error branches и interrupt/resume ветки в integration tests.
-3. Реализовать persistence adapters с реальными SQL слоями.
+1. Реализовать PostgreSQL/pgvector-backed adapters вместо in-memory skeleton.
+2. Подключить LangGraph checkpointing к persistence слою.
+3. Добавить первые FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`).
 4. Подготовить API scaffold для `ingestion` и `authoring` задач.

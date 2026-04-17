@@ -16,3 +16,4 @@
 - `0004-adapter-wiring-and-vertical-slice.md`
 - `0005-api-boundary-and-task-lifecycle.md`
 - `0006-api-smoke-and-integration-tests.md`
+- `0007-langgraph-runtime-in-base-workflow.md`

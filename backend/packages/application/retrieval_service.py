@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from application.errors import InvalidTaskStateError
+from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
 from domain_rag.retrieval import RetrievalPackWorkflow, build_retrieval_workflow
 from schemas.api.contracts import (
@@ -32,7 +32,26 @@ class RetrievalApplicationService:
             task_context=request.task_context,
         )
 
-        result_state = workflow.invoke(initial_state)
+        # Ветка interrupt: фиксируем checkpoint и ожидаем resume-решение от человека.
+        if bool(request.task_context.get("force_interrupt", False)):
+            self._task_service.save_checkpoint(task.task_id, initial_state.model_dump(mode="json"))
+            self._task_service.update_task(
+                task.task_id,
+                status="interrupted",
+                current_node="human_gate",
+                details={"reason": "forced_interrupt", "resume_required": True},
+            )
+            return StartTaskResponse(task_id=task.task_id, status="interrupted")
+
+        try:
+            result_state = workflow.invoke(initial_state)
+        except Exception as exc:
+            self._task_service.fail_task(
+                task_id=task.task_id,
+                state_payload=initial_state.model_dump(mode="json"),
+                error_message=str(exc),
+            )
+            raise WorkflowExecutionError(str(exc)) from exc
 
         details = {
             "confidence": result_state.confidence,
@@ -72,8 +91,9 @@ class RetrievalApplicationService:
         state = RetrievalWorkflowState.model_validate(payload)
         workflow = self._build_workflow()
 
-        # Для retrieval: поддерживаем повторный запуск по команде "rerun".
-        if request.decision.lower() in {"rerun", "retry"}:
+        decision = request.decision.lower()
+
+        if decision in {"rerun", "retry", "resume", "continue", "approve"}:
             merged_context = {**state.task_context, **request.metadata}
             rerun_state = state.model_copy(update={"task_context": merged_context})
             result = workflow.invoke(rerun_state)
@@ -90,7 +110,6 @@ class RetrievalApplicationService:
                 details=details,
             )
         else:
-            # В остальных случаях просто подтверждаем валидность checkpoint-состояния.
             validated = workflow.resume(state)
             details = {
                 "resume_decision": request.decision,

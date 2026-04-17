@@ -52,18 +52,32 @@ class TaskApplicationService:
         self._registry.save(task)
         return task
 
-    def complete_task(self, task_id: str, state_payload: dict, details: dict | None = None) -> TaskRecord:
-        task = self._registry.get(task_id)
-        task = task.model_copy(
-            update={
-                "status": "completed",
-                "current_node": "completed",
-                "details": details or task.details,
-            }
-        )
+    def save_checkpoint(self, task_id: str, state_payload: dict) -> None:
+        """Сохраняет checkpoint без изменения статуса задачи."""
+
         self._checkpoint_store.save_checkpoint(task_id, state_payload)
-        self._registry.save(task)
-        return task
+
+    def complete_task(self, task_id: str, state_payload: dict, details: dict | None = None) -> TaskRecord:
+        """Помечает задачу завершенной и фиксирует checkpoint."""
+
+        self.save_checkpoint(task_id, state_payload)
+        return self.update_task(
+            task_id,
+            status="completed",
+            current_node="completed",
+            details=details or self._registry.get(task_id).details,
+        )
+
+    def fail_task(self, task_id: str, state_payload: dict, error_message: str) -> TaskRecord:
+        """Помечает задачу ошибочной и сохраняет последнее валидное состояние."""
+
+        self.save_checkpoint(task_id, state_payload)
+        return self.update_task(
+            task_id,
+            status="failed",
+            current_node="failed",
+            details={"error": error_message},
+        )
 
     def update_task(self, task_id: str, **kwargs) -> TaskRecord:
         task = self._registry.get(task_id)

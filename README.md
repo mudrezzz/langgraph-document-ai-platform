@@ -21,7 +21,8 @@
 - реализован `RetrievalPackWorkflow` как первый рабочий вертикальный срез;
 - добавлен API boundary (`apps/api`) с typed retrieval endpoints;
 - добавлены application services для task lifecycle, checkpoint и resume;
-- добавлены интеграционные тесты на каждый endpoint;
+- `BaseWorkflow` переведен на LangGraph runtime execution (`invoke/resume` через compiled graph);
+- добавлены error/interrupt/resume ветки и интеграционные тесты на endpoint-ы;
 - добавлен smoke-runner script для локального HTTP прогона endpoint-ов.
 
 ## Структура
@@ -73,4 +74,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 
 ## Дальнейший фокус
 
-Следующий инкремент: интеграция `BaseWorkflow` с реальным LangGraph runtime, плюс перевод ключевых in-memory adapters на PostgreSQL/pgvector-backed реализации.
+Следующий инкремент: переход от in-memory adapters к PostgreSQL/pgvector-backed реализациям и добавление FastMCP runtime-сервисов по контрактам blueprint.
