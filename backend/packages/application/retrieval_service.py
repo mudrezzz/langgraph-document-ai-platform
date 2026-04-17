@@ -19,12 +19,18 @@ class RetrievalApplicationService:
     def __init__(self, task_service: TaskApplicationService) -> None:
         self._task_service = task_service
 
-    def _build_workflow(self) -> RetrievalPackWorkflow:
-        return build_retrieval_workflow()
+    def _build_workflow(self, *, case_dataset_id: str | None = None, case_dataset_path: str | None = None) -> RetrievalPackWorkflow:
+        return build_retrieval_workflow(
+            case_dataset_id=case_dataset_id,
+            case_dataset_path=case_dataset_path,
+        )
 
     def start(self, request: StartRetrievalTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="retrieval_pack")
-        workflow = self._build_workflow()
+
+        case_dataset_id = request.task_context.get("case_dataset_id")
+        case_dataset_path = request.task_context.get("case_dataset_path")
+        workflow = self._build_workflow(case_dataset_id=case_dataset_id, case_dataset_path=case_dataset_path)
 
         initial_state = RetrievalWorkflowState(
             query=request.query,
@@ -89,7 +95,10 @@ class RetrievalApplicationService:
     def resume(self, task_id: str, request: ResumeTaskRequest) -> TaskStatusResponse:
         payload = self._task_service.get_state_payload(task_id)
         state = RetrievalWorkflowState.model_validate(payload)
-        workflow = self._build_workflow()
+
+        case_dataset_id = state.task_context.get("case_dataset_id")
+        case_dataset_path = state.task_context.get("case_dataset_path")
+        workflow = self._build_workflow(case_dataset_id=case_dataset_id, case_dataset_path=case_dataset_path)
 
         decision = request.decision.lower()
 

@@ -2,7 +2,9 @@
 param(
     [string]$HostName = "127.0.0.1",
     [int]$Port = 8000,
-    [int]$StartupTimeoutSec = 30
+    [int]$StartupTimeoutSec = 30,
+    [string]$Query = "evidence pack retrieval",
+    [string]$CaseDatasetId = "saa_release_readiness"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,17 +49,19 @@ try {
     }
 
     $startRequest = @{
-        query = "evidence pack retrieval"
+        query = $Query
         filters = @{
             project_id = "p1"
-            document_types = @("requirements", "methodology")
+            document_types = @("requirements", "methodology", "security", "operations", "governance")
         }
         task_context = @{
             requester = "smoke-script"
+            case_dataset_id = $CaseDatasetId
         }
     } | ConvertTo-Json -Depth 10
+    $startBody = [System.Text.Encoding]::UTF8.GetBytes($startRequest)
 
-    $startResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/retrieval/start" -ContentType "application/json" -Body $startRequest
+    $startResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/retrieval/start" -ContentType "application/json; charset=utf-8" -Body $startBody
     $taskId = $startResponse.task_id
 
     $statusResponse = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/tasks/$taskId"
@@ -70,15 +74,19 @@ try {
             source = "smoke-script"
         }
     } | ConvertTo-Json -Depth 10
+    $resumeBody = [System.Text.Encoding]::UTF8.GetBytes($resumeRequest)
 
-    $resumeResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/$taskId/resume" -ContentType "application/json" -Body $resumeRequest
+    $resumeResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/$taskId/resume" -ContentType "application/json; charset=utf-8" -Body $resumeBody
 
     $result = [ordered]@{
         base_url = $baseUrl
+        dataset_id = $CaseDatasetId
+        query = $Query
         task_id = $taskId
         start_status = $startResponse.status
         task_status = $statusResponse.status
         evidence_blocks = $evidenceResponse.evidence_pack.selected_blocks.Count
+        top_sources = @($evidenceResponse.evidence_pack.selected_sources | Select-Object -First 3)
         resume_status = $resumeResponse.status
         resume_decision = $resumeResponse.details.resume_decision
     }

@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 4`.
+Текущий инкремент: `Increment 5`.
 
 Сделано:
 
@@ -20,10 +20,11 @@
 - добавлены concrete adapter skeleton в `infra/*`;
 - реализован `RetrievalPackWorkflow` как первый рабочий вертикальный срез;
 - добавлен API boundary (`apps/api`) с typed retrieval endpoints;
-- добавлены application services для task lifecycle, checkpoint и resume;
 - `BaseWorkflow` переведен на LangGraph runtime execution (`invoke/resume` через compiled graph);
-- добавлены error/interrupt/resume ветки и интеграционные тесты на endpoint-ы;
-- добавлен smoke-runner script для локального HTTP прогона endpoint-ов.
+- добавлены error/interrupt/resume ветки и интеграционные тесты API;
+- добавлен baseline persistence слой на PostgreSQL + pgvector + baseline миграция;
+- добавлен референсный реалистичный кейс `saa_release_readiness` с тестовыми knowledge layers;
+- добавлены отдельные e2e тесты FastAPI на реальном `uvicorn`.
 
 ## Структура
 
@@ -31,6 +32,9 @@
 backend/
   apps/
     api/
+  examples/
+    cases/
+  migrations/
   packages/
     framework/
     schemas/
@@ -44,21 +48,82 @@ docs/
   architecture/
 ```
 
-## Обязательные документы сопровождения
+## Reference Case: SAA Release Readiness
 
-После каждого инкремента обновляются три документа:
+### Что это за кейс
 
-1. `README.md` — текущее состояние, структура, правила работы.
-2. `docs/adr/*.md` — принятые архитектурные решения.
-3. `docs/architecture/System_Architecture_Overview.md` — актуальный снимок архитектуры и GAP к целевой модели.
+Это постоянный демонстрационный сценарий, приближенный к реальной задаче аналитика: собрать `evidence pack` для раздела ТЗ по readiness к релизу SAA-платформы.
 
-## Правила кодовой базы
+Данные кейса лежат в:
 
-- комментарии в коде пишутся на русском языке;
-- интерфейсы и контракты задаются типизированно;
-- бизнес-логика не прячется в интеграционных glue-скриптах;
-- LangGraph остается runtime для оркестрации;
-- framework-слой должен быть компактным и прозрачным.
+- `backend/examples/cases/saa_release_readiness_case/input/knowledge_layers.json`
+
+В датасете уже есть:
+
+- `summary` слой (методология и operations);
+- `detail` слой (требования, безопасность, governance);
+- source metadata (`doc_id`, `version`, `section`, `tags`, `document_type`).
+
+### Как запускать кейс
+
+1. Быстрый демонстрационный запуск:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_saa_release_readiness_case.ps1
+```
+
+2. Гибкий smoke запуск с параметрами:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retrieval_api.ps1 `
+  -HostName 127.0.0.1 `
+  -Port 8000 `
+  -CaseDatasetId saa_release_readiness `
+  -Query "Какие ограничения и approval точки важны перед релизом?"
+```
+
+### Как интерпретировать результат demo/smoke
+
+Скрипт возвращает JSON со следующими полями:
+
+- `start_status`: результат старта задачи (`completed` или `interrupted`);
+- `task_status`: финальный статус после вызовов `start/status`;
+- `evidence_blocks`: сколько блоков попало в evidence pack;
+- `top_sources`: первые источники из evidence pack (быстрая sanity-проверка релевантности);
+- `resume_status`: статус после `resume`;
+- `resume_decision`: решение, переданное в `resume` (`rerun`, `continue`, ...).
+
+Нормальный для текущей версии результат:
+
+- `start_status=completed`;
+- `task_status=completed`;
+- `evidence_blocks >= 1`;
+- в `top_sources` присутствуют документы из кейса, например `METH-001`, `GOV-021`, `OPS-002`;
+- `resume_status=completed`.
+
+Если `evidence_blocks=0` или в `top_sources` нет ожидаемых документов кейса, это сигнал, что сломалась маршрутизация retrieval или dataset wiring.
+
+## Что уже работает
+
+- end-to-end путь `start -> status -> evidence -> resume` через FastAPI;
+- execution workflow через LangGraph runtime в `BaseWorkflow`;
+- unit/integration/e2e тесты (`TestClient` и реальный `uvicorn`);
+- baseline persistence adapters и SQL migration scaffold;
+- демонстрационный сценарий с реальными тестовыми данными.
+
+## Что будет в следующих итерациях
+
+- runtime profiles (`dev/stage/prod`) и отключение fallback в `prod`;
+- реальный LangGraph checkpointer поверх PostgreSQL;
+- FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
+- расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
+- e2e c реальным PostgreSQL-контейнером в тестовом прогоне.
+
+## Тестовая стратегия
+
+1. Unit: `backend/tests/unit/*`
+2. Integration (FastAPI TestClient): `backend/tests/integration/*`
+3. E2E (реальный `uvicorn`): `backend/tests/e2e/*`
 
 ## Запуск тестов
 
@@ -66,12 +131,17 @@ docs/
 python -m pytest backend/tests -q
 ```
 
-## Smoke запуск API
+## Применение миграций
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retrieval_api.ps1
+$env:APP_DB_DSN = "postgresql://user:password@localhost:5432/langgraph"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\apply_migrations.ps1
 ```
 
-## Дальнейший фокус
+## Обязательные документы сопровождения
 
-Следующий инкремент: переход от in-memory adapters к PostgreSQL/pgvector-backed реализациям и добавление FastMCP runtime-сервисов по контрактам blueprint.
+После каждого инкремента обновляются три документа:
+
+1. `README.md` — текущее состояние, структура, правила работы.
+2. `docs/adr/*.md` — принятые архитектурные решения.
+3. `docs/architecture/System_Architecture_Overview.md` — актуальный снимок архитектуры и GAP к целевой модели.

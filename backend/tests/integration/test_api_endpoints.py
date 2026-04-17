@@ -121,6 +121,33 @@ def test_evidence_endpoint_returns_evidence_pack(client: TestClient) -> None:
     assert len(payload["evidence_pack"]["selected_blocks"]) >= 1
 
 
+def test_evidence_endpoint_uses_realistic_case_dataset(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "ограничения релиза и approval",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "case_dataset_id": "saa_release_readiness",
+                "requester": "integration-test",
+            },
+        },
+    )
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+
+    evidence_response = client.get(f"/api/v1/tasks/{task_id}/evidence")
+    assert evidence_response.status_code == 200
+    payload = evidence_response.json()
+
+    doc_ids = {item["doc_id"] for item in payload["evidence_pack"]["selected_sources"]}
+    assert "METH-001" in doc_ids
+    assert "GOV-021" in doc_ids
+
+
 def test_evidence_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
     response = client.get("/api/v1/tasks/unknown/evidence")
 

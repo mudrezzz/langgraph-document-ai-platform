@@ -17,3 +17,5 @@
 - `0005-api-boundary-and-task-lifecycle.md`
 - `0006-api-smoke-and-integration-tests.md`
 - `0007-langgraph-runtime-in-base-workflow.md`
+- `0008-postgres-pgvector-baseline-persistence.md`
+- `0009-reference-case-and-fastapi-e2e-policy.md`

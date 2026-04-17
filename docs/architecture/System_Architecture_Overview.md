@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-17
-Статус: Increment 4
+Статус: Increment 5
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,47 +14,48 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 4)
+## 2. Текущая реализация (Increment 5)
 
 Реализовано:
 
 - framework и schemas layer;
-- concrete adapter skeleton (`vLLM`, `TEI`, `postgres`, `pgvector`, `retrieval`);
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
-- рабочий `RetrievalPackWorkflow` и bootstrap wiring;
-- application services:
-  - `TaskApplicationService`;
-  - `RetrievalApplicationService`.
-- API boundary (`apps/api/main.py`) с endpoint-ами:
-  - `POST /api/v1/tasks/retrieval/start`;
-  - `GET /api/v1/tasks/{task_id}`;
-  - `GET /api/v1/tasks/{task_id}/evidence`;
-  - `POST /api/v1/tasks/{task_id}/resume`;
-  - `GET /health`.
+- API boundary + task lifecycle + interrupt/resume ветки;
+- baseline persistence adapters:
+  - `PostgresDocumentRepository`;
+  - `LangGraphPostgresCheckpointStore`;
+  - `PgVectorStoreAdapter`;
+  - `PostgresSettings` из env (`APP_DB_DSN`, `APP_DB_SCHEMA`, `APP_VECTOR_DIM`).
+- baseline migration:
+  - `backend/migrations/0001_baseline.sql`;
+  - scripts: `apply_migrations.py` и `apply_migrations.ps1`.
 - тестовое покрытие:
-  - unit tests;
-  - integration tests на endpoint-ы, включая error/interrupt/resume ветки;
-  - smoke script для реального HTTP прогона.
+  - unit + integration + e2e;
+  - smoke и demo scripts.
+- референсный реалистичный кейс:
+  - `saa_release_readiness_case` с тестовыми knowledge layers;
+  - end-to-end демонстрация через `demo_saa_release_readiness_case.ps1`.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- LangGraph интегрирован как runtime-движок базового workflow, но без checkpointer/postgres saver;
-- adapters используют in-memory поведение вместо production DB/serving;
-- API работает синхронно в рамках одного процесса;
-- нет FastMCP runtime-серверов, есть только framework-base;
-- domain_docs/domain_authoring и связанные workflows пока не реализованы.
+- persistence adapters имеют fallback-режим для dev/test, а не строгий production-only режим;
+- нет реального LangGraph checkpointer integration поверх PostgreSQL saver;
+- отсутствуют рабочие FastMCP runtime-сервисы;
+- отсутствуют `domain_docs` / `domain_authoring` workflows;
+- API по-прежнему синхронный, без очередей long-running задач.
 
 ## 4. GAP к целевой архитектуре
 
-1. Нет production persistence слоя на реальном PostgreSQL/pgvector.
-2. Нет полноценных MCP сервисов по контрактам из blueprint.
-3. Нет ingestion/authoring/assembly workflows.
-4. Нет эксплуатационного слоя observability/audit/metrics.
-5. Нет multi-service deployment topology и очередей long-running задач.
+1. Нужен production-режим без in-memory fallback для critical paths.
+2. Нужен реальный checkpointing LangGraph в PostgreSQL с восстановлением после process restart.
+3. Нужны FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
+4. Нужны ingestion/template/authoring/assembly workflows.
+5. Нужны observability/audit/metrics и эксплуатационные dashboards.
 
 ## 5. План следующего инкремента
 
-1. Реализовать PostgreSQL/pgvector-backed adapters вместо in-memory skeleton.
-2. Подключить LangGraph checkpointing к persistence слою.
-3. Добавить первые FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`).
-4. Подготовить API scaffold для `ingestion` и `authoring` задач.
+1. Подключить LangGraph checkpointer к PostgreSQL persistence.
+2. Ввести явные runtime профили (`dev`, `stage`, `prod`) с отключением fallback в `prod`.
+3. Поднять первые runtime MCP сервисы (`Retrieval MCP`, `Repository MCP`) на FastMCP.
+4. Расширить e2e на сценарий с реальным PostgreSQL (container-based).
+5. Углубить референсный кейс `saa_release_readiness`: добавить authoring шаг и проверку traceability.
