@@ -3,9 +3,10 @@ from __future__ import annotations
 from functools import lru_cache
 
 from application.retrieval_service import RetrievalApplicationService
-from application.task_service import InMemoryTaskRegistry, TaskApplicationService
+from application.task_service import TaskApplicationService
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
+from infra.postgres.task_registry import PostgresTaskRegistry
 
 
 class ApiContainer:
@@ -14,7 +15,7 @@ class ApiContainer:
     def __init__(self) -> None:
         settings = PostgresSettings.from_env()
         checkpoint_store = LangGraphPostgresCheckpointStore.from_settings(settings, use_fallback_if_unset=True)
-        registry = InMemoryTaskRegistry()
+        registry = PostgresTaskRegistry.from_settings(settings, use_fallback_if_unset=True)
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
 
         self.settings = settings

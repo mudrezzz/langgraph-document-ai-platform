@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 6`.
+Текущий инкремент: `Increment 7`.
 
 Сделано:
 
@@ -27,6 +27,8 @@
 - добавлены отдельные e2e тесты FastAPI на реальном `uvicorn`.
 - добавлены скрипты bootstrap PostgreSQL профиля (`postgres_up.ps1`, `postgres_migrate.ps1`, `postgres_down.ps1`) и шаблон `backend/.env.example`;
 - добавлен e2e тест с реальным PostgreSQL контейнером и улучшена диагностика старта `uvicorn` в e2e фикстурах.
+- `TaskRegistry` вынесен в persistence слой: добавлен `PostgresTaskRegistry` + миграция `0002_task_registry.sql`;
+- добавлен endpoint истории задач `GET /api/v1/tasks` и покрытие integration/e2e для него.
 
 ## Структура
 
@@ -93,7 +95,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - `evidence_blocks`: сколько блоков попало в evidence pack;
 - `top_sources`: первые источники из evidence pack (быстрая sanity-проверка релевантности);
 - `resume_status`: статус после `resume`;
-- `resume_decision`: решение, переданное в `resume` (`rerun`, `continue`, ...).
+- `resume_decision`: решение, переданное в `resume` (`rerun`, `continue`, ...);
+- `history_returned`: сколько задач вернул endpoint истории `GET /api/v1/tasks`;
+- `history_contains_task`: попала ли только что запущенная задача в историю.
 
 Нормальный для текущей версии результат:
 
@@ -101,7 +105,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - `task_status=completed`;
 - `evidence_blocks >= 1`;
 - в `top_sources` присутствуют документы из кейса, например `METH-001`, `GOV-021`, `OPS-002`;
-- `resume_status=completed`.
+- `resume_status=completed`;
+- `history_returned >= 1`;
+- `history_contains_task=true`.
 
 Если `evidence_blocks=0` или в `top_sources` нет ожидаемых документов кейса, это сигнал, что сломалась маршрутизация retrieval или dataset wiring.
 
@@ -113,7 +119,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - baseline persistence adapters и SQL migration scaffold;
 - демонстрационный сценарий с реальными тестовыми данными;
 - локальный PostgreSQL профиль поднимается/мигрируется через PowerShell scripts;
-- e2e сценарий проверяется и в in-memory режиме, и с реальным PostgreSQL.
+- e2e сценарий проверяется и в in-memory режиме, и с реальным PostgreSQL;
+- lifecycle задач хранится в персистентном реестре (`PostgresTaskRegistry`);
+- API отдает историю задач через `GET /api/v1/tasks`.
 
 ## Что будет в следующих итерациях
 
@@ -121,7 +129,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - реальный LangGraph checkpointer поверх PostgreSQL;
 - FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
-- вынесение task registry из in-memory в персистентный слой.
+- расширение API-истории задач (фильтры, курсоры, аудит изменений статусов).
 
 ## Тестовая стратегия
 

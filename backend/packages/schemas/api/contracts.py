@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from schemas.rag.contracts import EvidencePack, RetrievalFilter
@@ -26,6 +28,27 @@ class TaskStatusResponse(BaseModel):
     status: str
     current_node: str | None = None
     details: dict = Field(default_factory=dict)
+
+
+class TaskHistoryItem(BaseModel):
+    """Элемент истории задач."""
+
+    task_id: str
+    task_type: str
+    status: str
+    current_node: str | None = None
+    details: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class TaskHistoryResponse(BaseModel):
+    """Ответ API с историей задач."""
+
+    items: list[TaskHistoryItem] = Field(default_factory=list)
+    limit: int
+    offset: int
+    total_returned: int
 
 
 class StartRetrievalTaskRequest(BaseModel):

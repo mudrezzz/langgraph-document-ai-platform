@@ -77,6 +77,8 @@ try {
     $resumeBody = [System.Text.Encoding]::UTF8.GetBytes($resumeRequest)
 
     $resumeResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/$taskId/resume" -ContentType "application/json; charset=utf-8" -Body $resumeBody
+    $historyResponse = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/tasks?limit=5&offset=0"
+    $historyTaskIds = @($historyResponse.items | ForEach-Object { $_.task_id })
 
     $result = [ordered]@{
         base_url = $baseUrl
@@ -89,6 +91,8 @@ try {
         top_sources = @($evidenceResponse.evidence_pack.selected_sources | Select-Object -First 3)
         resume_status = $resumeResponse.status
         resume_decision = $resumeResponse.details.resume_decision
+        history_returned = @($historyResponse.items).Count
+        history_contains_task = ($historyTaskIds -contains $taskId)
     }
 
     Write-Output ($result | ConvertTo-Json -Depth 10)

@@ -104,6 +104,29 @@ def test_status_endpoint_returns_task_state(client: TestClient) -> None:
     assert payload["status"] == "completed"
 
 
+def test_tasks_history_endpoint_returns_created_tasks(client: TestClient) -> None:
+    task_id_1 = _create_task(client)
+    task_id_2 = _create_task(client)
+
+    response = client.get("/api/v1/tasks?limit=10&offset=0")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["limit"] == 10
+    assert payload["offset"] == 0
+    assert payload["total_returned"] >= 2
+
+    ids = {item["task_id"] for item in payload["items"]}
+    assert task_id_1 in ids
+    assert task_id_2 in ids
+
+
+def test_tasks_history_endpoint_validates_limit(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks?limit=0")
+
+    assert response.status_code == 422
+
+
 def test_status_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
     response = client.get("/api/v1/tasks/unknown")
 

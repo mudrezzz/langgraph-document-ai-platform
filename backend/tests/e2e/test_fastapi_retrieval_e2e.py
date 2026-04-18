@@ -143,6 +143,19 @@ def test_e2e_status_endpoint(server_base_url: str) -> None:
     assert body["status"] == "completed"
 
 
+def test_e2e_tasks_history_endpoint(server_base_url: str) -> None:
+    task_id_1 = _start_task(server_base_url)
+    task_id_2 = _start_task(server_base_url)
+
+    status, body = _request("GET", f"{server_base_url}/api/v1/tasks?limit=20&offset=0")
+
+    assert status == 200
+    assert body["total_returned"] >= 2
+    task_ids = {item["task_id"] for item in body["items"]}
+    assert task_id_1 in task_ids
+    assert task_id_2 in task_ids
+
+
 def test_e2e_evidence_endpoint(server_base_url: str) -> None:
     task_id = _start_task(server_base_url)
 

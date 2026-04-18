@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 
 from application.errors import InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError
 from apps.api.dependencies import ApiContainer, get_container
@@ -9,6 +9,7 @@ from schemas.api.contracts import (
     ResumeTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    TaskHistoryResponse,
     TaskStatusResponse,
 )
 
@@ -33,6 +34,17 @@ def start_retrieval_task(
         return container.retrieval_service.start(request)
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/tasks", response_model=TaskHistoryResponse)
+def get_tasks_history(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    container: ApiContainer = Depends(get_container),
+) -> TaskHistoryResponse:
+    """Возвращает историю задач в порядке убывания времени обновления."""
+
+    return container.retrieval_service.history(limit=limit, offset=offset)
 
 
 @app.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)

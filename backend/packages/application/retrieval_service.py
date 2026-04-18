@@ -8,6 +8,8 @@ from schemas.api.contracts import (
     ResumeTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    TaskHistoryItem,
+    TaskHistoryResponse,
     TaskStatusResponse,
 )
 from schemas.workflow.states import RetrievalWorkflowState
@@ -82,6 +84,22 @@ class RetrievalApplicationService:
             current_node=task.current_node,
             details=task.details,
         )
+
+    def history(self, limit: int = 50, offset: int = 0) -> TaskHistoryResponse:
+        records = self._task_service.list_tasks(limit=limit, offset=offset)
+        items = [
+            TaskHistoryItem(
+                task_id=item.task_id,
+                task_type=item.task_type,
+                status=item.status,
+                current_node=item.current_node,
+                details=item.details,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+            )
+            for item in records
+        ]
+        return TaskHistoryResponse(items=items, limit=limit, offset=offset, total_returned=len(items))
 
     def evidence(self, task_id: str) -> EvidencePackResponse:
         payload = self._task_service.get_state_payload(task_id)
