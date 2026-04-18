@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 5`.
+Текущий инкремент: `Increment 6`.
 
 Сделано:
 
@@ -25,6 +25,8 @@
 - добавлен baseline persistence слой на PostgreSQL + pgvector + baseline миграция;
 - добавлен референсный реалистичный кейс `saa_release_readiness` с тестовыми knowledge layers;
 - добавлены отдельные e2e тесты FastAPI на реальном `uvicorn`.
+- добавлены скрипты bootstrap PostgreSQL профиля (`postgres_up.ps1`, `postgres_migrate.ps1`, `postgres_down.ps1`) и шаблон `backend/.env.example`;
+- добавлен e2e тест с реальным PostgreSQL контейнером и улучшена диагностика старта `uvicorn` в e2e фикстурах.
 
 ## Структура
 
@@ -109,7 +111,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - execution workflow через LangGraph runtime в `BaseWorkflow`;
 - unit/integration/e2e тесты (`TestClient` и реальный `uvicorn`);
 - baseline persistence adapters и SQL migration scaffold;
-- демонстрационный сценарий с реальными тестовыми данными.
+- демонстрационный сценарий с реальными тестовыми данными;
+- локальный PostgreSQL профиль поднимается/мигрируется через PowerShell scripts;
+- e2e сценарий проверяется и в in-memory режиме, и с реальным PostgreSQL.
 
 ## Что будет в следующих итерациях
 
@@ -117,7 +121,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - реальный LangGraph checkpointer поверх PostgreSQL;
 - FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
-- e2e c реальным PostgreSQL-контейнером в тестовом прогоне.
+- вынесение task registry из in-memory в персистентный слой.
 
 ## Тестовая стратегия
 
@@ -129,6 +133,46 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 
 ```bash
 python -m pytest backend/tests -q
+```
+
+## Локальный запуск PostgreSQL профиля
+
+1. Подготовить env-файл:
+
+```powershell
+Copy-Item .\backend\.env.example .\backend\.env
+```
+
+2. Поднять контейнер PostgreSQL + pgvector:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\postgres_up.ps1
+```
+
+3. Применить миграции:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\postgres_migrate.ps1
+```
+
+4. Запустить smoke в PostgreSQL-режиме:
+
+```powershell
+$env:APP_DB_DSN = "postgresql://app:app@localhost:55432/langgraph"
+$env:APP_DB_SCHEMA = "app"
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retrieval_api.ps1 -Port 8010
+```
+
+5. Остановить PostgreSQL и удалить volume:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\postgres_down.ps1 -RemoveVolumes
+```
+
+Отдельный e2e прогон PostgreSQL контура:
+
+```bash
+python -m pytest backend/tests/e2e/test_fastapi_retrieval_e2e_postgres.py -q
 ```
 
 ## Применение миграций

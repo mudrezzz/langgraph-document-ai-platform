@@ -48,7 +48,7 @@ def server_base_url() -> str:
     base_url = f"http://127.0.0.1:{port}"
 
     try:
-        _wait_for_health(base_url, timeout_sec=20)
+        _wait_for_health(base_url, timeout_sec=20, process=process)
         yield base_url
     finally:
         process.terminate()
@@ -58,9 +58,18 @@ def server_base_url() -> str:
             process.kill()
 
 
-def _wait_for_health(base_url: str, timeout_sec: int) -> None:
+def _wait_for_health(base_url: str, timeout_sec: int, process: subprocess.Popen[str]) -> None:
     deadline = time.time() + timeout_sec
     while time.time() < deadline:
+        # Если процесс уже завершился, сразу показываем stderr для диагностики.
+        if process.poll() is not None:
+            stderr = process.stderr.read().strip() if process.stderr else ""
+            stdout = process.stdout.read().strip() if process.stdout else ""
+            raise RuntimeError(
+                "Uvicorn завершился до старта health endpoint.\n"
+                f"exit_code={process.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+            )
+
         status, body = _request("GET", f"{base_url}/health")
         if status == 200 and body.get("status") == "ok":
             return
@@ -86,6 +95,9 @@ def _request(method: str, url: str, payload: dict | None = None) -> tuple[int, d
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8")
         return exc.code, json.loads(body) if body else {}
+    except urllib.error.URLError:
+        # Сетевые ошибки (например, connection refused) возвращаем как "нет ответа".
+        return 0, {}
 
 
 def _start_task(base_url: str) -> str:

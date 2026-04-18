@@ -19,3 +19,4 @@
 - `0007-langgraph-runtime-in-base-workflow.md`
 - `0008-postgres-pgvector-baseline-persistence.md`
 - `0009-reference-case-and-fastapi-e2e-policy.md`
+- `0010-postgres-local-profile-and-e2e-startup-resilience.md`
