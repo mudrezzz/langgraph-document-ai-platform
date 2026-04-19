@@ -86,3 +86,9 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 5) покрыть новые изменения unit/integration/e2e тестами и прогнать smoke.
 Комментарии в коде — на русском.
 ```
+
+## 6. Быстрый bootstrap checklist
+
+См. отдельный документ:
+
+- `docs/handoff/2026-04-19_ubuntu24_first_bootstrap_checklist.md`
