@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-18
-Статус: Increment 7
+Дата обновления: 2026-04-19
+Статус: Increment 8
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 7)
+## 2. Текущая реализация (Increment 8)
 
 Реализовано:
 
@@ -28,13 +28,14 @@
   - `PostgresSettings` из env (`APP_DB_DSN`, `APP_DB_SCHEMA`, `APP_VECTOR_DIM`).
 - baseline migration:
   - `backend/migrations/0001_baseline.sql`;
-  - scripts: `apply_migrations.py` и `apply_migrations.ps1`.
+  - scripts: `apply_migrations.py`, `apply_migrations.ps1`, `apply_migrations.sh`.
 - migration task history:
   - `backend/migrations/0002_task_registry.sql`.
 - локальный PostgreSQL deployment профиль:
   - `backend/docker-compose.postgres.yml`;
   - `backend/.env.example`;
-  - scripts: `postgres_up.ps1`, `postgres_migrate.ps1`, `postgres_down.ps1`.
+  - scripts: `postgres_up.ps1`, `postgres_migrate.ps1`, `postgres_down.ps1`;
+  - scripts: `postgres_up.sh`, `postgres_migrate.sh`, `postgres_down.sh`.
 - персистентный реестр задач:
   - `PostgresTaskRegistry` (с fallback для dev/test);
   - подключен в `apps/api/dependencies.py` вместо in-memory registry.
@@ -47,10 +48,12 @@
   - response: `TaskHistoryResponse` (`items`, `limit`, `offset`, `total_returned`).
 - референсный реалистичный кейс:
   - `saa_release_readiness_case` с тестовыми knowledge layers;
-  - end-to-end демонстрация через `demo_saa_release_readiness_case.ps1`.
+  - end-to-end демонстрация через `demo_saa_release_readiness_case.ps1` и `demo_saa_release_readiness_case.sh`.
 - надежность e2e фикстур:
   - добавлена диагностика раннего падения `uvicorn` (stdout/stderr);
   - добавлены retry-safe проверки `/health` при connection refused во время старта.
+- подготовлен отдельный handoff для переноса разработки на Linux-сервер:
+  - `docs/handoff/2026-04-19_ubuntu24_server_handoff.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -59,7 +62,8 @@
 - отсутствуют рабочие FastMCP runtime-сервисы;
 - отсутствуют `domain_docs` / `domain_authoring` workflows;
 - API по-прежнему синхронный, без очередей long-running задач;
-- история задач пока без фильтров/курсорной пагинации и без отдельного audit trail статусов.
+- история задач пока без фильтров/курсорной пагинации и без отдельного audit trail статусов;
+- нет проверенного deployment-контура на Ubuntu 24 (проверка переносится в следующую серверную итерацию).
 
 ## 4. GAP к целевой архитектуре
 
@@ -67,13 +71,15 @@
 2. Нужен реальный checkpointing LangGraph в PostgreSQL с восстановлением после process restart.
 3. Нужны FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
 4. Нужна расширенная модель task history: фильтрация, курсоры и аудит переходов статусов.
-5. Нужны ingestion/template/authoring/assembly workflows.
-6. Нужны observability/audit/metrics и эксплуатационные dashboards.
+5. Нужен production deployment-профиль для Ubuntu 24 (процессы запуска, env-профили, операционные проверки).
+6. Нужны ingestion/template/authoring/assembly workflows.
+7. Нужны observability/audit/metrics и эксплуатационные dashboards.
 
 ## 5. План следующего инкремента
 
 1. Подключить LangGraph checkpointer к PostgreSQL persistence.
 2. Ввести явные runtime профили (`dev`, `stage`, `prod`) с отключением fallback в `prod`.
-3. Поднять первые runtime MCP сервисы (`Retrieval MCP`, `Repository MCP`) на FastMCP.
+3. Прогнать полный deployment smoke на Ubuntu 24 и зафиксировать операционный runbook.
 4. Добавить фильтры и курсоры в `GET /api/v1/tasks`, зафиксировать контракт пагинации.
-5. Углубить референсный кейс `saa_release_readiness`: добавить authoring шаг и проверку traceability.
+5. Поднять первые runtime MCP сервисы (`Retrieval MCP`, `Repository MCP`) на FastMCP.
+6. Углубить референсный кейс `saa_release_readiness`: добавить authoring шаг и проверку traceability.

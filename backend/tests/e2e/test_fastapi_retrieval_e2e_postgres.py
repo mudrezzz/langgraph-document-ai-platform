@@ -16,7 +16,20 @@ import pytest
 
 
 def _docker_available() -> bool:
-    return shutil.which("docker") is not None
+    if shutil.which("docker") is None:
+        return False
+
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
 
 
 @pytest.fixture(scope="module")
@@ -24,7 +37,7 @@ def postgres_backed_server_base_url() -> str:
     """Поднимает PostgreSQL через docker compose и запускает API с реальным APP_DB_DSN."""
 
     if not _docker_available():
-        pytest.skip("Docker не установлен, e2e postgres test пропускается")
+        pytest.skip("Docker daemon недоступен, e2e postgres test пропускается")
 
     repo_root = Path(__file__).resolve().parents[3]
     backend_root = repo_root / "backend"

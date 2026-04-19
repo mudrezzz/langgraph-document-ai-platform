@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 7`.
+Текущий инкремент: `Increment 8`.
 
 Сделано:
 
@@ -29,6 +29,9 @@
 - добавлен e2e тест с реальным PostgreSQL контейнером и улучшена диагностика старта `uvicorn` в e2e фикстурах.
 - `TaskRegistry` вынесен в persistence слой: добавлен `PostgresTaskRegistry` + миграция `0002_task_registry.sql`;
 - добавлен endpoint истории задач `GET /api/v1/tasks` и покрытие integration/e2e для него.
+- добавлены Linux-скрипты (`.sh`) для Ubuntu 24: postgres up/migrate/down, migrations, smoke, demo;
+- подготовлен handoff-документ для переноса разработки на Linux-сервер:
+  - `docs/handoff/2026-04-19_ubuntu24_server_handoff.md`.
 
 ## Структура
 
@@ -50,6 +53,7 @@ backend/
 docs/
   adr/
   architecture/
+  handoff/
 ```
 
 ## Reference Case: SAA Release Readiness
@@ -70,13 +74,19 @@ docs/
 
 ### Как запускать кейс
 
-1. Быстрый демонстрационный запуск:
+1. Быстрый демонстрационный запуск (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_saa_release_readiness_case.ps1
 ```
 
-2. Гибкий smoke запуск с параметрами:
+2. Быстрый демонстрационный запуск (Linux):
+
+```bash
+bash ./backend/scripts/demo_saa_release_readiness_case.sh --host 127.0.0.1 --port 8010
+```
+
+3. Гибкий smoke запуск с параметрами (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retrieval_api.ps1 `
@@ -84,6 +94,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
   -Port 8000 `
   -CaseDatasetId saa_release_readiness `
   -Query "Какие ограничения и approval точки важны перед релизом?"
+```
+
+4. Гибкий smoke запуск с параметрами (Linux):
+
+```bash
+bash ./backend/scripts/smoke_retrieval_api.sh \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --case-dataset-id saa_release_readiness \
+  --query "Какие ограничения и approval точки важны перед релизом?"
 ```
 
 ### Как интерпретировать результат demo/smoke
@@ -118,7 +138,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 - unit/integration/e2e тесты (`TestClient` и реальный `uvicorn`);
 - baseline persistence adapters и SQL migration scaffold;
 - демонстрационный сценарий с реальными тестовыми данными;
-- локальный PostgreSQL профиль поднимается/мигрируется через PowerShell scripts;
+- локальный PostgreSQL профиль поднимается/мигрируется через PowerShell и Bash scripts;
 - e2e сценарий проверяется и в in-memory режиме, и с реальным PostgreSQL;
 - lifecycle задач хранится в персистентном реестре (`PostgresTaskRegistry`);
 - API отдает историю задач через `GET /api/v1/tasks`.
@@ -144,6 +164,8 @@ python -m pytest backend/tests -q
 ```
 
 ## Локальный запуск PostgreSQL профиля
+
+### Windows (PowerShell)
 
 1. Подготовить env-файл:
 
@@ -177,7 +199,40 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retr
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\postgres_down.ps1 -RemoveVolumes
 ```
 
-Отдельный e2e прогон PostgreSQL контура:
+### Linux (Ubuntu 24, Bash)
+
+1. Подготовить env-файл:
+
+```bash
+cp ./backend/.env.example ./backend/.env
+```
+
+2. Поднять контейнер PostgreSQL + pgvector:
+
+```bash
+bash ./backend/scripts/postgres_up.sh
+```
+
+3. Применить миграции:
+
+```bash
+bash ./backend/scripts/postgres_migrate.sh
+```
+
+4. Запустить smoke в PostgreSQL-режиме:
+
+```bash
+APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
+  bash ./backend/scripts/smoke_retrieval_api.sh --port 8010
+```
+
+5. Остановить PostgreSQL и удалить volume:
+
+```bash
+bash ./backend/scripts/postgres_down.sh --remove-volumes
+```
+
+Отдельный e2e прогон PostgreSQL контура (Windows/Linux):
 
 ```bash
 python -m pytest backend/tests/e2e/test_fastapi_retrieval_e2e_postgres.py -q
@@ -185,9 +240,18 @@ python -m pytest backend/tests/e2e/test_fastapi_retrieval_e2e_postgres.py -q
 
 ## Применение миграций
 
+Windows:
+
 ```powershell
 $env:APP_DB_DSN = "postgresql://user:password@localhost:5432/langgraph"
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\apply_migrations.ps1
+```
+
+Linux:
+
+```bash
+APP_DB_DSN=postgresql://user:password@localhost:5432/langgraph \
+  bash ./backend/scripts/apply_migrations.sh
 ```
 
 ## Обязательные документы сопровождения
