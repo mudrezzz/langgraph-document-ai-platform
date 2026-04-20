@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import json
 import os
 import shutil
@@ -222,12 +221,12 @@ def _start_task(base_url: str) -> str:
 def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
     import psycopg
 
-    encoded_task_id = base64.urlsafe_b64encode(task_id.encode("utf-8")).decode("ascii").rstrip("=")
-    run_id = f"lg_thread:{encoded_task_id}:ns:"
-
     with psycopg.connect(dsn, connect_timeout=5) as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM app.checkpoints WHERE run_id = %s LIMIT 1", (run_id,))
+            cur.execute(
+                "SELECT 1 FROM app.langgraph_checkpoints WHERE thread_id = %s LIMIT 1",
+                (task_id,),
+            )
             return cur.fetchone() is not None
 
 

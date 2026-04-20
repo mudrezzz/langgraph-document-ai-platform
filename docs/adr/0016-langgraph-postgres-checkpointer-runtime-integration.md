@@ -1,6 +1,6 @@
 # ADR-0016: Интеграция LangGraph PostgreSQL Checkpointer в Runtime
 
-- Статус: Accepted
+- Статус: Superseded by ADR-0017
 - Дата: 2026-04-20
 
 ## Контекст
@@ -35,5 +35,5 @@
 
 Минусы:
 
-- checkpoint namespace и task payload пока разделяются только префиксом `run_id`, без отдельной таблицы;
-- стратегия retention/pruning и оптимизация индексов требуют отдельного инкремента.
+- на момент принятия решения checkpoint namespace и task payload разделялись только префиксом `run_id`;
+- в `Increment 12` storage checkpointer вынесен в отдельные таблицы (см. ADR-0017).

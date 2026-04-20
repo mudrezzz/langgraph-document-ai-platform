@@ -28,11 +28,8 @@ except Exception:  # pragma: no cover - защитная ветка для ок�
     WRITES_IDX_MAP: dict[str, int] = {}
 
 
-_LG_RUN_ID_PREFIX = "lg_thread:"
-
-
 class LangGraphPostgresCheckpointStore(ICheckpointStore):
-    """Checkpoint store для LangGraph поверх PostgreSQL с in-memory fallback."""
+    """Checkpoint store для task payload и LangGraph checkpointer поверх PostgreSQL."""
 
     def __init__(
         self,
@@ -63,7 +60,7 @@ class LangGraphPostgresCheckpointStore(ICheckpointStore):
         return cls(dsn=settings.dsn, schema=settings.schema, use_fallback_if_unset=fallback_enabled)
 
     def build_langgraph_checkpointer(self) -> Any | None:
-        """Возвращает checkpointer, совместимый с `StateGraph.compile(checkpointer=...)`."""
+        """Возвращает checkpointer для `StateGraph.compile(checkpointer=...)`."""
 
         if not LANGGRAPH_CHECKPOINTER_AVAILABLE:
             return None
@@ -126,7 +123,7 @@ class LangGraphPostgresCheckpointStore(ICheckpointStore):
 if LANGGRAPH_CHECKPOINTER_AVAILABLE:
 
     class PostgresLangGraphCheckpointer(BaseCheckpointSaver[str]):
-        """LangGraph checkpointer поверх таблицы `app.checkpoints`."""
+        """LangGraph checkpointer на выделенных PostgreSQL таблицах."""
 
         def __init__(self, dsn: str | None, schema: str = "app") -> None:
             super().__init__()
@@ -138,66 +135,53 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
             validate_identifier(self._schema)
 
         def get_tuple(self, config: dict[str, Any]) -> CheckpointTuple | None:
-            thread_id = str(config["configurable"]["thread_id"])
-            checkpoint_ns = str(config["configurable"].get("checkpoint_ns", ""))
-            namespace_state = self._load_namespace_state(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
-
-            if namespace_state is None:
-                return None
-
-            checkpoints = namespace_state["checkpoints"]
+            thread_id, checkpoint_ns = self._extract_thread_and_ns(config)
             checkpoint_id = get_checkpoint_id(config)
 
-            if checkpoint_id:
-                selected_checkpoint_id = str(checkpoint_id)
-                selected_entry = checkpoints.get(selected_checkpoint_id)
-                if selected_entry is None:
-                    return None
-                response_config = config
-            else:
-                if not checkpoints:
-                    return None
-                selected_checkpoint_id = max(checkpoints.keys())
-                selected_entry = checkpoints[selected_checkpoint_id]
-                response_config = {
-                    "configurable": {
-                        "thread_id": thread_id,
-                        "checkpoint_ns": checkpoint_ns,
-                        "checkpoint_id": selected_checkpoint_id,
-                    }
-                }
-
-            checkpoint_payload = self.serde.loads_typed(self._decode_typed(selected_entry["checkpoint"]))
-            metadata_payload = self.serde.loads_typed(self._decode_typed(selected_entry["metadata"]))
-
-            channel_values = self._restore_channel_values(
-                checkpoint=checkpoint_payload,
-                blobs=namespace_state["blobs"],
+            row = self._fetch_checkpoint_row(
+                thread_id=thread_id,
+                checkpoint_ns=checkpoint_ns,
+                checkpoint_id=str(checkpoint_id) if checkpoint_id else None,
             )
+            if row is None:
+                return None
 
-            parent_checkpoint_id = selected_entry.get("parent_checkpoint_id")
-            parent_config = (
-                {
-                    "configurable": {
-                        "thread_id": thread_id,
-                        "checkpoint_ns": checkpoint_ns,
-                        "checkpoint_id": parent_checkpoint_id,
-                    }
-                }
-                if parent_checkpoint_id
-                else None
+            resolved_checkpoint_id = row["checkpoint_id"]
+            checkpoint_payload = self.serde.loads_typed(self._decode_typed_field(row["checkpoint_payload"]))
+            metadata_payload = self.serde.loads_typed(self._decode_typed_field(row["metadata_payload"]))
+            channel_values = self._load_channel_values(
+                thread_id=thread_id,
+                checkpoint_ns=checkpoint_ns,
+                channel_versions=checkpoint_payload.get("channel_versions", {}),
             )
-
-            pending_writes = self._decode_pending_writes(
-                namespace_state["writes"].get(selected_checkpoint_id, []),
-            )
+            parent_checkpoint_id = row["parent_checkpoint_id"]
 
             return CheckpointTuple(
-                config=response_config,
+                config={
+                    "configurable": {
+                        "thread_id": thread_id,
+                        "checkpoint_ns": checkpoint_ns,
+                        "checkpoint_id": resolved_checkpoint_id,
+                    }
+                },
                 checkpoint={**checkpoint_payload, "channel_values": channel_values},
                 metadata=metadata_payload,
-                parent_config=parent_config,
-                pending_writes=pending_writes,
+                parent_config=(
+                    {
+                        "configurable": {
+                            "thread_id": thread_id,
+                            "checkpoint_ns": checkpoint_ns,
+                            "checkpoint_id": parent_checkpoint_id,
+                        }
+                    }
+                    if parent_checkpoint_id
+                    else None
+                ),
+                pending_writes=self._fetch_pending_writes(
+                    thread_id=thread_id,
+                    checkpoint_ns=checkpoint_ns,
+                    checkpoint_id=resolved_checkpoint_id,
+                ),
             )
 
         def list(
@@ -213,36 +197,47 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
 
             thread_id = str(config["configurable"]["thread_id"]) if config else None
             checkpoint_ns = config["configurable"].get("checkpoint_ns") if config else None
-            namespace_rows = self._list_namespace_rows(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
 
-            for row_thread_id, row_checkpoint_ns, namespace_state in namespace_rows:
-                checkpoints = namespace_state["checkpoints"]
-                for checkpoint_id, checkpoint_entry in sorted(checkpoints.items(), key=lambda item: item[0], reverse=True):
-                    if config_checkpoint_id and checkpoint_id != str(config_checkpoint_id):
-                        continue
-                    if before_checkpoint_id and checkpoint_id >= str(before_checkpoint_id):
-                        continue
+            rows = self._list_checkpoint_rows(
+                thread_id=thread_id,
+                checkpoint_ns=str(checkpoint_ns) if checkpoint_ns is not None else None,
+                checkpoint_id=str(config_checkpoint_id) if config_checkpoint_id else None,
+                before_checkpoint_id=str(before_checkpoint_id) if before_checkpoint_id else None,
+            )
 
-                    metadata_payload = self.serde.loads_typed(self._decode_typed(checkpoint_entry["metadata"]))
-                    if filter and not all(metadata_payload.get(key) == value for key, value in filter.items()):
-                        continue
+            for row in rows:
+                metadata_payload = self.serde.loads_typed(self._decode_typed_field(row["metadata_payload"]))
+                if filter and not all(metadata_payload.get(key) == value for key, value in filter.items()):
+                    continue
 
-                    if limit is not None:
-                        if limit <= 0:
-                            return
-                        limit -= 1
+                if limit is not None:
+                    if limit <= 0:
+                        return
+                    limit -= 1
 
-                    checkpoint_payload = self.serde.loads_typed(self._decode_typed(checkpoint_entry["checkpoint"]))
-                    channel_values = self._restore_channel_values(
-                        checkpoint=checkpoint_payload,
-                        blobs=namespace_state["blobs"],
-                    )
-                    pending_writes = self._decode_pending_writes(
-                        namespace_state["writes"].get(checkpoint_id, []),
-                    )
+                row_thread_id = row["thread_id"]
+                row_checkpoint_ns = row["checkpoint_ns"]
+                row_checkpoint_id = row["checkpoint_id"]
 
-                    parent_checkpoint_id = checkpoint_entry.get("parent_checkpoint_id")
-                    parent_config = (
+                checkpoint_payload = self.serde.loads_typed(self._decode_typed_field(row["checkpoint_payload"]))
+                channel_values = self._load_channel_values(
+                    thread_id=row_thread_id,
+                    checkpoint_ns=row_checkpoint_ns,
+                    channel_versions=checkpoint_payload.get("channel_versions", {}),
+                )
+                parent_checkpoint_id = row["parent_checkpoint_id"]
+
+                yield CheckpointTuple(
+                    config={
+                        "configurable": {
+                            "thread_id": row_thread_id,
+                            "checkpoint_ns": row_checkpoint_ns,
+                            "checkpoint_id": row_checkpoint_id,
+                        }
+                    },
+                    checkpoint={**checkpoint_payload, "channel_values": channel_values},
+                    metadata=metadata_payload,
+                    parent_config=(
                         {
                             "configurable": {
                                 "thread_id": row_thread_id,
@@ -252,21 +247,13 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
                         }
                         if parent_checkpoint_id
                         else None
-                    )
-
-                    yield CheckpointTuple(
-                        config={
-                            "configurable": {
-                                "thread_id": row_thread_id,
-                                "checkpoint_ns": row_checkpoint_ns,
-                                "checkpoint_id": checkpoint_id,
-                            }
-                        },
-                        checkpoint={**checkpoint_payload, "channel_values": channel_values},
-                        metadata=metadata_payload,
-                        parent_config=parent_config,
-                        pending_writes=pending_writes,
-                    )
+                    ),
+                    pending_writes=self._fetch_pending_writes(
+                        thread_id=row_thread_id,
+                        checkpoint_ns=row_checkpoint_ns,
+                        checkpoint_id=row_checkpoint_id,
+                    ),
+                )
 
         def put(
             self,
@@ -275,37 +262,75 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
             metadata: CheckpointMetadata,
             new_versions: ChannelVersions,
         ) -> dict[str, Any]:
-            thread_id = str(config["configurable"]["thread_id"])
-            checkpoint_ns = str(config["configurable"].get("checkpoint_ns", ""))
+            thread_id, checkpoint_ns = self._extract_thread_and_ns(config)
             checkpoint_id = str(checkpoint["id"])
-
-            namespace_state = self._load_namespace_state(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
-            if namespace_state is None:
-                namespace_state = _empty_namespace_state()
+            parent_checkpoint_id = config["configurable"].get("checkpoint_id")
 
             checkpoint_copy = checkpoint.copy()
             channel_values: dict[str, Any] = checkpoint_copy.pop("channel_values", {})
-
-            for channel_name, channel_version in new_versions.items():
-                blob_key = _build_blob_key(channel_name=channel_name, channel_version=channel_version)
-                if channel_name in channel_values:
-                    namespace_state["blobs"][blob_key] = self._encode_typed(self.serde.dumps_typed(channel_values[channel_name]))
-                else:
-                    namespace_state["blobs"][blob_key] = {"type": "empty", "blob_b64": ""}
-
-            namespace_state["checkpoints"][checkpoint_id] = {
-                "checkpoint": self._encode_typed(self.serde.dumps_typed(checkpoint_copy)),
-                "metadata": self._encode_typed(
-                    self.serde.dumps_typed(get_checkpoint_metadata(config, metadata)),
-                ),
-                "parent_checkpoint_id": config["configurable"].get("checkpoint_id"),
-            }
-
-            self._save_namespace_state(
-                thread_id=thread_id,
-                checkpoint_ns=checkpoint_ns,
-                payload=namespace_state,
+            checkpoint_encoded = self._encode_typed_field(self.serde.dumps_typed(checkpoint_copy))
+            metadata_encoded = self._encode_typed_field(
+                self.serde.dumps_typed(get_checkpoint_metadata(config, metadata)),
             )
+
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        INSERT INTO {self._schema}.langgraph_checkpoints (
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            parent_checkpoint_id,
+                            checkpoint_payload,
+                            metadata_payload
+                        ) VALUES (%s, %s, %s, %s, %s::jsonb, %s::jsonb)
+                        ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id)
+                        DO UPDATE SET
+                            parent_checkpoint_id = EXCLUDED.parent_checkpoint_id,
+                            checkpoint_payload = EXCLUDED.checkpoint_payload,
+                            metadata_payload = EXCLUDED.metadata_payload,
+                            updated_at = now()
+                        """,
+                        (
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            str(parent_checkpoint_id) if parent_checkpoint_id else None,
+                            json.dumps(checkpoint_encoded, ensure_ascii=False),
+                            json.dumps(metadata_encoded, ensure_ascii=False),
+                        ),
+                    )
+
+                    for channel_name, channel_version in new_versions.items():
+                        channel_version_token = str(channel_version)
+                        if channel_name in channel_values:
+                            blob_payload = self._encode_typed_field(self.serde.dumps_typed(channel_values[channel_name]))
+                        else:
+                            blob_payload = {"type": "empty", "blob_b64": ""}
+
+                        cur.execute(
+                            f"""
+                            INSERT INTO {self._schema}.langgraph_checkpoint_blobs (
+                                thread_id,
+                                checkpoint_ns,
+                                channel_name,
+                                channel_version,
+                                blob_payload
+                            ) VALUES (%s, %s, %s, %s, %s::jsonb)
+                            ON CONFLICT (thread_id, checkpoint_ns, channel_name, channel_version)
+                            DO UPDATE SET
+                                blob_payload = EXCLUDED.blob_payload
+                            """,
+                            (
+                                thread_id,
+                                checkpoint_ns,
+                                channel_name,
+                                channel_version_token,
+                                json.dumps(blob_payload, ensure_ascii=False),
+                            ),
+                        )
 
             return {
                 "configurable": {
@@ -322,53 +347,92 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
             task_id: str,
             task_path: str = "",
         ) -> None:
-            thread_id = str(config["configurable"]["thread_id"])
-            checkpoint_ns = str(config["configurable"].get("checkpoint_ns", ""))
+            thread_id, checkpoint_ns = self._extract_thread_and_ns(config)
             checkpoint_id = str(config["configurable"]["checkpoint_id"])
 
-            namespace_state = self._load_namespace_state(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
-            if namespace_state is None:
-                namespace_state = _empty_namespace_state()
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    for index, (channel_name, value) in enumerate(writes):
+                        write_idx = WRITES_IDX_MAP.get(channel_name, index)
+                        value_payload = self._encode_typed_field(self.serde.dumps_typed(value))
 
-            writes_for_checkpoint = namespace_state["writes"].setdefault(checkpoint_id, [])
-            existing_keys = {
-                (str(item.get("task_id", "")), int(item.get("write_idx", 0)))
-                for item in writes_for_checkpoint
-            }
-
-            for index, (channel_name, value) in enumerate(writes):
-                write_idx = WRITES_IDX_MAP.get(channel_name, index)
-                dedupe_key = (task_id, write_idx)
-                if write_idx >= 0 and dedupe_key in existing_keys:
-                    continue
-
-                writes_for_checkpoint.append(
-                    {
-                        "task_id": task_id,
-                        "channel": channel_name,
-                        "value": self._encode_typed(self.serde.dumps_typed(value)),
-                        "task_path": task_path,
-                        "write_idx": write_idx,
-                    }
-                )
-                existing_keys.add(dedupe_key)
-
-            self._save_namespace_state(
-                thread_id=thread_id,
-                checkpoint_ns=checkpoint_ns,
-                payload=namespace_state,
-            )
+                        if write_idx >= 0:
+                            # Нормальные индексы считаем идемпотентными и не перетираем повторно.
+                            cur.execute(
+                                f"""
+                                INSERT INTO {self._schema}.langgraph_checkpoint_writes (
+                                    thread_id,
+                                    checkpoint_ns,
+                                    checkpoint_id,
+                                    task_id,
+                                    write_idx,
+                                    channel_name,
+                                    value_payload,
+                                    task_path
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                                ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id, task_id, write_idx)
+                                DO NOTHING
+                                """,
+                                (
+                                    thread_id,
+                                    checkpoint_ns,
+                                    checkpoint_id,
+                                    task_id,
+                                    write_idx,
+                                    channel_name,
+                                    json.dumps(value_payload, ensure_ascii=False),
+                                    task_path,
+                                ),
+                            )
+                        else:
+                            # Спец-каналы (`__error__`, `__interrupt__` и т.п.) разрешаем обновлять.
+                            cur.execute(
+                                f"""
+                                INSERT INTO {self._schema}.langgraph_checkpoint_writes (
+                                    thread_id,
+                                    checkpoint_ns,
+                                    checkpoint_id,
+                                    task_id,
+                                    write_idx,
+                                    channel_name,
+                                    value_payload,
+                                    task_path
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                                ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id, task_id, write_idx)
+                                DO UPDATE SET
+                                    channel_name = EXCLUDED.channel_name,
+                                    value_payload = EXCLUDED.value_payload,
+                                    task_path = EXCLUDED.task_path,
+                                    created_at = now()
+                                """,
+                                (
+                                    thread_id,
+                                    checkpoint_ns,
+                                    checkpoint_id,
+                                    task_id,
+                                    write_idx,
+                                    channel_name,
+                                    json.dumps(value_payload, ensure_ascii=False),
+                                    task_path,
+                                ),
+                            )
 
         def delete_thread(self, thread_id: str) -> None:
-            encoded_thread_id = _encode_run_id_part(thread_id)
-            pattern = f"{_LG_RUN_ID_PREFIX}{encoded_thread_id}:ns:%"
             psycopg, dict_row = _import_psycopg()
-
             with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        f"DELETE FROM {self._schema}.checkpoints WHERE run_id LIKE %s",
-                        (pattern,),
+                        f"DELETE FROM {self._schema}.langgraph_checkpoint_writes WHERE thread_id = %s",
+                        (thread_id,),
+                    )
+                    cur.execute(
+                        f"DELETE FROM {self._schema}.langgraph_checkpoint_blobs WHERE thread_id = %s",
+                        (thread_id,),
+                    )
+                    cur.execute(
+                        f"DELETE FROM {self._schema}.langgraph_checkpoints WHERE thread_id = %s",
+                        (thread_id,),
                     )
 
         def delete_for_runs(self, run_ids: Sequence[str]) -> None:
@@ -376,12 +440,92 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
                 self.delete_thread(run_id)
 
         def copy_thread(self, source_thread_id: str, target_thread_id: str) -> None:
-            for _, checkpoint_ns, payload in self._list_namespace_rows(thread_id=source_thread_id, checkpoint_ns=None):
-                self._save_namespace_state(
-                    thread_id=target_thread_id,
-                    checkpoint_ns=checkpoint_ns,
-                    payload=payload,
-                )
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        INSERT INTO {self._schema}.langgraph_checkpoints (
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            parent_checkpoint_id,
+                            checkpoint_payload,
+                            metadata_payload
+                        )
+                        SELECT
+                            %s,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            parent_checkpoint_id,
+                            checkpoint_payload,
+                            metadata_payload
+                        FROM {self._schema}.langgraph_checkpoints
+                        WHERE thread_id = %s
+                        ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id)
+                        DO UPDATE SET
+                            parent_checkpoint_id = EXCLUDED.parent_checkpoint_id,
+                            checkpoint_payload = EXCLUDED.checkpoint_payload,
+                            metadata_payload = EXCLUDED.metadata_payload,
+                            updated_at = now()
+                        """,
+                        (target_thread_id, source_thread_id),
+                    )
+                    cur.execute(
+                        f"""
+                        INSERT INTO {self._schema}.langgraph_checkpoint_blobs (
+                            thread_id,
+                            checkpoint_ns,
+                            channel_name,
+                            channel_version,
+                            blob_payload
+                        )
+                        SELECT
+                            %s,
+                            checkpoint_ns,
+                            channel_name,
+                            channel_version,
+                            blob_payload
+                        FROM {self._schema}.langgraph_checkpoint_blobs
+                        WHERE thread_id = %s
+                        ON CONFLICT (thread_id, checkpoint_ns, channel_name, channel_version)
+                        DO UPDATE SET
+                            blob_payload = EXCLUDED.blob_payload
+                        """,
+                        (target_thread_id, source_thread_id),
+                    )
+                    cur.execute(
+                        f"""
+                        INSERT INTO {self._schema}.langgraph_checkpoint_writes (
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            task_id,
+                            write_idx,
+                            channel_name,
+                            value_payload,
+                            task_path
+                        )
+                        SELECT
+                            %s,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            task_id,
+                            write_idx,
+                            channel_name,
+                            value_payload,
+                            task_path
+                        FROM {self._schema}.langgraph_checkpoint_writes
+                        WHERE thread_id = %s
+                        ON CONFLICT (thread_id, checkpoint_ns, checkpoint_id, task_id, write_idx)
+                        DO UPDATE SET
+                            channel_name = EXCLUDED.channel_name,
+                            value_payload = EXCLUDED.value_payload,
+                            task_path = EXCLUDED.task_path,
+                            created_at = now()
+                        """,
+                        (target_thread_id, source_thread_id),
+                    )
 
         def prune(
             self,
@@ -389,46 +533,82 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
             *,
             strategy: str = "keep_latest",
         ) -> None:
-            for thread_id in thread_ids:
-                namespace_rows = self._list_namespace_rows(thread_id=thread_id, checkpoint_ns=None)
-                for _, checkpoint_ns, payload in namespace_rows:
-                    if strategy == "delete":
-                        self._save_namespace_state(
-                            thread_id=thread_id,
-                            checkpoint_ns=checkpoint_ns,
-                            payload=_empty_namespace_state(),
+            if strategy not in {"keep_latest", "delete"}:
+                raise ValueError("strategy должен быть одним из: keep_latest, delete")
+
+            if strategy == "delete":
+                for thread_id in thread_ids:
+                    self.delete_thread(thread_id)
+                return
+
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    for thread_id in thread_ids:
+                        cur.execute(
+                            f"""
+                            SELECT DISTINCT checkpoint_ns
+                            FROM {self._schema}.langgraph_checkpoints
+                            WHERE thread_id = %s
+                            """,
+                            (thread_id,),
                         )
-                        continue
+                        namespaces = [row["checkpoint_ns"] for row in cur.fetchall()]
 
-                    checkpoints = payload["checkpoints"]
-                    if not checkpoints:
-                        continue
+                        for checkpoint_ns in namespaces:
+                            latest = self._fetch_checkpoint_row(
+                                thread_id=thread_id,
+                                checkpoint_ns=checkpoint_ns,
+                                checkpoint_id=None,
+                            )
+                            if latest is None:
+                                continue
 
-                    latest_checkpoint_id = max(checkpoints.keys())
-                    latest_checkpoint = checkpoints[latest_checkpoint_id]
-                    checkpoint_payload = self.serde.loads_typed(self._decode_typed(latest_checkpoint["checkpoint"]))
+                            latest_checkpoint_id = latest["checkpoint_id"]
+                            checkpoint_payload = self.serde.loads_typed(
+                                self._decode_typed_field(latest["checkpoint_payload"]),
+                            )
 
-                    channel_versions = checkpoint_payload.get("channel_versions", {})
-                    blob_keys = {
-                        _build_blob_key(channel_name=channel_name, channel_version=channel_version)
-                        for channel_name, channel_version in channel_versions.items()
-                    }
+                            keep_blob_keys: set[tuple[str, str]] = set()
+                            channel_versions = checkpoint_payload.get("channel_versions", {})
+                            if isinstance(channel_versions, dict):
+                                for channel_name, channel_version in channel_versions.items():
+                                    keep_blob_keys.add((str(channel_name), str(channel_version)))
 
-                    payload["checkpoints"] = {latest_checkpoint_id: latest_checkpoint}
-                    payload["writes"] = {
-                        latest_checkpoint_id: payload["writes"].get(latest_checkpoint_id, []),
-                    }
-                    payload["blobs"] = {
-                        blob_key: blob_payload
-                        for blob_key, blob_payload in payload["blobs"].items()
-                        if blob_key in blob_keys
-                    }
+                            cur.execute(
+                                f"""
+                                DELETE FROM {self._schema}.langgraph_checkpoint_writes
+                                WHERE thread_id = %s AND checkpoint_ns = %s AND checkpoint_id <> %s
+                                """,
+                                (thread_id, checkpoint_ns, latest_checkpoint_id),
+                            )
+                            cur.execute(
+                                f"""
+                                DELETE FROM {self._schema}.langgraph_checkpoints
+                                WHERE thread_id = %s AND checkpoint_ns = %s AND checkpoint_id <> %s
+                                """,
+                                (thread_id, checkpoint_ns, latest_checkpoint_id),
+                            )
 
-                    self._save_namespace_state(
-                        thread_id=thread_id,
-                        checkpoint_ns=checkpoint_ns,
-                        payload=payload,
-                    )
+                            cur.execute(
+                                f"""
+                                SELECT channel_name, channel_version
+                                FROM {self._schema}.langgraph_checkpoint_blobs
+                                WHERE thread_id = %s AND checkpoint_ns = %s
+                                """,
+                                (thread_id, checkpoint_ns),
+                            )
+                            existing_blobs = [(row["channel_name"], row["channel_version"]) for row in cur.fetchall()]
+                            for channel_name, channel_version in existing_blobs:
+                                if (channel_name, channel_version) in keep_blob_keys:
+                                    continue
+                                cur.execute(
+                                    f"""
+                                    DELETE FROM {self._schema}.langgraph_checkpoint_blobs
+                                    WHERE thread_id = %s AND checkpoint_ns = %s AND channel_name = %s AND channel_version = %s
+                                    """,
+                                    (thread_id, checkpoint_ns, channel_name, channel_version),
+                                )
 
         async def aget_tuple(self, config: dict[str, Any]) -> CheckpointTuple | None:
             return self.get_tuple(config)
@@ -479,189 +659,189 @@ if LANGGRAPH_CHECKPOINTER_AVAILABLE:
         ) -> None:
             self.prune(thread_ids=thread_ids, strategy=strategy)
 
-        def _load_namespace_state(self, *, thread_id: str, checkpoint_ns: str) -> dict[str, Any] | None:
-            run_id = _build_namespace_run_id(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
-            psycopg, dict_row = _import_psycopg()
+        def _extract_thread_and_ns(self, config: dict[str, Any]) -> tuple[str, str]:
+            thread_id = str(config["configurable"]["thread_id"])
+            checkpoint_ns = str(config["configurable"].get("checkpoint_ns", ""))
+            return thread_id, checkpoint_ns
 
+        def _fetch_checkpoint_row(
+            self,
+            *,
+            thread_id: str,
+            checkpoint_ns: str,
+            checkpoint_id: str | None,
+        ) -> dict[str, Any] | None:
+            psycopg, dict_row = _import_psycopg()
             with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
-                    cur.execute(
-                        f"SELECT payload FROM {self._schema}.checkpoints WHERE run_id = %s",
-                        (run_id,),
-                    )
-                    row = cur.fetchone()
+                    if checkpoint_id is None:
+                        cur.execute(
+                            f"""
+                            SELECT
+                                thread_id,
+                                checkpoint_ns,
+                                checkpoint_id,
+                                parent_checkpoint_id,
+                                checkpoint_payload,
+                                metadata_payload
+                            FROM {self._schema}.langgraph_checkpoints
+                            WHERE thread_id = %s AND checkpoint_ns = %s
+                            ORDER BY checkpoint_id DESC
+                            LIMIT 1
+                            """,
+                            (thread_id, checkpoint_ns),
+                        )
+                    else:
+                        cur.execute(
+                            f"""
+                            SELECT
+                                thread_id,
+                                checkpoint_ns,
+                                checkpoint_id,
+                                parent_checkpoint_id,
+                                checkpoint_payload,
+                                metadata_payload
+                            FROM {self._schema}.langgraph_checkpoints
+                            WHERE thread_id = %s AND checkpoint_ns = %s AND checkpoint_id = %s
+                            LIMIT 1
+                            """,
+                            (thread_id, checkpoint_ns, checkpoint_id),
+                        )
+                    return cur.fetchone()
 
-            if row is None:
-                return None
-
-            payload = row["payload"]
-            if isinstance(payload, str):
-                payload = json.loads(payload)
-            if not isinstance(payload, dict):
-                return _empty_namespace_state()
-
-            return _normalize_namespace_state(payload)
-
-        def _save_namespace_state(self, *, thread_id: str, checkpoint_ns: str, payload: dict[str, Any]) -> None:
-            run_id = _build_namespace_run_id(thread_id=thread_id, checkpoint_ns=checkpoint_ns)
-            psycopg, dict_row = _import_psycopg()
-            payload_json = json.dumps(payload, ensure_ascii=False)
-
-            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        f"""
-                        INSERT INTO {self._schema}.checkpoints (run_id, payload)
-                        VALUES (%s, %s::jsonb)
-                        ON CONFLICT (run_id)
-                        DO UPDATE SET payload = EXCLUDED.payload, updated_at = now()
-                        """,
-                        (run_id, payload_json),
-                    )
-
-        def _list_namespace_rows(
+        def _list_checkpoint_rows(
             self,
             *,
             thread_id: str | None,
             checkpoint_ns: str | None,
-        ) -> list[tuple[str, str, dict[str, Any]]]:
-            psycopg, dict_row = _import_psycopg()
-            clauses = [f"run_id LIKE '{_LG_RUN_ID_PREFIX}%'"]
+            checkpoint_id: str | None,
+            before_checkpoint_id: str | None,
+        ) -> list[dict[str, Any]]:
+            clauses = ["1=1"]
             params: list[Any] = []
 
-            if thread_id is not None and checkpoint_ns is not None:
-                clauses = ["run_id = %s"]
-                params = [_build_namespace_run_id(thread_id=thread_id, checkpoint_ns=str(checkpoint_ns))]
-            elif thread_id is not None:
-                clauses.append("run_id LIKE %s")
-                params.append(f"{_LG_RUN_ID_PREFIX}{_encode_run_id_part(thread_id)}:ns:%")
+            if thread_id is not None:
+                clauses.append("thread_id = %s")
+                params.append(thread_id)
+            if checkpoint_ns is not None:
+                clauses.append("checkpoint_ns = %s")
+                params.append(checkpoint_ns)
+            if checkpoint_id is not None:
+                clauses.append("checkpoint_id = %s")
+                params.append(checkpoint_id)
+            if before_checkpoint_id is not None:
+                clauses.append("checkpoint_id < %s")
+                params.append(before_checkpoint_id)
 
             where_clause = " AND ".join(clauses)
-
+            psycopg, dict_row = _import_psycopg()
             with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
                 with conn.cursor() as cur:
                     cur.execute(
-                        f"SELECT run_id, payload FROM {self._schema}.checkpoints WHERE {where_clause}",
+                        f"""
+                        SELECT
+                            thread_id,
+                            checkpoint_ns,
+                            checkpoint_id,
+                            parent_checkpoint_id,
+                            checkpoint_payload,
+                            metadata_payload
+                        FROM {self._schema}.langgraph_checkpoints
+                        WHERE {where_clause}
+                        ORDER BY thread_id ASC, checkpoint_ns ASC, checkpoint_id DESC
+                        """,
                         params,
+                    )
+                    return list(cur.fetchall())
+
+        def _load_channel_values(
+            self,
+            *,
+            thread_id: str,
+            checkpoint_ns: str,
+            channel_versions: Any,
+        ) -> dict[str, Any]:
+            if not isinstance(channel_versions, dict) or not channel_versions:
+                return {}
+
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        SELECT channel_name, channel_version, blob_payload
+                        FROM {self._schema}.langgraph_checkpoint_blobs
+                        WHERE thread_id = %s AND checkpoint_ns = %s
+                        """,
+                        (thread_id, checkpoint_ns),
                     )
                     rows = cur.fetchall()
 
-            result: list[tuple[str, str, dict[str, Any]]] = []
+            blob_lookup: dict[tuple[str, str], dict[str, Any]] = {}
             for row in rows:
-                run_id = row["run_id"]
-                parsed = _parse_namespace_run_id(run_id)
-                if parsed is None:
-                    continue
+                blob_lookup[(row["channel_name"], row["channel_version"])] = row["blob_payload"]
 
-                row_thread_id, row_checkpoint_ns = parsed
-                if checkpoint_ns is not None and row_checkpoint_ns != str(checkpoint_ns):
-                    continue
-
-                payload = row["payload"]
-                if isinstance(payload, str):
-                    payload = json.loads(payload)
-                if not isinstance(payload, dict):
-                    continue
-                result.append((row_thread_id, row_checkpoint_ns, _normalize_namespace_state(payload)))
-
-            return result
-
-        def _restore_channel_values(self, *, checkpoint: dict[str, Any], blobs: dict[str, Any]) -> dict[str, Any]:
             channel_values: dict[str, Any] = {}
-            channel_versions = checkpoint.get("channel_versions", {})
-            if not isinstance(channel_versions, dict):
-                return channel_values
-
             for channel_name, channel_version in channel_versions.items():
-                blob_key = _build_blob_key(channel_name=channel_name, channel_version=channel_version)
-                encoded_blob = blobs.get(blob_key)
+                encoded_blob = blob_lookup.get((str(channel_name), str(channel_version)))
                 if not isinstance(encoded_blob, dict):
                     continue
                 if encoded_blob.get("type") == "empty":
                     continue
-                channel_values[channel_name] = self.serde.loads_typed(self._decode_typed(encoded_blob))
+                channel_values[channel_name] = self.serde.loads_typed(self._decode_typed_field(encoded_blob))
             return channel_values
 
-        def _decode_pending_writes(self, encoded_writes: list[dict[str, Any]]) -> list[tuple[str, str, Any]]:
-            result: list[tuple[str, str, Any]] = []
-            for item in encoded_writes:
-                task_id = item.get("task_id")
-                channel_name = item.get("channel")
-                encoded_value = item.get("value")
-                if not isinstance(task_id, str) or not isinstance(channel_name, str):
-                    continue
-                if not isinstance(encoded_value, dict):
-                    continue
-                result.append((task_id, channel_name, self.serde.loads_typed(self._decode_typed(encoded_value))))
-            return result
+        def _fetch_pending_writes(
+            self,
+            *,
+            thread_id: str,
+            checkpoint_ns: str,
+            checkpoint_id: str,
+        ) -> list[tuple[str, str, Any]]:
+            psycopg, dict_row = _import_psycopg()
+            with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"""
+                        SELECT task_id, channel_name, value_payload
+                        FROM {self._schema}.langgraph_checkpoint_writes
+                        WHERE thread_id = %s AND checkpoint_ns = %s AND checkpoint_id = %s
+                        ORDER BY created_at ASC, task_id ASC, write_idx ASC
+                        """,
+                        (thread_id, checkpoint_ns, checkpoint_id),
+                    )
+                    rows = cur.fetchall()
+
+            pending_writes: list[tuple[str, str, Any]] = []
+            for row in rows:
+                pending_writes.append(
+                    (
+                        row["task_id"],
+                        row["channel_name"],
+                        self.serde.loads_typed(self._decode_typed_field(row["value_payload"])),
+                    )
+                )
+            return pending_writes
 
         @staticmethod
-        def _encode_typed(typed_payload: tuple[str, bytes]) -> dict[str, str]:
+        def _encode_typed_field(payload: tuple[str, bytes]) -> dict[str, str]:
             return {
-                "type": typed_payload[0],
-                "blob_b64": base64.b64encode(typed_payload[1]).decode("ascii"),
+                "type": payload[0],
+                "blob_b64": base64.b64encode(payload[1]).decode("ascii"),
             }
 
         @staticmethod
-        def _decode_typed(payload: dict[str, Any]) -> tuple[str, bytes]:
+        def _decode_typed_field(payload: Any) -> tuple[str, bytes]:
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            if not isinstance(payload, dict):
+                raise ValueError("Некорректный формат typed payload")
+
             payload_type = payload.get("type")
             payload_blob = payload.get("blob_b64")
             if not isinstance(payload_type, str) or not isinstance(payload_blob, str):
-                raise ValueError("Некорректный формат typed payload в PostgreSQL checkpointer")
-
+                raise ValueError("Некорректный формат typed payload")
             return payload_type, base64.b64decode(payload_blob.encode("ascii"))
-
-
-def _empty_namespace_state() -> dict[str, Any]:
-    return {
-        "checkpoints": {},
-        "blobs": {},
-        "writes": {},
-    }
-
-
-def _normalize_namespace_state(payload: dict[str, Any]) -> dict[str, Any]:
-    checkpoints = payload.get("checkpoints")
-    blobs = payload.get("blobs")
-    writes = payload.get("writes")
-
-    return {
-        "checkpoints": checkpoints if isinstance(checkpoints, dict) else {},
-        "blobs": blobs if isinstance(blobs, dict) else {},
-        "writes": writes if isinstance(writes, dict) else {},
-    }
-
-
-def _build_blob_key(*, channel_name: str, channel_version: Any) -> str:
-    return f"{channel_name}::{channel_version}"
-
-
-def _build_namespace_run_id(*, thread_id: str, checkpoint_ns: str) -> str:
-    return f"{_LG_RUN_ID_PREFIX}{_encode_run_id_part(thread_id)}:ns:{_encode_run_id_part(checkpoint_ns)}"
-
-
-def _parse_namespace_run_id(run_id: str) -> tuple[str, str] | None:
-    if not run_id.startswith(_LG_RUN_ID_PREFIX):
-        return None
-
-    parts = run_id.split(":")
-    if len(parts) != 4 or parts[2] != "ns":
-        return None
-
-    try:
-        return _decode_run_id_part(parts[1]), _decode_run_id_part(parts[3])
-    except Exception:
-        return None
-
-
-def _encode_run_id_part(value: str) -> str:
-    raw = value.encode("utf-8")
-    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-
-
-def _decode_run_id_part(value: str) -> str:
-    padding = "=" * (-len(value) % 4)
-    return base64.urlsafe_b64decode((value + padding).encode("ascii")).decode("utf-8")
 
 
 def _import_psycopg():

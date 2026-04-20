@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 11
+Статус: Increment 12
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 11)
+## 2. Текущая реализация (Increment 12)
 
 Реализовано:
 
@@ -32,7 +32,8 @@
 - SQL migrations:
   - `backend/migrations/0001_baseline.sql`;
   - `backend/migrations/0002_task_registry.sql`;
-  - `backend/migrations/0003_task_events.sql`.
+  - `backend/migrations/0003_task_events.sql`;
+  - `backend/migrations/0004_langgraph_checkpoint_storage.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -48,7 +49,11 @@
   - событие при создании задачи и при каждой смене `status`.
 - production checkpointer для LangGraph:
   - `PostgresLangGraphCheckpointer` реализует `BaseCheckpointSaver`;
-  - использует таблицу `app.checkpoints` с namespaced `run_id` (`lg_thread:*`);
+  - runtime storage вынесен в отдельные таблицы:
+    - `app.langgraph_checkpoints`;
+    - `app.langgraph_checkpoint_blobs`;
+    - `app.langgraph_checkpoint_writes`;
+  - поддержаны операции `delete_thread`, `copy_thread`, `prune(strategy=keep_latest|delete)`;
   - `BaseWorkflow` передает `configurable.thread_id` из `task_context.task_id`;
   - retrieval `start/resume` гарантируют наличие `task_id` в `task_context`.
 - локальный PostgreSQL deployment профиль:
@@ -63,30 +68,30 @@
   - `docs/adr/0013-runtime-profiles-task-history-cursor-and-status-audit.md`;
   - `docs/adr/0014-task-events-api-and-demo-runbook-hardening.md`;
   - `docs/adr/0015-smoke-keep-server-mode-for-post-smoke-api-validation.md`;
-  - `docs/adr/0016-langgraph-postgres-checkpointer-runtime-integration.md`.
+  - `docs/adr/0016-langgraph-postgres-checkpointer-runtime-integration.md`;
+  - `docs/adr/0017-dedicated-langgraph-checkpoint-storage.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- checkpoint data и task payload пока сосуществуют в одной таблице `app.checkpoints`;
-- отсутствуют рабочие FastMCP runtime-сервисы;
+- FastMCP runtime-сервисы пока отсутствуют;
 - отсутствуют `domain_docs` / `domain_authoring` workflows;
 - API синхронный, без очередей long-running задач;
-- нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками.
+- нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
+- нет агрегированного read-model по audit событиям (`task_events`).
 
 ## 4. GAP к целевой архитектуре
 
-1. Выделить checkpoint storage в отдельную схему/таблицы и добавить стратегии retention/pruning.
-2. Поднять FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
-3. Расширить API `task_events` дополнительными фильтрами (`to_status`, `from_status`) и агрегированными представлениями.
-4. Ввести async/queue execution для long-running задач и retry-политику.
-5. Собрать production deployment-профиль для Ubuntu 24: конфигурации, секреты, мониторинг, runbook.
-6. Развить ingestion/template/authoring/assembly workflows.
-7. Добавить observability/metrics/audit dashboards.
+1. Поднять FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
+2. Расширить API `task_events` дополнительными фильтрами (`to_status`, `from_status`) и агрегированными представлениями.
+3. Ввести async/queue execution для long-running задач и retry-политику.
+4. Собрать production deployment-профиль для Ubuntu 24: конфигурации, секреты, мониторинг, runbook.
+5. Развить ingestion/template/authoring/assembly workflows.
+6. Добавить observability/metrics/audit dashboards.
 
 ## 5. План следующего инкремента
 
-1. Вынести LangGraph checkpoints в выделенный storage-контур (с миграцией схемы и cleanup-политиками).
-2. Подготовить первый FastMCP runtime сервис (`Retrieval MCP`) на FastMCP.
-3. Зафиксировать deployment smoke/runbook для Ubuntu 24 c `stage`/`prod` профилями.
-4. Расширить reference-case `saa_release_readiness` шагом authoring + traceability.
-5. Добавить API/read-model для агрегированных audit-метрик по `task_events`.
+1. Подготовить первый FastMCP runtime сервис (`Retrieval MCP`) на FastMCP.
+2. Зафиксировать deployment smoke/runbook для Ubuntu 24 c `stage`/`prod` профилями.
+3. Расширить reference-case `saa_release_readiness` шагом authoring + traceability.
+4. Добавить API/read-model для агрегированных audit-метрик по `task_events`.
+5. Добавить integration-тесты для `task_events` фильтров `from_status`/`to_status`.

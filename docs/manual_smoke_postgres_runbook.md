@@ -50,6 +50,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 - `applied: 0001_baseline.sql`
 - `applied: 0002_task_registry.sql`
 - `applied: 0003_task_events.sql`
+- `applied: 0004_langgraph_checkpoint_storage.sql`
 
 ## 5. Прогнать smoke-сценарий
 
@@ -116,10 +117,10 @@ docker compose -f backend/docker-compose.postgres.yml --project-name langgraph e
   psql -U app -d langgraph -c "SELECT task_id,from_status,to_status,created_at FROM app.task_events ORDER BY created_at DESC LIMIT 10;"
 
 docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
-  psql -U app -d langgraph -c "SELECT run_id,updated_at FROM app.checkpoints WHERE run_id LIKE 'lg_thread:%' ORDER BY updated_at DESC LIMIT 5;"
+  psql -U app -d langgraph -c "SELECT thread_id,checkpoint_ns,checkpoint_id,updated_at FROM app.langgraph_checkpoints ORDER BY updated_at DESC LIMIT 5;"
 ```
 
-Ожидаемо: свежая задача в `app.tasks`, события переходов статусов в `app.task_events` и как минимум одна запись `lg_thread:*` в `app.checkpoints` (это LangGraph runtime checkpoint namespace).
+Ожидаемо: свежая задача в `app.tasks`, события переходов статусов в `app.task_events` и как минимум одна запись в `app.langgraph_checkpoints` для текущего `task_id`.
 
 ## 9. Завершение
 

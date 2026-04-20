@@ -26,3 +26,4 @@
 - `0014-task-events-api-and-demo-runbook-hardening.md`
 - `0015-smoke-keep-server-mode-for-post-smoke-api-validation.md`
 - `0016-langgraph-postgres-checkpointer-runtime-integration.md`
+- `0017-dedicated-langgraph-checkpoint-storage.md`

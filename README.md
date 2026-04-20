@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 11`.
+Текущий инкремент: `Increment 12`.
 
 Сделано:
 
@@ -46,6 +46,12 @@
 - в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API по `task_id`.
 - добавлен production checkpointer LangGraph поверх PostgreSQL (`PostgresLangGraphCheckpointer`) с подключением в runtime compile/invoke.
 - в retrieval lifecycle гарантирован единый `thread_id` для LangGraph checkpointing через `task_context.task_id` (ветки `start` и `resume`).
+- вынесен storage реального LangGraph checkpointer в выделенные таблицы:
+  - `app.langgraph_checkpoints`;
+  - `app.langgraph_checkpoint_blobs`;
+  - `app.langgraph_checkpoint_writes`;
+  - миграция `backend/migrations/0004_langgraph_checkpoint_storage.sql`.
+- добавлена cleanup-политика `keep_latest/delete` в `PostgresLangGraphCheckpointer.prune(...)`.
 
 ## Структура
 
@@ -176,6 +182,7 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - переходы статусов фиксируются в аудит-таблице `app.task_events`;
 - `prod` профиль запрещает in-memory fallback persistence.
 - LangGraph runtime использует PostgreSQL checkpointer в БД-контуре и `InMemorySaver` в fallback-контуре.
+- task payload продолжает храниться в `app.checkpoints`, а runtime checkpointing вынесен в отдельный storage-контур `app.langgraph_*`.
 
 ## Контракт GET /api/v1/tasks
 
@@ -215,7 +222,6 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 
 ## Что будет в следующих итерациях
 
-- выделение checkpointer-слоя в отдельный storage/schema (для снижения конкуренции с task payload в `app.checkpoints`);
 - FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
 - отдельный observability-контур для метрик/дашбордов по `task_events`.
