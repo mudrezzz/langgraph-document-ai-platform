@@ -1,0 +1,5 @@
+Ops readiness checklist:
+- Не завершен нагрузочный тест 1500 RPS для вечернего профиля.
+- Нет свежего rollback dry-run на staging за последние 7 дней.
+- Подготовлен war-room канал #payments-release-war-room.
+- Мониторинг по KPI включен: success_rate, p95 latency, auth_decline_rate.

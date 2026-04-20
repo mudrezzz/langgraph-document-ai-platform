@@ -6,6 +6,7 @@ param(
     [string]$Query = "evidence pack retrieval",
     [string]$CaseDatasetId = "saa_release_readiness",
     [string]$CaseDatasetPath = "",
+    [string]$CaseDatasetDir = "",
     [switch]$KeepServer,
     [string]$ServerPidFile = ""
 )
@@ -47,6 +48,16 @@ $pythonExe = Resolve-PythonExecutable -RepoRoot $repoRoot
 & $pythonExe -c "import uvicorn" *> $null
 if ($LASTEXITCODE -ne 0) {
     throw "В выбранном интерпретаторе ($pythonExe) не найден модуль uvicorn. Активируйте .venv или установите зависимости."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($CaseDatasetPath)) {
+    # Нормализуем путь, чтобы API не зависел от рабочей директории uvicorn.
+    $CaseDatasetPath = [System.IO.Path]::GetFullPath($CaseDatasetPath)
+}
+
+if (-not [string]::IsNullOrWhiteSpace($CaseDatasetDir)) {
+    # Для режима dataset_dir также передаем абсолютный путь.
+    $CaseDatasetDir = [System.IO.Path]::GetFullPath($CaseDatasetDir)
 }
 
 if ($KeepServer -and [string]::IsNullOrWhiteSpace($ServerPidFile)) {
@@ -103,6 +114,12 @@ try {
     if (-not [string]::IsNullOrWhiteSpace($CaseDatasetPath)) {
         $startRequestObject = $startRequest | ConvertFrom-Json
         $startRequestObject.task_context.case_dataset_path = $CaseDatasetPath
+        $startRequest = $startRequestObject | ConvertTo-Json -Depth 10
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CaseDatasetDir)) {
+        $startRequestObject = $startRequest | ConvertFrom-Json
+        $startRequestObject.task_context.case_dataset_dir = $CaseDatasetDir
         $startRequest = $startRequestObject | ConvertTo-Json -Depth 10
     }
     $startBody = [System.Text.Encoding]::UTF8.GetBytes($startRequest)

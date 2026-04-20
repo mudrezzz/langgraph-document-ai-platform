@@ -1,0 +1,1 @@
+"""Retrieval MCP application entrypoint."""

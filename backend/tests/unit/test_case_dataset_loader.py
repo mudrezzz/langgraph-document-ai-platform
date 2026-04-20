@@ -24,3 +24,14 @@ def test_case_dataset_resolve_path_exists() -> None:
 
     assert isinstance(path, Path)
     assert path.exists()
+
+
+def test_case_dataset_loader_supports_dataset_dir() -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
+
+    summary, detail = load_case_dataset(dataset_dir=str(dataset_dir))
+
+    assert len(summary) >= 3
+    assert len(detail) >= 6
+    assert any("PENDING" in block.text or "WAITING" in block.text for block in detail)

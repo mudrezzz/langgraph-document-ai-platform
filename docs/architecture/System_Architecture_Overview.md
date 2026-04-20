@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 14
+Статус: Increment 15
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 14)
+## 2. Текущая реализация (Increment 15)
 
 Реализовано:
 
@@ -65,6 +65,14 @@
   - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
   - запуск retrieval через `case_dataset_path`;
   - генерация итогового markdown-отчета `release_readiness_report.md` с GO/NO-GO интерпретацией.
+- multi-file ingestion для retrieval:
+  - поддержка `task_context.case_dataset_dir`;
+  - ingestion директории с файлами `.md/.txt/.json` в summary/detail блоки;
+  - новый demo-кейс `release_go_no_go_multifile_case`.
+- Retrieval MCP MVP:
+  - app entrypoint `apps/mcp_retrieval/main.py`;
+  - сервис `FastMcpRetrievalService`;
+  - минимальный MCP tool `build_evidence_pack`.
 - усилена операционная стабильность smoke/demo:
   - приоритет `./.venv` интерпретатора в `.sh/.ps1` скриптах;
   - явная проверка `uvicorn` до запуска API в smoke-скриптах.
@@ -72,16 +80,18 @@
   - unit + integration + e2e;
   - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
   - e2e покрытие старта задачи с `case_dataset_path`;
+  - e2e покрытие старта задачи с `case_dataset_dir`;
   - smoke сценарий: `backend/scripts/smoke_retrieval_api.sh`.
 - архитектурные решения:
   - `docs/adr/0016-langgraph-postgres-checkpointer-runtime-integration.md`;
   - `docs/adr/0017-dedicated-langgraph-checkpoint-storage.md`;
   - `docs/adr/0018-task-events-status-filters-and-summary-read-model.md`;
-  - `docs/adr/0019-file-based-demo-release-go-no-go-pipeline.md`.
+  - `docs/adr/0019-file-based-demo-release-go-no-go-pipeline.md`;
+  - `docs/adr/0020-multifile-ingestion-and-retrieval-mcp-mvp.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- FastMCP runtime-сервисы пока отсутствуют;
+- Retrieval MCP реализован в MVP-объеме, но остальные MCP-сервисы отсутствуют;
 - отсутствуют `domain_docs` / `domain_authoring` workflows;
 - API синхронный, без очередей long-running задач;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
@@ -89,16 +99,16 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Поднять FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
+1. Дорастить MCP-контур: `Repository MCP` и `Artifact Writer MCP` + унификация контрактов.
 2. Ввести async/queue execution для long-running задач и retry-политику.
-3. Развить file-based ingestion за пределы release packet (многофайловые источники, валидация форматов).
+3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
 4. Развить ingestion/template/authoring/assembly workflows.
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Подготовить первый FastMCP runtime сервис (`Retrieval MCP`) на FastMCP.
-2. Собрать ingestion-слой для нескольких входных документов (не только одиночный markdown).
+1. Поднять `Repository MCP` MVP и согласовать contracts с уже работающим Retrieval MCP.
+2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
 3. Расширить reference-case шагом authoring + traceability поверх текущего retrieval/demo.
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
 5. Добавить интеграционные тесты для расширенного audit read-model.

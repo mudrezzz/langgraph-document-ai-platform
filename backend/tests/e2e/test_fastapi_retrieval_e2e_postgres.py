@@ -218,6 +218,38 @@ def _start_task(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_task_with_dataset_dir(base_url: str) -> str:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/retrieval/start",
+        payload={
+            "query": "что блокирует релиз и какие approvals pending",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-postgres-dataset-dir",
+                "case_dataset_dir": str(dataset_dir),
+            },
+        },
+    )
+
+    assert status == 200
+    assert body["status"] == "completed"
+    return body["task_id"]
+
+
 def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
     import psycopg
 
@@ -305,5 +337,17 @@ def test_e2e_postgres_task_flow(postgres_backed_server_context: dict[str, str]) 
     transitions = {(item["from_status"], item["to_status"]) for item in summary_payload["transitions"]}
     assert (None, "running") in transitions
     assert ("running", "completed") in transitions
+
+    assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True
+
+
+def test_e2e_postgres_task_flow_supports_case_dataset_dir(postgres_backed_server_context: dict[str, str]) -> None:
+    base_url = postgres_backed_server_context["base_url"]
+    dsn = postgres_backed_server_context["dsn"]
+    task_id = _start_task_with_dataset_dir(base_url)
+
+    evidence_code, evidence_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/evidence")
+    assert evidence_code == 200
+    assert len(evidence_payload["evidence_pack"]["selected_blocks"]) >= 1
 
     assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True

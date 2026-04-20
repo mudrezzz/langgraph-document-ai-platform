@@ -17,6 +17,12 @@ chmod +x backend/scripts/*.sh
 - команды завершаются без ошибок;
 - в проекте есть `./.venv` (smoke/demo теперь автоматически предпочитает этот python).
 
+Опционально для MCP:
+
+```bash
+pip install fastmcp
+```
+
 ## 2. Создать `backend/.env`
 
 ```bash
@@ -103,7 +109,7 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events/summary" \
 - в `events` есть переходы `null -> running` и `running -> completed`;
 - в `summary.transitions` есть `running -> completed`.
 
-## 6. Расширенный demo (реалистичный file-based сценарий)
+## 6. Расширенный demo: single-file сценарий
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -126,21 +132,55 @@ bash backend/scripts/demo_release_go_no_go_case.sh --host 127.0.0.1 --port 8020
 - в конце выведены пути к `dataset` и `report`;
 - в отчете есть GO/NO-GO, blockers, pending approvals, evidence sources, task events summary.
 
-## 7. Готово / Не реализовано в demo-контуре
+## 7. Расширенный demo: multi-file сценарий
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --port 8022
+```
+
+Что делает скрипт:
+
+1. берет директорию `input/` с несколькими файлами (`.md`, `.txt`, `.json`);
+2. запускает retrieval через `task_context.case_dataset_dir`;
+3. формирует отчет `output/release_readiness_report.md`.
+
+Что увидеть:
+
+- `evidence_blocks > 0`;
+- `top_sources` содержит документы из нескольких файлов;
+- отчет формируется без промежуточной ручной сборки dataset JSON.
+
+## 8. Готово / Не реализовано в demo-контуре
 
 Готово:
 
 - file-based вход (`markdown -> dataset -> retrieval task`);
+- multi-file вход (`directory -> retrieval task`) через `case_dataset_dir`;
 - аудит статусов и summary API в том же прогоне;
 - осмысленный итоговый markdown-отчет для ручной проверки.
 
 Еще не реализовано:
 
-- универсальный ingestion произвольных форматов (пока фокус на структуре release packet);
+- универсальный ingestion для бинарных форматов (`.pdf/.docx`) и OCR;
 - LLM-авторинг итогового решения (сейчас используются rule-based эвристики);
 - отдельный production dashboard по агрегатам task events за периоды.
 
-## 8. Завершение и остановка сервисов
+## 9. (Опционально) Проверка Retrieval MCP
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис стартует без ошибки импорта;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+## 10. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

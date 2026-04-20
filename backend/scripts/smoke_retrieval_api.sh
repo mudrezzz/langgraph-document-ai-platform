@@ -7,6 +7,7 @@ STARTUP_TIMEOUT_SEC="30"
 QUERY="evidence pack retrieval"
 CASE_DATASET_ID="saa_release_readiness"
 CASE_DATASET_PATH=""
+CASE_DATASET_DIR=""
 KEEP_SERVER="false"
 SERVER_PID_FILE=""
 STARTED_OK="false"
@@ -35,6 +36,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --case-dataset-path)
             CASE_DATASET_PATH="$2"
+            shift 2
+            ;;
+        --case-dataset-dir)
+            CASE_DATASET_DIR="$2"
             shift 2
             ;;
         --keep-server)
@@ -73,6 +78,16 @@ if ! "${PYTHON_BIN}" -c "import uvicorn" >/dev/null 2>&1; then
     echo "В выбранном интерпретаторе (${PYTHON_BIN}) не найден модуль uvicorn." >&2
     echo "Активируйте .venv или установите зависимости (например: pip install uvicorn fastapi)." >&2
     exit 1
+fi
+
+if [[ -n "${CASE_DATASET_PATH}" ]]; then
+    # Нормализуем путь, чтобы API не зависел от текущей рабочей директории uvicorn-процесса.
+    CASE_DATASET_PATH="$("${PYTHON_BIN}" -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "${CASE_DATASET_PATH}")"
+fi
+
+if [[ -n "${CASE_DATASET_DIR}" ]]; then
+    # Для режима dataset_dir также передаем абсолютный путь.
+    CASE_DATASET_DIR="$("${PYTHON_BIN}" -c 'import os,sys; print(os.path.abspath(sys.argv[1]))' "${CASE_DATASET_DIR}")"
 fi
 
 if ss -ltn | awk -v suffix=":${PORT}" '$4 ~ suffix"$" {found=1} END {exit !found}'; then
@@ -173,7 +188,7 @@ if [[ "${started}" != "true" ]]; then
 fi
 STARTED_OK="true"
 
-start_payload="$(QUERY="${QUERY}" CASE_DATASET_ID="${CASE_DATASET_ID}" CASE_DATASET_PATH="${CASE_DATASET_PATH}" "${PYTHON_BIN}" - <<'PY'
+start_payload="$(QUERY="${QUERY}" CASE_DATASET_ID="${CASE_DATASET_ID}" CASE_DATASET_PATH="${CASE_DATASET_PATH}" CASE_DATASET_DIR="${CASE_DATASET_DIR}" "${PYTHON_BIN}" - <<'PY'
 import json
 import os
 
@@ -192,6 +207,10 @@ payload = {
 case_dataset_path = os.environ.get("CASE_DATASET_PATH", "").strip()
 if case_dataset_path:
     payload["task_context"]["case_dataset_path"] = case_dataset_path
+
+case_dataset_dir = os.environ.get("CASE_DATASET_DIR", "").strip()
+if case_dataset_dir:
+    payload["task_context"]["case_dataset_dir"] = case_dataset_dir
 
 print(json.dumps(payload, ensure_ascii=False))
 PY

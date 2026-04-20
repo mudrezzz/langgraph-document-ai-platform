@@ -13,6 +13,7 @@ def build_retrieval_workflow(
     *,
     case_dataset_id: str | None = None,
     case_dataset_path: str | None = None,
+    case_dataset_dir: str | None = None,
     checkpointer: object | None = None,
 ) -> RetrievalPackWorkflow:
     """Собирает retrieval workflow из concrete adapters и тестового case dataset."""
@@ -20,6 +21,7 @@ def build_retrieval_workflow(
     summary_blocks, detail_blocks = load_case_dataset(
         dataset_id=case_dataset_id,
         dataset_path=case_dataset_path,
+        dataset_dir=case_dataset_dir,
     )
 
     pipeline = HierarchicalRAGPipeline(

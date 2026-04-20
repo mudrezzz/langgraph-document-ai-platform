@@ -1,0 +1,13 @@
+{
+  "approvals": [
+    {"role": "Product", "status": "APPROVED", "owner": "pm@company"},
+    {"role": "QA", "status": "APPROVED", "owner": "qa-lead@company"},
+    {"role": "Security", "status": "PENDING", "owner": "appsec@company"},
+    {"role": "SRE", "status": "PENDING", "owner": "sre-oncall@company"},
+    {"role": "Release Manager", "status": "WAITING", "owner": "release-manager@company"}
+  ],
+  "release_constraints": {
+    "must_close_before": "2026-04-25T18:00:00Z",
+    "policy": "No unresolved high findings and mandatory approvals"
+  }
+}

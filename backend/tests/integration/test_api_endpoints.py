@@ -134,6 +134,34 @@ def test_start_endpoint_supports_case_dataset_path(client: TestClient) -> None:
     assert payload["status"] == "completed"
 
 
+def test_start_endpoint_supports_case_dataset_dir(client: TestClient) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "что блокирует релиз и какие approvals pending",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "case_dataset_dir": str(dataset_dir),
+                "requester": "integration-dir-test",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+
+
 def test_status_endpoint_returns_task_state(client: TestClient) -> None:
     task_id = _create_task(client)
 

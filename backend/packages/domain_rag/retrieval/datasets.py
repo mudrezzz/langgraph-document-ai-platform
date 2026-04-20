@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from domain_rag.retrieval.multifile_dataset import load_multifile_case_dataset
 from schemas.rag.contracts import RetrievedBlock
 
 DEFAULT_CASE_DATASET_ID = "saa_release_readiness"
@@ -27,11 +28,14 @@ def load_case_dataset(
     *,
     dataset_id: str | None = None,
     dataset_path: str | None = None,
+    dataset_dir: str | None = None,
 ) -> tuple[list[RetrievedBlock], list[RetrievedBlock]]:
     """Загружает summary/detail блоки для retrieval workflow из JSON датасета."""
 
     if dataset_path:
         path = Path(dataset_path)
+    elif dataset_dir:
+        return load_multifile_case_dataset(dataset_dir)
     else:
         normalized_id = dataset_id or DEFAULT_CASE_DATASET_ID
         path = resolve_case_dataset_path(normalized_id)

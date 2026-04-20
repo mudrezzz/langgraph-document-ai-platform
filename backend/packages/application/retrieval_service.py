@@ -32,10 +32,12 @@ class RetrievalApplicationService:
         *,
         case_dataset_id: str | None = None,
         case_dataset_path: str | None = None,
+        case_dataset_dir: str | None = None,
     ) -> RetrievalPackWorkflow:
         return build_retrieval_workflow(
             case_dataset_id=case_dataset_id,
             case_dataset_path=case_dataset_path,
+            case_dataset_dir=case_dataset_dir,
             checkpointer=self._task_service.get_langgraph_checkpointer(),
         )
 
@@ -45,7 +47,12 @@ class RetrievalApplicationService:
         task_context = {**request.task_context, "task_id": task.task_id}
         case_dataset_id = task_context.get("case_dataset_id")
         case_dataset_path = task_context.get("case_dataset_path")
-        workflow = self._build_workflow(case_dataset_id=case_dataset_id, case_dataset_path=case_dataset_path)
+        case_dataset_dir = task_context.get("case_dataset_dir")
+        workflow = self._build_workflow(
+            case_dataset_id=case_dataset_id,
+            case_dataset_path=case_dataset_path,
+            case_dataset_dir=case_dataset_dir,
+        )
 
         initial_state = RetrievalWorkflowState(
             query=request.query,
@@ -229,7 +236,12 @@ class RetrievalApplicationService:
 
         case_dataset_id = state.task_context.get("case_dataset_id")
         case_dataset_path = state.task_context.get("case_dataset_path")
-        workflow = self._build_workflow(case_dataset_id=case_dataset_id, case_dataset_path=case_dataset_path)
+        case_dataset_dir = state.task_context.get("case_dataset_dir")
+        workflow = self._build_workflow(
+            case_dataset_id=case_dataset_id,
+            case_dataset_path=case_dataset_path,
+            case_dataset_dir=case_dataset_dir,
+        )
 
         decision = request.decision.lower()
 

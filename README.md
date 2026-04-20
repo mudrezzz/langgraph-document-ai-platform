@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 14`.
+Текущий инкремент: `Increment 15`.
 
 Сделано:
 
@@ -70,6 +70,19 @@
 - усилена надежность smoke/demo-скриптов:
   - приоритет python из `./.venv`;
   - ранняя проверка наличия модуля `uvicorn`.
+- добавлен multi-file ingestion в retrieval start через `task_context.case_dataset_dir`:
+  - поддержка входных файлов `.md`, `.txt`, `.json`;
+  - сборка summary/detail блоков напрямую из директории без промежуточного JSON.
+- добавлен новый multi-file demo-кейс `release_go_no_go_multifile_case`:
+  - Linux: `backend/scripts/demo_release_go_no_go_multifile_case.sh`;
+  - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`.
+- smoke-скрипты расширены параметром директории датасета:
+  - `--case-dataset-dir` (Linux);
+  - `-CaseDatasetDir` (Windows).
+- добавлен Retrieval MCP MVP:
+  - `apps/mcp_retrieval/main.py`;
+  - `FastMcpRetrievalService` с tool `build_evidence_pack`;
+  - скрипты запуска `run_retrieval_mcp.sh/.ps1`.
 
 ## Структура
 
@@ -77,6 +90,7 @@
 backend/
   apps/
     api/
+    mcp_retrieval/
   examples/
     cases/
   migrations/
@@ -168,6 +182,32 @@ bash ./backend/scripts/demo_release_go_no_go_case.sh --host 127.0.0.1 --port 802
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_go_no_go_case.ps1
 ```
 
+8. Расширенный multi-file demo (Linux):
+
+```bash
+bash ./backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --port 8022
+```
+
+9. Расширенный multi-file demo (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_go_no_go_multifile_case.ps1
+```
+
+10. Запуск Retrieval MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_retrieval_mcp.sh
+```
+
+11. Запуск Retrieval MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrieval_mcp.ps1
+```
+
 ## Reference Case: Release Go/No-Go (File-Based)
 
 Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
@@ -185,6 +225,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - корректность file-based ingest в retrieval pipeline;
 - сохранение task lifecycle и audit events в том же контуре API;
 - интерпретируемый результат для релизного решения (GO/NO-GO, blockers, approvals).
+
+## Reference Case: Release Go/No-Go (Multi-File)
+
+Сценарий показывает ingestion директории с несколькими документами:
+
+1. Входная папка:
+   - `backend/examples/cases/release_go_no_go_multifile_case/input`
+2. Запуск retrieval с `task_context.case_dataset_dir`.
+3. Итоговый отчет:
+   - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`
+
+Этот кейс удобен для демонстрации реального потока, где данные приходят не из одного файла, а из набора артефактов релизного пакета.
 
 ### Как интерпретировать результат demo/smoke
 
@@ -239,7 +291,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - LangGraph runtime использует PostgreSQL checkpointer в БД-контуре и `InMemorySaver` в fallback-контуре.
 - task payload продолжает храниться в `app.checkpoints`, а runtime checkpointing вынесен в отдельный storage-контур `app.langgraph_*`.
 - retrieval start поддерживает file-based датасет через `task_context.case_dataset_path`;
+- retrieval start поддерживает загрузку из директории через `task_context.case_dataset_dir`;
 - добавлен новый реалистичный demo-кейс release go/no-go с генерацией итогового markdown-отчета.
+- добавлен Retrieval MCP MVP (`build_evidence_pack`) как первый FastMCP runtime сервис.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -247,8 +301,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 
 - `case_dataset_id` — загрузка встроенного demo-датасета по id;
 - `case_dataset_path` — загрузка датасета из JSON-файла на диске (file-based режим).
+- `case_dataset_dir` — загрузка датасета из директории файлов (`.md/.txt/.json`).
 
-Если заданы оба поля, приоритет у `case_dataset_path`.
+Приоритет источников: `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
 
 ## Контракт GET /api/v1/tasks
 
@@ -306,7 +361,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 
 ## Что будет в следующих итерациях
 
-- FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
+- расширение MCP-контуров (`Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
 - агрегированные read-model/дашборды поверх `task_events` (по периодам, task_type, SLA);
 - отдельный observability-контур для метрик/дашбордов по `task_events`.
