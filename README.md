@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 17`.
+Текущий инкремент: `Increment 19`.
 
 Сделано:
 
@@ -92,6 +92,22 @@
   - `FastMcpArtifactWriterService` с tool-ами `write_artifact`, `get_artifact`, `list_artifacts`;
   - `PostgresArtifactStore` + миграция `backend/migrations/0006_artifact_store.sql`;
   - скрипты `run_artifact_writer_mcp.sh/.ps1` и `smoke_artifact_writer_mcp.sh/.ps1`.
+- добавлен Authoring API MVP:
+  - `POST /api/v1/tasks/authoring/start`;
+  - `GET /api/v1/tasks/{task_id}/artifact`;
+  - orchestration `retrieval -> draft -> artifact` через `AuthoringApplicationService`.
+- добавлена персистентная traceability-связь task -> artifact:
+  - `PostgresTaskArtifactRegistry`;
+  - таблица `app.task_artifacts` (`backend/migrations/0007_task_artifacts.sql`).
+- добавлены authoring smoke/demo скрипты:
+  - `smoke_authoring_api.sh/.ps1`;
+  - `demo_release_authoring_traceability_case.sh/.ps1`.
+- добавлена опциональная реальная LLM-интеграция authoring через OpenRouter:
+  - env-конфиг `APP_LLM_*`, `OPENROUTER_*`;
+  - режимы генерации draft: `auto`, `deterministic`, `llm`;
+  - fallback на deterministic draft при недоступности LLM (когда `APP_LLM_STRICT=false`).
+- добавлен внешний integration тест для real LLM:
+  - `backend/tests/integration/test_authoring_openrouter_external.py` (активируется только с `RUN_EXTERNAL_LLM_TESTS=1`).
 
 ## Структура
 
@@ -271,6 +287,37 @@ bash ./backend/scripts/smoke_artifact_writer_mcp.sh
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_artifact_writer_mcp.ps1
 ```
 
+20. Smoke Authoring API (Linux):
+
+```bash
+bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
+```
+
+21. Smoke Authoring API (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030
+```
+
+22. Smoke Authoring API c обязательной LLM-генерацией (Linux):
+
+```bash
+set -a && source backend/.env && set +a
+bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --draft-strategy llm --require-llm
+```
+
+23. Demo Authoring + Traceability (Linux):
+
+```bash
+bash ./backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.1 --port 8040
+```
+
+24. Demo Authoring + Traceability (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_authoring_traceability_case.ps1 -HostName 127.0.0.1 -Port 8040
+```
+
 ## Reference Case: Release Go/No-Go (File-Based)
 
 Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
@@ -361,6 +408,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_arti
 - document repository поддерживает list-операцию для MCP read-model (`limit/offset`).
 - добавлен Artifact Writer MCP MVP (`write_artifact/get_artifact/list_artifacts`) как третий FastMCP runtime сервис.
 - artifact store поддерживает list-операцию для MCP read-model (`limit/offset`, `artifact_type`).
+- добавлен authoring API flow (`authoring/start`, `tasks/{task_id}/artifact`) с итоговым draft-артефактом.
+- сохраняется traceability link `task -> artifact -> retrieval sources` в `app.task_artifacts`.
+- authoring draft поддерживает реальную LLM (OpenRouter) с режимами `auto|deterministic|llm`.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -371,6 +421,38 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_arti
 - `case_dataset_dir` — загрузка датасета из директории файлов (`.md/.txt/.json`).
 
 Приоритет источников: `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
+
+## Контракт POST /api/v1/tasks/authoring/start
+
+Поля запроса:
+
+- `query`
+- `filters`
+- `task_context`
+- `artifact_type` (по умолчанию `release_report`)
+- `artifact_title` (опционально)
+- `artifact_format` (по умолчанию `markdown`)
+- `draft_strategy` (`auto|deterministic|llm`, по умолчанию `auto`)
+
+Ответ:
+
+- `task_id`
+- `status`
+
+## Контракт GET /api/v1/tasks/{task_id}/artifact
+
+Ответ:
+
+- `task_id`
+- `artifact_id`
+- `artifact_type`
+- `title`
+- `content`
+- `format`
+- `metadata`
+- `traceability`:
+  - `retrieval_task_id`
+  - `source_refs` (`doc_id`, `version`, `block_id`)
 
 ## MCP Контракты (MVP)
 
@@ -441,9 +523,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_arti
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
-- агрегированные read-model/дашборды поверх `task_events` (по периодам, task_type, SLA);
-- отдельный observability-контур для метрик/дашбордов по `task_events`.
+- расширение authoring flow до multi-step `research -> writer -> reviewer -> assembly`;
+- ingestion расширение на PDF/DOCX/OCR с quality gates;
+- агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 
 ## Тестовая стратегия
 
@@ -455,6 +537,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_arti
 
 ```bash
 python3 -m pytest backend/tests -q
+```
+
+Внешний integration тест с реальной LLM:
+
+```bash
+set -a && source backend/.env && set +a
+RUN_EXTERNAL_LLM_TESTS=1 python3 -m pytest -q backend/tests/integration/test_authoring_openrouter_external.py
 ```
 
 ## Локальный запуск PostgreSQL профиля

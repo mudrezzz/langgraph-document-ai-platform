@@ -31,6 +31,13 @@ APP_RUNTIME_PROFILE=prod
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph
 APP_DB_SCHEMA=app
 APP_VECTOR_DIM=1536
+APP_LLM_ENABLED=false
+APP_LLM_PROVIDER=openrouter
+APP_LLM_STRICT=false
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-4o-mini
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_TIMEOUT_SEC=60
 
 POSTGRES_DB=langgraph
 POSTGRES_USER=app
@@ -54,7 +61,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 Что увидеть:
 
 - контейнер `langgraph-db` в состоянии `healthy`;
-- применены миграции `0001`..`0006`.
+- применены миграции `0001`..`0007`.
 
 ## 4. Базовый smoke retrieval
 
@@ -166,7 +173,7 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 Еще не реализовано:
 
 - универсальный ingestion для бинарных форматов (`.pdf/.docx`) и OCR;
-- LLM-авторинг итогового решения (сейчас используются rule-based эвристики);
+- multi-step authoring цикл (`research -> writer -> reviewer -> assembly`) и HITL-петля;
 - отдельный production dashboard по агрегатам task events за периоды.
 
 ## 9. (Опционально) Проверка Retrieval MCP
@@ -244,7 +251,59 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_artifact_writer_mcp.sh
 - MCP-сервис `artifact-writer-mcp` стартует без ошибки импорта;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
-## 14. Завершение и остановка сервисов
+## 14. Smoke Authoring API (retrieval -> artifact + traceability)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
+```
+
+Что увидеть в JSON:
+
+- `start_status=completed` и `task_status=completed`;
+- `artifact_id` и `artifact_title` заполнены;
+- `draft_generation_mode` обычно `deterministic` (если LLM не включена);
+- `traceability_sources >= 1`;
+- `events_summary_has_running_to_completed=true`.
+
+Как интерпретировать:
+
+- это подтверждает, что authoring API flow формирует итоговый артефакт и сохраняет traceability link к retrieval источникам.
+
+Проверка с реальной LLM через OpenRouter:
+
+```bash
+set -a && source backend/.env && set +a
+APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --draft-strategy llm --require-llm
+```
+
+Что увидеть в JSON для LLM-режима:
+
+- `draft_generation_mode=llm`;
+- заполнены `draft_model_provider=openrouter` и `draft_model_name`.
+
+## 15. Расширенный demo: authoring + traceability
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.1 --port 8040
+```
+
+Что делает скрипт:
+
+1. запускает authoring smoke flow через новый endpoint `authoring/start`;
+2. получает итоговый task artifact и summary событий;
+3. сохраняет итог в `output/authoring_traceability_result.json`.
+
+## 16. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

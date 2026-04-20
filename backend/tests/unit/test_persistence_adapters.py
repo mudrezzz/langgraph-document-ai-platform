@@ -10,6 +10,7 @@ from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.document_repository import PostgresDocumentRepository
+from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
 
 
 def test_checkpoint_store_fallback_roundtrip() -> None:
@@ -100,6 +101,25 @@ def test_artifact_store_fallback_list_artifacts() -> None:
 
     assert [item["artifact_id"] for item in listed_all] == ["a-2", "a-1"]
     assert [item["artifact_id"] for item in listed_reports] == ["a-1"]
+
+
+def test_task_artifact_registry_fallback_roundtrip() -> None:
+    registry = PostgresTaskArtifactRegistry(dsn=None, use_fallback_if_unset=True)
+
+    registry.save_link(
+        task_id="authoring-1",
+        artifact_id="artifact-1",
+        retrieval_task_id="retrieval-1",
+        traceability={
+            "retrieval_task_id": "retrieval-1",
+            "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "D-1"}],
+        },
+    )
+    link = registry.get_link("authoring-1")
+
+    assert link.artifact_id == "artifact-1"
+    assert link.retrieval_task_id == "retrieval-1"
+    assert len(link.traceability["source_refs"]) == 1
 
 
 def test_postgres_settings_from_env(monkeypatch) -> None:

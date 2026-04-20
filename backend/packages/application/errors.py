@@ -23,3 +23,7 @@ class DocumentNotFoundError(KeyError):
 
 class ArtifactNotFoundError(KeyError):
     """Артефакт не найден в artifact store."""
+
+
+class TaskArtifactLinkNotFoundError(KeyError):
+    """Связь task -> artifact не найдена."""

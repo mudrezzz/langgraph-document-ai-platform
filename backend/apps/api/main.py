@@ -4,13 +4,21 @@ from datetime import datetime
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 
-from application.errors import InvalidCursorError, InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError
+from application.errors import (
+    InvalidCursorError,
+    InvalidTaskStateError,
+    TaskArtifactLinkNotFoundError,
+    TaskNotFoundError,
+    WorkflowExecutionError,
+)
 from apps.api.dependencies import ApiContainer, get_container
 from schemas.api.contracts import (
     EvidencePackResponse,
     ResumeTaskRequest,
+    StartAuthoringTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    TaskArtifactResponse,
     TaskEventsResponse,
     TaskEventsSummaryResponse,
     TaskHistoryResponse,
@@ -36,6 +44,19 @@ def start_retrieval_task(
 
     try:
         return container.retrieval_service.start(request)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/tasks/authoring/start", response_model=StartTaskResponse)
+def start_authoring_task(
+    request: StartAuthoringTaskRequest,
+    container: ApiContainer = Depends(get_container),
+) -> StartTaskResponse:
+    """Запускает authoring workflow и возвращает task id."""
+
+    try:
+        return container.authoring_service.start(request)
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -139,6 +160,23 @@ def get_task_evidence(
     try:
         return container.retrieval_service.evidence(task_id)
     except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvalidTaskStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/tasks/{task_id}/artifact", response_model=TaskArtifactResponse)
+def get_task_artifact(
+    task_id: str,
+    container: ApiContainer = Depends(get_container),
+) -> TaskArtifactResponse:
+    """Возвращает итоговый authoring-артефакт по задаче."""
+
+    try:
+        return container.authoring_service.artifact(task_id)
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except TaskArtifactLinkNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTaskStateError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

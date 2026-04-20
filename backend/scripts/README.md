@@ -26,6 +26,10 @@
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 - `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
+- `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.
+  - поддерживает `--draft-strategy auto|deterministic|llm`;
+  - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
+- `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
 
 ### Пример полного цикла
 
@@ -53,6 +57,17 @@ bash backend/scripts/run_artifact_writer_mcp.sh
 
 # Artifact Writer MCP smoke:
 bash backend/scripts/smoke_artifact_writer_mcp.sh
+
+# Authoring API smoke:
+bash backend/scripts/smoke_authoring_api.sh --port 8030
+
+# Authoring API smoke c реальной LLM (при заданном OPENROUTER_API_KEY):
+set -a && source backend/.env && set +a
+APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
+  bash backend/scripts/smoke_authoring_api.sh --port 8030 --draft-strategy llm --require-llm
+
+# Authoring demo:
+bash backend/scripts/demo_release_authoring_traceability_case.sh --port 8040
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
@@ -69,3 +84,5 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `smoke_repository_mcp.ps1`
 - `run_artifact_writer_mcp.ps1`
 - `smoke_artifact_writer_mcp.ps1`
+- `smoke_authoring_api.ps1`
+- `demo_release_authoring_traceability_case.ps1`

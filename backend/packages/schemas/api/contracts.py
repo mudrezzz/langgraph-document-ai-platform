@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from schemas.rag.contracts import EvidencePack, RetrievalFilter
+from schemas.rag.contracts import EvidencePack, RetrievalFilter, SourceRef
 
 
 class StartTaskRequest(BaseModel):
@@ -100,6 +101,18 @@ class StartRetrievalTaskRequest(BaseModel):
     task_context: dict = Field(default_factory=dict)
 
 
+class StartAuthoringTaskRequest(BaseModel):
+    """Типизированный запрос на запуск authoring workflow."""
+
+    query: str
+    filters: RetrievalFilter = Field(default_factory=RetrievalFilter)
+    task_context: dict = Field(default_factory=dict)
+    artifact_type: str = "release_report"
+    artifact_title: str | None = None
+    artifact_format: str = "markdown"
+    draft_strategy: Literal["auto", "deterministic", "llm"] = "auto"
+
+
 class ResumeTaskRequest(BaseModel):
     """Типизированный payload для resume endpoint."""
 
@@ -113,3 +126,23 @@ class EvidencePackResponse(BaseModel):
 
     task_id: str
     evidence_pack: EvidencePack
+
+
+class TaskArtifactTraceabilityResponse(BaseModel):
+    """Traceability-связи итогового артефакта с retrieval источниками."""
+
+    retrieval_task_id: str
+    source_refs: list[SourceRef] = Field(default_factory=list)
+
+
+class TaskArtifactResponse(BaseModel):
+    """Ответ API с итоговым authoring-артефактом по задаче."""
+
+    task_id: str
+    artifact_id: str
+    artifact_type: str
+    title: str | None = None
+    content: str
+    format: str
+    metadata: dict = Field(default_factory=dict)
+    traceability: TaskArtifactTraceabilityResponse

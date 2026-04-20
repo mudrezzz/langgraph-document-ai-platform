@@ -184,6 +184,31 @@ def _start_task_with_dataset_dir(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_authoring_task(base_url: str) -> str:
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/authoring/start",
+        payload={
+            "query": "подготовь release readiness draft",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-authoring-test",
+                "case_dataset_id": "saa_release_readiness",
+            },
+            "artifact_type": "release_report",
+            "artifact_title": "E2E Authoring Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+        },
+    )
+
+    assert status == 200
+    return body["task_id"]
+
+
 def test_e2e_health_endpoint(server_base_url: str) -> None:
     status, body = _request("GET", f"{server_base_url}/health")
 
@@ -306,3 +331,20 @@ def test_e2e_resume_endpoint(server_base_url: str) -> None:
     assert status == 200
     assert body["status"] == "completed"
     assert body["details"]["resume_decision"] == "rerun"
+
+
+def test_e2e_authoring_start_and_artifact_endpoint(server_base_url: str) -> None:
+    task_id = _start_authoring_task(server_base_url)
+
+    status_code, status_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}")
+    assert status_code == 200
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["artifact_id"]
+
+    artifact_code, artifact_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}/artifact")
+    assert artifact_code == 200
+    assert artifact_payload["task_id"] == task_id
+    assert artifact_payload["artifact_type"] == "release_report"
+    assert artifact_payload["title"] == "E2E Authoring Draft"
+    assert artifact_payload["metadata"]["draft_generation_mode"] in {"deterministic", "deterministic_fallback"}
+    assert len(artifact_payload["traceability"]["source_refs"]) >= 1

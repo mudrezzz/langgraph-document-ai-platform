@@ -250,6 +250,32 @@ def _start_task_with_dataset_dir(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_authoring_task(base_url: str) -> str:
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/authoring/start",
+        payload={
+            "query": "подготовь authoring draft с traceability",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-postgres-authoring",
+                "case_dataset_id": "saa_release_readiness",
+            },
+            "artifact_type": "release_report",
+            "artifact_title": "Postgres E2E Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+        },
+    )
+
+    assert status == 200
+    assert body["status"] == "completed"
+    return body["task_id"]
+
+
 def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
     import psycopg
 
@@ -257,6 +283,18 @@ def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT 1 FROM app.langgraph_checkpoints WHERE thread_id = %s LIMIT 1",
+                (task_id,),
+            )
+            return cur.fetchone() is not None
+
+
+def _has_task_artifact_link(dsn: str, task_id: str) -> bool:
+    import psycopg
+
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM app.task_artifacts WHERE task_id = %s LIMIT 1",
                 (task_id,),
             )
             return cur.fetchone() is not None
@@ -351,3 +389,24 @@ def test_e2e_postgres_task_flow_supports_case_dataset_dir(postgres_backed_server
     assert len(evidence_payload["evidence_pack"]["selected_blocks"]) >= 1
 
     assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True
+
+
+def test_e2e_postgres_authoring_flow(postgres_backed_server_context: dict[str, str]) -> None:
+    base_url = postgres_backed_server_context["base_url"]
+    dsn = postgres_backed_server_context["dsn"]
+    task_id = _start_authoring_task(base_url)
+
+    status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+    assert status_code == 200
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["artifact_id"]
+
+    artifact_code, artifact_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/artifact")
+    assert artifact_code == 200
+    assert artifact_payload["task_id"] == task_id
+    assert artifact_payload["artifact_type"] == "release_report"
+    assert artifact_payload["title"] == "Postgres E2E Draft"
+    assert artifact_payload["metadata"]["draft_generation_mode"] in {"deterministic", "deterministic_fallback"}
+    assert len(artifact_payload["traceability"]["source_refs"]) >= 1
+
+    assert _has_task_artifact_link(dsn=dsn, task_id=task_id) is True

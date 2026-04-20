@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 17
+Статус: Increment 19
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 17)
+## 2. Текущая реализация (Increment 19)
 
 Реализовано:
 
@@ -36,7 +36,8 @@
   - `backend/migrations/0003_task_events.sql`;
   - `backend/migrations/0004_langgraph_checkpoint_storage.sql`;
   - `backend/migrations/0005_task_events_status_filter_indexes.sql`;
-  - `backend/migrations/0006_artifact_store.sql`.
+  - `backend/migrations/0006_artifact_store.sql`;
+  - `backend/migrations/0007_task_artifacts.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -51,6 +52,11 @@
   - `GET /api/v1/tasks/events/summary`;
   - фильтры `task_id`, `task_type`, `from_status`, `to_status`, `from`, `to`;
   - агрегаты `total_events`, `unique_tasks`, `transitions(from_status,to_status,total)`.
+- authoring API:
+  - `POST /api/v1/tasks/authoring/start`;
+  - `GET /api/v1/tasks/{task_id}/artifact`;
+  - traceability payload: `retrieval_task_id` + `source_refs`;
+  - `draft_strategy`: `auto|deterministic|llm`.
 - аудит переходов статусов:
   - таблица `app.task_events`;
   - событие при создании задачи и при каждой смене `status`.
@@ -83,6 +89,12 @@
   - app entrypoint `apps/mcp_artifact_writer/main.py`;
   - сервис `FastMcpArtifactWriterService`;
   - MCP tools: `write_artifact`, `get_artifact`, `list_artifacts`.
+- Authoring application flow MVP:
+  - `AuthoringApplicationService`;
+  - orchestration `retrieval -> draft -> artifact`;
+  - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
+  - опциональная реальная LLM-генерация draft через OpenRouter gateway;
+  - fallback в deterministic draft при недоступности LLM (если strict-mode выключен).
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -98,11 +110,16 @@
 - добавлены MCP scripts для artifact writer контура:
   - `backend/scripts/run_artifact_writer_mcp.sh/.ps1`;
   - `backend/scripts/smoke_artifact_writer_mcp.sh/.ps1` + `smoke_artifact_writer_mcp.py`.
+- добавлены authoring API scripts:
+  - `backend/scripts/smoke_authoring_api.sh/.ps1` + `smoke_authoring_api.py`;
+  - `backend/scripts/demo_release_authoring_traceability_case.sh/.ps1`.
 - тестовое покрытие:
   - unit + integration + e2e;
   - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
   - e2e покрытие старта задачи с `case_dataset_path`;
   - e2e покрытие старта задачи с `case_dataset_dir`;
+  - внешний integration test с real LLM:
+    - `backend/tests/integration/test_authoring_openrouter_external.py` (флаг `RUN_EXTERNAL_LLM_TESTS=1`);
   - smoke сценарий: `backend/scripts/smoke_retrieval_api.sh`.
 - архитектурные решения:
   - `docs/adr/0017-dedicated-langgraph-checkpoint-storage.md`;
@@ -110,12 +127,15 @@
   - `docs/adr/0019-file-based-demo-release-go-no-go-pipeline.md`;
   - `docs/adr/0020-multifile-ingestion-and-retrieval-mcp-mvp.md`;
   - `docs/adr/0021-repository-mcp-mvp-and-document-tools.md`;
-  - `docs/adr/0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`.
+  - `docs/adr/0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`;
+  - `docs/adr/0023-authoring-api-flow-and-task-artifact-traceability-link.md`;
+  - `docs/adr/0024-openrouter-llm-authoring-draft-gateway.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
-- отсутствуют `domain_docs` / `domain_authoring` workflows;
+- authoring flow поддерживает single-pass LLM draft, но без multi-step section writer/reviewer/HITL цикла;
+- отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
 - API синхронный, без очередей long-running задач;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
@@ -125,13 +145,13 @@
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Ввести async/queue execution для long-running задач и retry-политику.
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
-4. Развить ingestion/template/authoring/assembly workflows.
+4. Развить authoring workflow до multi-step (research/writer/reviewer/HITL/assembly).
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Добавить authoring-oriented flow, который пишет итоговые артефакты через Artifact Writer MCP.
+1. Разбить authoring flow на этапы `research -> writer -> reviewer -> assembly` с явными state contracts.
 2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
-3. Расширить reference-case шагом authoring + traceability поверх текущего retrieval/demo.
+3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals).
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
-5. Добавить интеграционные тесты для расширенного audit read-model.
+5. Добавить интеграционные тесты для расширенного authoring read-model и audit метрик.

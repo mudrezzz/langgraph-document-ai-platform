@@ -61,6 +61,25 @@ def _create_interrupted_task(client: TestClient) -> str:
     return payload["task_id"]
 
 
+def _create_authoring_task(client: TestClient) -> str:
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь черновик release readiness и traceability",
+            "filters": {"project_id": "p1"},
+            "task_context": {"requester": "integration-authoring-test"},
+            "artifact_type": "release_report",
+            "artifact_title": "Integration Authoring Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    return payload["task_id"]
+
+
 def test_health_endpoint_returns_ok(client: TestClient) -> None:
     response = client.get("/health")
 
@@ -405,5 +424,46 @@ def test_resume_endpoint_returns_404_for_unknown_task(client: TestClient) -> Non
             "metadata": {"source": "integration-test"},
         },
     )
+
+    assert response.status_code == 404
+
+
+def test_authoring_start_endpoint_returns_task_id(client: TestClient) -> None:
+    task_id = _create_authoring_task(client)
+
+    status_response = client.get(f"/api/v1/tasks/{task_id}")
+    assert status_response.status_code == 200
+    payload = status_response.json()
+    assert payload["status"] == "completed"
+    assert payload["details"]["artifact_id"]
+    assert payload["details"]["retrieval_task_id"]
+
+
+def test_task_artifact_endpoint_returns_authoring_artifact(client: TestClient) -> None:
+    task_id = _create_authoring_task(client)
+
+    response = client.get(f"/api/v1/tasks/{task_id}/artifact")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["task_id"] == task_id
+    assert payload["artifact_type"] == "release_report"
+    assert payload["title"] == "Integration Authoring Draft"
+    assert len(payload["content"]) >= 10
+    assert payload["metadata"]["draft_generation_mode"] in {"deterministic", "deterministic_fallback"}
+    assert payload["traceability"]["retrieval_task_id"]
+    assert len(payload["traceability"]["source_refs"]) >= 1
+
+
+def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:
+    retrieval_task_id = _create_task(client)
+
+    response = client.get(f"/api/v1/tasks/{retrieval_task_id}/artifact")
+
+    assert response.status_code == 409
+
+
+def test_task_artifact_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks/unknown/artifact")
 
     assert response.status_code == 404

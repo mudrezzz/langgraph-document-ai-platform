@@ -32,3 +32,5 @@
 - `0020-multifile-ingestion-and-retrieval-mcp-mvp.md`
 - `0021-repository-mcp-mvp-and-document-tools.md`
 - `0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`
+- `0023-authoring-api-flow-and-task-artifact-traceability-link.md`
+- `0024-openrouter-llm-authoring-draft-gateway.md`
