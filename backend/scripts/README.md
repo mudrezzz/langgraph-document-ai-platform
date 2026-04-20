@@ -24,6 +24,8 @@
 - `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack`).
 - `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
+- `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
+- `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
 
 ### Пример полного цикла
 
@@ -44,8 +46,13 @@ kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_80
 # Repository MCP smoke (работает в текущем runtime profile и DSN из окружения/.env):
 bash backend/scripts/smoke_repository_mcp.sh
 
-# Запуск MCP runtime (до Ctrl+C):
+# Запуск MCP runtime (до Ctrl+C), выполняйте по одному:
 bash backend/scripts/run_repository_mcp.sh
+# либо:
+bash backend/scripts/run_artifact_writer_mcp.sh
+
+# Artifact Writer MCP smoke:
+bash backend/scripts/smoke_artifact_writer_mcp.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
@@ -60,3 +67,5 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `run_retrieval_mcp.ps1`
 - `run_repository_mcp.ps1`
 - `smoke_repository_mcp.ps1`
+- `run_artifact_writer_mcp.ps1`
+- `smoke_artifact_writer_mcp.ps1`

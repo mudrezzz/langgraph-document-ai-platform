@@ -19,3 +19,7 @@ class InvalidCursorError(ValueError):
 
 class DocumentNotFoundError(KeyError):
     """Документ не найден в document repository."""
+
+
+class ArtifactNotFoundError(KeyError):
+    """Артефакт не найден в artifact store."""

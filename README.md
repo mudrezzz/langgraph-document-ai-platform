@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 16`.
+Текущий инкремент: `Increment 17`.
 
 Сделано:
 
@@ -87,6 +87,11 @@
   - `apps/mcp_repository/main.py`;
   - `FastMcpRepositoryService` с tool-ами `upsert_document`, `get_document`, `list_documents`;
   - скрипты `run_repository_mcp.sh/.ps1` и `smoke_repository_mcp.sh/.ps1`.
+- добавлен Artifact Writer MCP MVP:
+  - `apps/mcp_artifact_writer/main.py`;
+  - `FastMcpArtifactWriterService` с tool-ами `write_artifact`, `get_artifact`, `list_artifacts`;
+  - `PostgresArtifactStore` + миграция `backend/migrations/0006_artifact_store.sql`;
+  - скрипты `run_artifact_writer_mcp.sh/.ps1` и `smoke_artifact_writer_mcp.sh/.ps1`.
 
 ## Структура
 
@@ -94,6 +99,7 @@
 backend/
   apps/
     api/
+    mcp_artifact_writer/
     mcp_repository/
     mcp_retrieval/
   examples/
@@ -239,6 +245,32 @@ bash ./backend/scripts/smoke_repository_mcp.sh
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repository_mcp.ps1
 ```
 
+16. Запуск Artifact Writer MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_artifact_writer_mcp.sh
+```
+
+17. Запуск Artifact Writer MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_artifact_writer_mcp.ps1
+```
+
+18. Smoke Artifact Writer MCP (Linux):
+
+```bash
+bash ./backend/scripts/smoke_artifact_writer_mcp.sh
+```
+
+19. Smoke Artifact Writer MCP (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_artifact_writer_mcp.ps1
+```
+
 ## Reference Case: Release Go/No-Go (File-Based)
 
 Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
@@ -327,6 +359,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repo
 - добавлен Retrieval MCP MVP (`build_evidence_pack`) как первый FastMCP runtime сервис.
 - добавлен Repository MCP MVP (`upsert_document/get_document/list_documents`) как второй FastMCP runtime сервис.
 - document repository поддерживает list-операцию для MCP read-model (`limit/offset`).
+- добавлен Artifact Writer MCP MVP (`write_artifact/get_artifact/list_artifacts`) как третий FastMCP runtime сервис.
+- artifact store поддерживает list-операцию для MCP read-model (`limit/offset`, `artifact_type`).
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -346,6 +380,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repo
 - Repository MCP:
   - tools `upsert_document`, `get_document`, `list_documents`;
   - схемы `backend/packages/schemas/mcp/repository.py`.
+- Artifact Writer MCP:
+  - tools `write_artifact`, `get_artifact`, `list_artifacts`;
+  - схемы `backend/packages/schemas/mcp/artifact_writer.py`.
 
 ## Контракт GET /api/v1/tasks
 
@@ -403,7 +440,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repo
 
 ## Что будет в следующих итерациях
 
-- расширение MCP-контуров (`Artifact Writer MCP`) и унификация контрактов Retrieval/Repository;
+- унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
 - агрегированные read-model/дашборды поверх `task_events` (по периодам, task_type, SLA);
 - отдельный observability-контур для метрик/дашбордов по `task_events`.

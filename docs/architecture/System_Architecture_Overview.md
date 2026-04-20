@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 16
+Статус: Increment 17
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 16)
+## 2. Текущая реализация (Increment 17)
 
 Реализовано:
 
@@ -23,6 +23,7 @@
 - API boundary + task lifecycle + interrupt/resume ветки;
 - persistence adapters:
   - `PostgresDocumentRepository`;
+  - `PostgresArtifactStore`;
   - `LangGraphPostgresCheckpointStore`;
   - `PgVectorStoreAdapter`;
   - `PostgresSettings` из env (`APP_DB_DSN`, `APP_DB_SCHEMA`, `APP_VECTOR_DIM`, `APP_RUNTIME_PROFILE`).
@@ -34,7 +35,8 @@
   - `backend/migrations/0002_task_registry.sql`;
   - `backend/migrations/0003_task_events.sql`;
   - `backend/migrations/0004_langgraph_checkpoint_storage.sql`;
-  - `backend/migrations/0005_task_events_status_filter_indexes.sql`.
+  - `backend/migrations/0005_task_events_status_filter_indexes.sql`;
+  - `backend/migrations/0006_artifact_store.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -77,15 +79,25 @@
   - app entrypoint `apps/mcp_repository/main.py`;
   - сервис `FastMcpRepositoryService`;
   - MCP tools: `upsert_document`, `get_document`, `list_documents`.
+- Artifact Writer MCP MVP:
+  - app entrypoint `apps/mcp_artifact_writer/main.py`;
+  - сервис `FastMcpArtifactWriterService`;
+  - MCP tools: `write_artifact`, `get_artifact`, `list_artifacts`.
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
+- artifact application layer:
+  - `ArtifactApplicationService` для операций artifact store;
+  - list-операция в `PostgresArtifactStore` (`limit/offset`, фильтр `artifact_type`).
 - усилена операционная стабильность smoke/demo:
   - приоритет `./.venv` интерпретатора в `.sh/.ps1` скриптах;
   - явная проверка `uvicorn` до запуска API в smoke-скриптах.
 - добавлены MCP scripts для repository контура:
   - `backend/scripts/run_repository_mcp.sh/.ps1`;
   - `backend/scripts/smoke_repository_mcp.sh/.ps1` + `smoke_repository_mcp.py`.
+- добавлены MCP scripts для artifact writer контура:
+  - `backend/scripts/run_artifact_writer_mcp.sh/.ps1`;
+  - `backend/scripts/smoke_artifact_writer_mcp.sh/.ps1` + `smoke_artifact_writer_mcp.py`.
 - тестовое покрытие:
   - unit + integration + e2e;
   - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
@@ -97,11 +109,12 @@
   - `docs/adr/0018-task-events-status-filters-and-summary-read-model.md`;
   - `docs/adr/0019-file-based-demo-release-go-no-go-pipeline.md`;
   - `docs/adr/0020-multifile-ingestion-and-retrieval-mcp-mvp.md`;
-  - `docs/adr/0021-repository-mcp-mvp-and-document-tools.md`.
+  - `docs/adr/0021-repository-mcp-mvp-and-document-tools.md`;
+  - `docs/adr/0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- MCP-контур пока состоит из Retrieval MCP + Repository MCP, `Artifact Writer MCP` отсутствует;
+- MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
 - отсутствуют `domain_docs` / `domain_authoring` workflows;
 - API синхронный, без очередей long-running задач;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
@@ -109,7 +122,7 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Дорастить MCP-контур: `Artifact Writer MCP` + унификация контрактов между Retrieval/Repository сервисами.
+1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Ввести async/queue execution для long-running задач и retry-политику.
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
 4. Развить ingestion/template/authoring/assembly workflows.
@@ -117,7 +130,7 @@
 
 ## 5. План следующего инкремента
 
-1. Поднять `Artifact Writer MCP` MVP и согласовать contracts с Retrieval/Repository MCP.
+1. Добавить authoring-oriented flow, который пишет итоговые артефакты через Artifact Writer MCP.
 2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
 3. Расширить reference-case шагом authoring + traceability поверх текущего retrieval/demo.
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.

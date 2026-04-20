@@ -6,6 +6,7 @@ import pytest
 
 from apps.api.dependencies import ApiContainer
 from infra.pgvector.vector_store import PgVectorStoreAdapter
+from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.document_repository import PostgresDocumentRepository
@@ -50,6 +51,55 @@ def test_pgvector_adapter_fallback_roundtrip() -> None:
     vector, metadata = loaded
     assert vector == [0.1, 0.2, 0.3]
     assert metadata["source"] == "test"
+
+
+def test_artifact_store_fallback_roundtrip() -> None:
+    store = PostgresArtifactStore(dsn=None, use_fallback_if_unset=True)
+
+    store.save_artifact(
+        "a-1",
+        {
+            "artifact_id": "a-1",
+            "artifact_type": "release_report",
+            "title": "Report",
+            "content": "ok",
+            "format": "markdown",
+        },
+    )
+    loaded = store.read_artifact("a-1")
+
+    assert loaded["artifact_type"] == "release_report"
+    assert loaded["title"] == "Report"
+
+
+def test_artifact_store_fallback_list_artifacts() -> None:
+    store = PostgresArtifactStore(dsn=None, use_fallback_if_unset=True)
+    store.save_artifact(
+        "a-1",
+        {
+            "artifact_id": "a-1",
+            "artifact_type": "release_report",
+            "title": "Report 1",
+            "content": "ok-1",
+            "format": "markdown",
+        },
+    )
+    store.save_artifact(
+        "a-2",
+        {
+            "artifact_id": "a-2",
+            "artifact_type": "traceability_map",
+            "title": "Traceability",
+            "content": "ok-2",
+            "format": "text",
+        },
+    )
+
+    listed_all = store.list_artifacts(limit=10, offset=0)
+    listed_reports = store.list_artifacts(limit=10, offset=0, artifact_type="release_report")
+
+    assert [item["artifact_id"] for item in listed_all] == ["a-2", "a-1"]
+    assert [item["artifact_id"] for item in listed_reports] == ["a-1"]
 
 
 def test_postgres_settings_from_env(monkeypatch) -> None:

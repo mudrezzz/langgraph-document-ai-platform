@@ -31,3 +31,4 @@
 - `0019-file-based-demo-release-go-no-go-pipeline.md`
 - `0020-multifile-ingestion-and-retrieval-mcp-mvp.md`
 - `0021-repository-mcp-mvp-and-document-tools.md`
+- `0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`

@@ -54,7 +54,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 Что увидеть:
 
 - контейнер `langgraph-db` в состоянии `healthy`;
-- применены миграции `0001`..`0005`.
+- применены миграции `0001`..`0006`.
 
 ## 4. Базовый smoke retrieval
 
@@ -212,7 +212,39 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_repository_mcp.sh
 - MCP-сервис `repository-mcp` стартует без ошибки импорта;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
-## 12. Завершение и остановка сервисов
+## 12. Smoke Artifact Writer MCP (generated artifacts)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_artifact_writer_mcp.sh
+```
+
+Что увидеть в JSON:
+
+- `written_artifact_ids` содержит 2 значения;
+- `loaded_artifact_id` и `loaded_title` заполнены;
+- `list_total_returned >= 1`;
+- `list_contains_artifact_1=true` и `list_contains_artifact_2=true`.
+
+Как интерпретировать:
+
+- это подтверждает, что artifact writer-контур в PostgreSQL профиле поддерживает `write/get/list` через MCP service слой.
+
+## 13. (Опционально) Проверка Artifact Writer MCP runtime
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_artifact_writer_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис `artifact-writer-mcp` стартует без ошибки импорта;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+## 14. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

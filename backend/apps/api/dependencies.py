@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.document_repository import PostgresDocumentRepository
+from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.task_registry import PostgresTaskRegistry
 
 
@@ -29,11 +31,16 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        artifact_store = PostgresArtifactStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
 
         self.settings = settings
         self.task_service = task_service
         self.document_service = DocumentApplicationService(repository=document_repository)
+        self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)
         self.retrieval_service = RetrievalApplicationService(task_service=task_service)
 
 

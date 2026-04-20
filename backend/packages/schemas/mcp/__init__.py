@@ -1,3 +1,12 @@
+from schemas.mcp.artifact_writer import (
+    ArtifactWriterMcpArtifactItem,
+    ArtifactWriterMcpGetArtifactInput,
+    ArtifactWriterMcpGetArtifactOutput,
+    ArtifactWriterMcpListArtifactsInput,
+    ArtifactWriterMcpListArtifactsOutput,
+    ArtifactWriterMcpWriteArtifactInput,
+    ArtifactWriterMcpWriteArtifactOutput,
+)
 from schemas.mcp.repository import (
     RepositoryMcpDocumentItem,
     RepositoryMcpGetDocumentInput,
@@ -13,6 +22,13 @@ from schemas.mcp.retrieval import (
 )
 
 __all__ = [
+    "ArtifactWriterMcpWriteArtifactInput",
+    "ArtifactWriterMcpWriteArtifactOutput",
+    "ArtifactWriterMcpGetArtifactInput",
+    "ArtifactWriterMcpGetArtifactOutput",
+    "ArtifactWriterMcpListArtifactsInput",
+    "ArtifactWriterMcpArtifactItem",
+    "ArtifactWriterMcpListArtifactsOutput",
     "RepositoryMcpUpsertDocumentInput",
     "RepositoryMcpUpsertDocumentOutput",
     "RepositoryMcpGetDocumentInput",
