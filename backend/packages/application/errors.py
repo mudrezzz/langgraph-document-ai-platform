@@ -15,3 +15,7 @@ class WorkflowExecutionError(RuntimeError):
 
 class InvalidCursorError(ValueError):
     """Некорректный курсор пагинации истории задач."""
+
+
+class DocumentNotFoundError(KeyError):
+    """Документ не найден в document repository."""

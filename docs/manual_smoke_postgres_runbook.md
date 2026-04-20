@@ -180,7 +180,39 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
 - MCP-сервис стартует без ошибки импорта;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
-## 10. Завершение и остановка сервисов
+## 10. Smoke Repository MCP (document tools)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_repository_mcp.sh
+```
+
+Что увидеть в JSON:
+
+- `upserted_doc_ids` содержит 2 значения;
+- `loaded_doc_id` и `loaded_title` заполнены;
+- `list_total_returned >= 1`;
+- `list_contains_doc_1=true` и `list_contains_doc_2=true`.
+
+Как интерпретировать:
+
+- это подтверждает, что repository-контур в PostgreSQL профиле поддерживает `upsert/get/list` через MCP service слой.
+
+## 11. (Опционально) Проверка Repository MCP runtime
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_repository_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис `repository-mcp` стартует без ошибки импорта;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+## 12. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

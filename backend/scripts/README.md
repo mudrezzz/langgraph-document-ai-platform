@@ -21,6 +21,9 @@
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
 - `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
+- `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack`).
+- `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
+- `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 
 ### Пример полного цикла
 
@@ -37,6 +40,12 @@ APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgr
 
 # Остановка API после --keep-server:
 kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_8010.pid
+
+# Repository MCP smoke (работает в текущем runtime profile и DSN из окружения/.env):
+bash backend/scripts/smoke_repository_mcp.sh
+
+# Запуск MCP runtime (до Ctrl+C):
+bash backend/scripts/run_repository_mcp.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
@@ -48,3 +57,6 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `apply_migrations.ps1`
 - `smoke_retrieval_api.ps1`
 - `demo_saa_release_readiness_case.ps1`
+- `run_retrieval_mcp.ps1`
+- `run_repository_mcp.ps1`
+- `smoke_repository_mcp.ps1`

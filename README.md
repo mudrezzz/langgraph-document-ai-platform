@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 15`.
+Текущий инкремент: `Increment 16`.
 
 Сделано:
 
@@ -83,6 +83,10 @@
   - `apps/mcp_retrieval/main.py`;
   - `FastMcpRetrievalService` с tool `build_evidence_pack`;
   - скрипты запуска `run_retrieval_mcp.sh/.ps1`.
+- добавлен Repository MCP MVP:
+  - `apps/mcp_repository/main.py`;
+  - `FastMcpRepositoryService` с tool-ами `upsert_document`, `get_document`, `list_documents`;
+  - скрипты `run_repository_mcp.sh/.ps1` и `smoke_repository_mcp.sh/.ps1`.
 
 ## Структура
 
@@ -90,6 +94,7 @@
 backend/
   apps/
     api/
+    mcp_repository/
     mcp_retrieval/
   examples/
     cases/
@@ -208,6 +213,32 @@ pip install fastmcp
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrieval_mcp.ps1
 ```
 
+12. Запуск Repository MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_repository_mcp.sh
+```
+
+13. Запуск Repository MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_repository_mcp.ps1
+```
+
+14. Smoke Repository MCP (Linux):
+
+```bash
+bash ./backend/scripts/smoke_repository_mcp.sh
+```
+
+15. Smoke Repository MCP (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repository_mcp.ps1
+```
+
 ## Reference Case: Release Go/No-Go (File-Based)
 
 Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
@@ -294,6 +325,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrie
 - retrieval start поддерживает загрузку из директории через `task_context.case_dataset_dir`;
 - добавлен новый реалистичный demo-кейс release go/no-go с генерацией итогового markdown-отчета.
 - добавлен Retrieval MCP MVP (`build_evidence_pack`) как первый FastMCP runtime сервис.
+- добавлен Repository MCP MVP (`upsert_document/get_document/list_documents`) как второй FastMCP runtime сервис.
+- document repository поддерживает list-операцию для MCP read-model (`limit/offset`).
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -304,6 +337,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrie
 - `case_dataset_dir` — загрузка датасета из директории файлов (`.md/.txt/.json`).
 
 Приоритет источников: `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
+
+## MCP Контракты (MVP)
+
+- Retrieval MCP:
+  - tool `build_evidence_pack`;
+  - схемы `backend/packages/schemas/mcp/retrieval.py`.
+- Repository MCP:
+  - tools `upsert_document`, `get_document`, `list_documents`;
+  - схемы `backend/packages/schemas/mcp/repository.py`.
 
 ## Контракт GET /api/v1/tasks
 
@@ -361,7 +403,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrie
 
 ## Что будет в следующих итерациях
 
-- расширение MCP-контуров (`Repository MCP`, далее `Artifact Writer MCP`);
+- расширение MCP-контуров (`Artifact Writer MCP`) и унификация контрактов Retrieval/Repository;
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
 - агрегированные read-model/дашборды поверх `task_events` (по периодам, task_type, SLA);
 - отдельный observability-контур для метрик/дашбордов по `task_events`.

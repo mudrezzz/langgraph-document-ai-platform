@@ -29,6 +29,17 @@ def test_document_repository_fallback_roundtrip() -> None:
     assert loaded["title"] == "Spec"
 
 
+def test_document_repository_fallback_list_documents() -> None:
+    repo = PostgresDocumentRepository(dsn=None, use_fallback_if_unset=True)
+    _ = repo.save({"doc_id": "d-1", "title": "Spec 1"})
+    _ = repo.save({"doc_id": "d-2", "title": "Spec 2"})
+
+    listed = repo.list_documents(limit=10, offset=0)
+    listed_ids = [item["doc_id"] for item in listed]
+
+    assert listed_ids == ["d-2", "d-1"]
+
+
 def test_pgvector_adapter_fallback_roundtrip() -> None:
     adapter = PgVectorStoreAdapter(dsn=None, use_fallback_if_unset=True)
 

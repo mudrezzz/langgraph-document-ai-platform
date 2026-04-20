@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any
 
 from framework.db.repository import BaseRepository
@@ -40,7 +41,10 @@ class PostgresDocumentRepository(BaseRepository, IDocumentStore):
 
     def get(self, entity_id: str) -> dict[str, Any] | None:
         if self._use_fallback:
-            return self._storage.get(entity_id)
+            item = self._storage.get(entity_id)
+            if item is None:
+                return None
+            return dict(item["payload"])
 
         psycopg, dict_row = _import_psycopg()
 
@@ -64,7 +68,13 @@ class PostgresDocumentRepository(BaseRepository, IDocumentStore):
         entity_id = str(payload.get("doc_id") or payload.get("id") or len(self._storage) + 1)
 
         if self._use_fallback:
-            self._storage[entity_id] = payload
+            now_utc = datetime.now(timezone.utc)
+            current = self._storage.get(entity_id)
+            self._storage[entity_id] = {
+                "payload": dict(payload),
+                "created_at": current["created_at"] if current else now_utc,
+                "updated_at": now_utc,
+            }
             return entity_id
 
         psycopg, dict_row = _import_psycopg()
@@ -83,6 +93,59 @@ class PostgresDocumentRepository(BaseRepository, IDocumentStore):
                 )
 
         return entity_id
+
+    def list_documents(self, *, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        if limit < 1:
+            raise ValueError("limit должен быть >= 1")
+        if offset < 0:
+            raise ValueError("offset должен быть >= 0")
+
+        if self._use_fallback:
+            ordered = sorted(
+                self._storage.items(),
+                key=lambda item: (item[1]["updated_at"], item[0]),
+                reverse=True,
+            )
+            window = ordered[offset : offset + limit]
+            return [
+                {
+                    "doc_id": doc_id,
+                    "payload": dict(item["payload"]),
+                    "created_at": item["created_at"],
+                    "updated_at": item["updated_at"],
+                }
+                for doc_id, item in window
+            ]
+
+        psycopg, dict_row = _import_psycopg()
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT doc_id, payload, created_at, updated_at
+                    FROM {self._schema}.documents
+                    ORDER BY updated_at DESC, doc_id DESC
+                    LIMIT %s
+                    OFFSET %s
+                    """,
+                    (limit, offset),
+                )
+                rows = cur.fetchall()
+
+        result: list[dict[str, Any]] = []
+        for row in rows:
+            payload = row["payload"]
+            if isinstance(payload, str):
+                payload = json.loads(payload)
+            result.append(
+                {
+                    "doc_id": row["doc_id"],
+                    "payload": payload,
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                }
+            )
+        return result
 
     def read_document(self, doc_id: str) -> dict[str, Any]:
         value = self.get(doc_id)
