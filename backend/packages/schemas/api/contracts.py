@@ -47,8 +47,33 @@ class TaskHistoryResponse(BaseModel):
 
     items: list[TaskHistoryItem] = Field(default_factory=list)
     limit: int
-    offset: int
     total_returned: int
+    next_cursor: str | None = None
+    has_more: bool = False
+
+
+class TaskEventItem(BaseModel):
+    """Элемент аудита переходов статусов."""
+
+    event_id: int | None = None
+    task_id: str
+    task_type: str
+    from_status: str | None = None
+    to_status: str
+    from_current_node: str | None = None
+    to_current_node: str | None = None
+    event_payload: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+
+class TaskEventsResponse(BaseModel):
+    """Ответ API с аудитом переходов статусов задач."""
+
+    items: list[TaskEventItem] = Field(default_factory=list)
+    limit: int
+    total_returned: int
+    next_cursor: str | None = None
+    has_more: bool = False
 
 
 class StartRetrievalTaskRequest(BaseModel):

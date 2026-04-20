@@ -77,8 +77,10 @@ try {
     $resumeBody = [System.Text.Encoding]::UTF8.GetBytes($resumeRequest)
 
     $resumeResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/$taskId/resume" -ContentType "application/json; charset=utf-8" -Body $resumeBody
-    $historyResponse = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/tasks?limit=5&offset=0"
+    $historyResponse = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/tasks?limit=5&status=completed&task_type=retrieval_pack"
+    $eventsResponse = Invoke-RestMethod -Method Get -Uri "$baseUrl/api/v1/tasks/events?limit=10&task_id=$taskId&task_type=retrieval_pack"
     $historyTaskIds = @($historyResponse.items | ForEach-Object { $_.task_id })
+    $hasCompletedTransition = @($eventsResponse.items | Where-Object { $_.from_status -eq "running" -and $_.to_status -eq "completed" }).Count -gt 0
 
     $result = [ordered]@{
         base_url = $baseUrl
@@ -93,6 +95,8 @@ try {
         resume_decision = $resumeResponse.details.resume_decision
         history_returned = @($historyResponse.items).Count
         history_contains_task = ($historyTaskIds -contains $taskId)
+        events_returned = @($eventsResponse.items).Count
+        events_has_running_to_completed = $hasCompletedTransition
     }
 
     Write-Output ($result | ConvertTo-Json -Depth 10)

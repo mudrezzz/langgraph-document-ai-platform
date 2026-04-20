@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-19
-Статус: Increment 8
+Статус: Increment 10
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 8)
+## 2. Текущая реализация (Increment 10)
 
 Реализовано:
 
@@ -25,61 +25,65 @@
   - `PostgresDocumentRepository`;
   - `LangGraphPostgresCheckpointStore`;
   - `PgVectorStoreAdapter`;
-  - `PostgresSettings` из env (`APP_DB_DSN`, `APP_DB_SCHEMA`, `APP_VECTOR_DIM`).
-- baseline migration:
+  - `PostgresSettings` из env (`APP_DB_DSN`, `APP_DB_SCHEMA`, `APP_VECTOR_DIM`, `APP_RUNTIME_PROFILE`).
+- runtime profiles:
+  - `dev`, `stage`, `prod`;
+  - fallback persistence разрешен в `dev/stage` и отключен в `prod`.
+- baseline migrations:
   - `backend/migrations/0001_baseline.sql`;
-  - scripts: `apply_migrations.py`, `apply_migrations.ps1`, `apply_migrations.sh`.
-- migration task history:
-  - `backend/migrations/0002_task_registry.sql`.
+  - `backend/migrations/0002_task_registry.sql`;
+  - `backend/migrations/0003_task_events.sql`.
+- API история задач:
+  - `GET /api/v1/tasks`;
+  - фильтры `status`, `task_type`, `from`, `to`;
+  - курсорная пагинация (`cursor`, `next_cursor`, `has_more`);
+  - сортировка по `updated_at DESC, task_id DESC`.
+- API аудит событий задач:
+  - `GET /api/v1/tasks/events`;
+  - фильтры `task_id`, `task_type`, `from`, `to`;
+  - курсорная пагинация (`cursor`, `next_cursor`, `has_more`);
+  - сортировка по `created_at DESC, event_id DESC`.
+- аудит переходов статусов задач:
+  - таблица `app.task_events`;
+  - событие пишется при создании задачи и каждой смене `status`.
+- архитектурное решение зафиксировано в:
+  - `docs/adr/0013-runtime-profiles-task-history-cursor-and-status-audit.md`.
+  - `docs/adr/0014-task-events-api-and-demo-runbook-hardening.md`.
+  - `docs/adr/0015-smoke-keep-server-mode-for-post-smoke-api-validation.md`.
 - локальный PostgreSQL deployment профиль:
   - `backend/docker-compose.postgres.yml`;
-  - `backend/.env.example`;
-  - scripts: `postgres_up.ps1`, `postgres_migrate.ps1`, `postgres_down.ps1`;
-  - scripts: `postgres_up.sh`, `postgres_migrate.sh`, `postgres_down.sh`.
-- персистентный реестр задач:
-  - `PostgresTaskRegistry` (с fallback для dev/test);
-  - подключен в `apps/api/dependencies.py` вместо in-memory registry.
+  - scripts: `postgres_up/down/migrate` (`.ps1` + `.sh`), `apply_migrations` (`.ps1` + `.sh`), smoke/demo.
+  - в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API.
 - тестовое покрытие:
   - unit + integration + e2e;
-  - smoke и demo scripts;
-  - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`.
-- API контракты истории задач:
-  - `GET /api/v1/tasks`;
-  - response: `TaskHistoryResponse` (`items`, `limit`, `offset`, `total_returned`).
+  - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
+  - smoke сценарий: `backend/scripts/smoke_retrieval_api.sh`.
 - референсный реалистичный кейс:
   - `saa_release_readiness_case` с тестовыми knowledge layers;
-  - end-to-end демонстрация через `demo_saa_release_readiness_case.ps1` и `demo_saa_release_readiness_case.sh`.
-- надежность e2e фикстур:
-  - добавлена диагностика раннего падения `uvicorn` (stdout/stderr);
-  - добавлены retry-safe проверки `/health` при connection refused во время старта.
-- подготовлен отдельный handoff для переноса разработки на Linux-сервер:
-  - `docs/handoff/2026-04-19_ubuntu24_server_handoff.md`.
+  - end-to-end демонстрация через `demo_saa_release_readiness_case.ps1/.sh` (исправлен Linux parsing output).
 
 ## 3. Архитектурные ограничения текущей версии
 
-- persistence adapters имеют fallback-режим для dev/test, а не строгий production-only режим;
-- нет реального LangGraph checkpointer integration поверх PostgreSQL saver;
+- нет реального LangGraph checkpointer integration поверх production-grade PostgreSQL saver;
 - отсутствуют рабочие FastMCP runtime-сервисы;
 - отсутствуют `domain_docs` / `domain_authoring` workflows;
 - API по-прежнему синхронный, без очередей long-running задач;
-- история задач пока без фильтров/курсорной пагинации и без отдельного audit trail статусов;
-- нет проверенного deployment-контура на Ubuntu 24 (проверка переносится в следующую серверную итерацию).
+- нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками.
 
 ## 4. GAP к целевой архитектуре
 
-1. Нужен production-режим без in-memory fallback для critical paths.
-2. Нужен реальный checkpointing LangGraph в PostgreSQL с восстановлением после process restart.
-3. Нужны FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
-4. Нужна расширенная модель task history: фильтрация, курсоры и аудит переходов статусов.
-5. Нужен production deployment-профиль для Ubuntu 24 (процессы запуска, env-профили, операционные проверки).
-6. Нужны ingestion/template/authoring/assembly workflows.
-7. Нужны observability/audit/metrics и эксплуатационные dashboards.
+1. Подключить реальный checkpointing LangGraph в PostgreSQL с восстановлением после process restart.
+2. Поднять FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
+3. Расширить API `task_events` дополнительными фильтрами (`to_status`, `from_status`) и агрегированными представлениями.
+4. Ввести async/queue execution для long-running задач и retry-политику.
+5. Собрать production deployment-профиль для Ubuntu 24: конфигурации, секреты, мониторинг, runbook.
+6. Развить ingestion/template/authoring/assembly workflows.
+7. Добавить observability/metrics/audit dashboards.
 
 ## 5. План следующего инкремента
 
-1. Подключить LangGraph checkpointer к PostgreSQL persistence.
-2. Ввести явные runtime профили (`dev`, `stage`, `prod`) с отключением fallback в `prod`.
-3. Прогнать полный deployment smoke на Ubuntu 24 и зафиксировать операционный runbook.
-4. Добавить фильтры и курсоры в `GET /api/v1/tasks`, зафиксировать контракт пагинации.
-5. Поднять первые runtime MCP сервисы (`Retrieval MCP`, `Repository MCP`) на FastMCP.
-6. Углубить референсный кейс `saa_release_readiness`: добавить authoring шаг и проверку traceability.
+1. Реализовать production checkpointer для LangGraph поверх PostgreSQL.
+2. Подготовить первый FastMCP runtime сервис (`Retrieval MCP`) на FastMCP.
+3. Зафиксировать deployment smoke/runbook для Ubuntu 24 c `stage`/`prod` профилями.
+4. Расширить reference-case `saa_release_readiness` шагом authoring + traceability.
+5. Добавить API/read-model для агрегированных audit-метрик по `task_events`.

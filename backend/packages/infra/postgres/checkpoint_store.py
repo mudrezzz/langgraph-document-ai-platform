@@ -32,9 +32,10 @@ class LangGraphPostgresCheckpointStore(ICheckpointStore):
         cls,
         settings: PostgresSettings,
         *,
-        use_fallback_if_unset: bool = True,
+        use_fallback_if_unset: bool | None = None,
     ) -> "LangGraphPostgresCheckpointStore":
-        return cls(dsn=settings.dsn, schema=settings.schema, use_fallback_if_unset=use_fallback_if_unset)
+        fallback_enabled = settings.allow_fallback_persistence if use_fallback_if_unset is None else use_fallback_if_unset
+        return cls(dsn=settings.dsn, schema=settings.schema, use_fallback_if_unset=fallback_enabled)
 
     def save_checkpoint(self, run_id: str, payload: dict) -> None:
         if self._use_fallback:

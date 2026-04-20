@@ -24,6 +24,15 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SMOKE_PATH="${SCRIPT_DIR}/smoke_retrieval_api.sh"
 
+if command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+else
+    echo "Не найден интерпретатор python/python3" >&2
+    exit 1
+fi
+
 QUERY="Какие ключевые ограничения и approval точки нужно учесть перед релизом SAA?"
 
 result_json="$("${SMOKE_PATH}" \
@@ -32,11 +41,11 @@ result_json="$("${SMOKE_PATH}" \
     --case-dataset-id "saa_release_readiness" \
     --query "${QUERY}")"
 
-python - <<'PY' <<<"${result_json}"
+RESULT_JSON="${result_json}" "${PYTHON_BIN}" - <<'PY'
 import json
-import sys
+import os
 
-result = json.load(sys.stdin)
+result = json.loads(os.environ["RESULT_JSON"])
 
 print("=== DEMO: SAA Release Readiness Case ===")
 print(f"Task ID: {result.get('task_id')}")
@@ -48,4 +57,6 @@ for src in result.get("top_sources", []):
 print(f"Resume status: {result.get('resume_status')}")
 print(f"History returned: {result.get('history_returned')}")
 print(f"History contains task: {result.get('history_contains_task')}")
+print(f"Events returned: {result.get('events_returned')}")
+print(f"Has running->completed event: {result.get('events_has_running_to_completed')}")
 PY

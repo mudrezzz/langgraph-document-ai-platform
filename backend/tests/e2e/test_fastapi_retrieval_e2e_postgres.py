@@ -254,9 +254,17 @@ def test_e2e_postgres_task_flow(postgres_backed_server_base_url: str) -> None:
     assert resume_payload["details"]["resume_decision"] == "rerun"
 
     history_code, history_payload = _request(
-        "GET", f"{postgres_backed_server_base_url}/api/v1/tasks?limit=20&offset=0"
+        "GET", f"{postgres_backed_server_base_url}/api/v1/tasks?limit=20&status=completed&task_type=retrieval_pack"
     )
     assert history_code == 200
     assert history_payload["total_returned"] >= 1
     task_ids = {item["task_id"] for item in history_payload["items"]}
     assert task_id in task_ids
+
+    events_code, events_payload = _request(
+        "GET",
+        f"{postgres_backed_server_base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&task_type=retrieval_pack",
+    )
+    assert events_code == 200
+    assert events_payload["total_returned"] >= 2
+    assert {item["task_id"] for item in events_payload["items"]} == {task_id}

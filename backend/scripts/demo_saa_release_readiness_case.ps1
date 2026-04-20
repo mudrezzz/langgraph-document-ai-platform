@@ -30,3 +30,7 @@ foreach ($src in $result.top_sources) {
 }
 
 Write-Host "Resume status: $($result.resume_status)"
+Write-Host "History returned: $($result.history_returned)"
+Write-Host "History contains task: $($result.history_contains_task)"
+Write-Host "Events returned: $($result.events_returned)"
+Write-Host "Has running->completed event: $($result.events_has_running_to_completed)"

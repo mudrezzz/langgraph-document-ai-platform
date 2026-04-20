@@ -22,3 +22,6 @@
 - `0010-postgres-local-profile-and-e2e-startup-resilience.md`
 - `0011-persistent-task-registry-and-task-history-api.md`
 - `0012-linux-server-migration-and-bash-operations-profile.md`
+- `0013-runtime-profiles-task-history-cursor-and-status-audit.md`
+- `0014-task-events-api-and-demo-runbook-hardening.md`
+- `0015-smoke-keep-server-mode-for-post-smoke-api-validation.md`

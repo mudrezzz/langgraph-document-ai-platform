@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
 from domain_rag.retrieval import RetrievalPackWorkflow, build_retrieval_workflow
@@ -8,6 +10,8 @@ from schemas.api.contracts import (
     ResumeTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    TaskEventItem,
+    TaskEventsResponse,
     TaskHistoryItem,
     TaskHistoryResponse,
     TaskStatusResponse,
@@ -85,8 +89,24 @@ class RetrievalApplicationService:
             details=task.details,
         )
 
-    def history(self, limit: int = 50, offset: int = 0) -> TaskHistoryResponse:
-        records = self._task_service.list_tasks(limit=limit, offset=offset)
+    def history(
+        self,
+        *,
+        limit: int = 50,
+        cursor: str | None = None,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskHistoryResponse:
+        page = self._task_service.list_tasks(
+            limit=limit,
+            cursor=cursor,
+            status=status,
+            task_type=task_type,
+            updated_from=updated_from,
+            updated_to=updated_to,
+        )
         items = [
             TaskHistoryItem(
                 task_id=item.task_id,
@@ -97,9 +117,55 @@ class RetrievalApplicationService:
                 created_at=item.created_at,
                 updated_at=item.updated_at,
             )
-            for item in records
+            for item in page.items
         ]
-        return TaskHistoryResponse(items=items, limit=limit, offset=offset, total_returned=len(items))
+        return TaskHistoryResponse(
+            items=items,
+            limit=page.limit,
+            total_returned=page.total_returned,
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
+
+    def events(
+        self,
+        *,
+        limit: int = 100,
+        cursor: str | None = None,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventsResponse:
+        page = self._task_service.list_task_events(
+            limit=limit,
+            cursor=cursor,
+            task_id=task_id,
+            task_type=task_type,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        items = [
+            TaskEventItem(
+                event_id=item.event_id,
+                task_id=item.task_id,
+                task_type=item.task_type,
+                from_status=item.from_status,
+                to_status=item.to_status,
+                from_current_node=item.from_current_node,
+                to_current_node=item.to_current_node,
+                event_payload=item.event_payload,
+                created_at=item.created_at,
+            )
+            for item in page.items
+        ]
+        return TaskEventsResponse(
+            items=items,
+            limit=page.limit,
+            total_returned=page.total_returned,
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
+        )
 
     def evidence(self, task_id: str) -> EvidencePackResponse:
         payload = self._task_service.get_state_payload(task_id)

@@ -14,8 +14,15 @@ class ApiContainer:
 
     def __init__(self) -> None:
         settings = PostgresSettings.from_env()
-        checkpoint_store = LangGraphPostgresCheckpointStore.from_settings(settings, use_fallback_if_unset=True)
-        registry = PostgresTaskRegistry.from_settings(settings, use_fallback_if_unset=True)
+        use_fallback = settings.allow_fallback_persistence
+        checkpoint_store = LangGraphPostgresCheckpointStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
+        registry = PostgresTaskRegistry.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
 
         self.settings = settings

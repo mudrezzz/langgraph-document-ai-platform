@@ -17,17 +17,26 @@
 - `postgres_migrate.sh` — загрузить `.env` и применить SQL-миграции.
 - `postgres_down.sh` — остановить PostgreSQL контейнер (опционально удалить volume).
 - `apply_migrations.sh` — применить миграции при уже заданной `APP_DB_DSN`.
-- `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history`.
+- `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
+  - поддерживает `--keep-server` (не выключать API после smoke);
+  - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
 - `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
 
 ### Пример полного цикла
 
 ```bash
-cp backend/.env.example backend/.env
+# Создайте backend/.env вручную (пример полей см. docs/manual_smoke_postgres_runbook.md)
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
-APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
+APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
   bash backend/scripts/smoke_retrieval_api.sh --port 8010
+
+# Для ручных curl-проверок после smoke:
+APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
+  bash backend/scripts/smoke_retrieval_api.sh --port 8010 --keep-server
+
+# Остановка API после --keep-server:
+kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_8010.pid
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 

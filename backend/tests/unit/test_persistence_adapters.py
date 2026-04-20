@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
+from apps.api.dependencies import ApiContainer
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
@@ -42,12 +45,15 @@ def test_postgres_settings_from_env(monkeypatch) -> None:
     monkeypatch.setenv("APP_DB_DSN", "postgresql://user:pass@localhost:5432/app")
     monkeypatch.setenv("APP_DB_SCHEMA", "app")
     monkeypatch.setenv("APP_VECTOR_DIM", "768")
+    monkeypatch.setenv("APP_RUNTIME_PROFILE", "stage")
 
     settings = PostgresSettings.from_env()
 
     assert settings.dsn is not None
     assert settings.schema == "app"
     assert settings.vector_dim == 768
+    assert settings.runtime_profile == "stage"
+    assert settings.allow_fallback_persistence is True
 
 
 def test_postgres_settings_rejects_invalid_schema(monkeypatch) -> None:
@@ -60,6 +66,31 @@ def test_postgres_settings_rejects_invalid_schema(monkeypatch) -> None:
         assert "Некорректный SQL identifier" in str(exc)
     else:
         raise AssertionError("Ожидалась ошибка валидации schema")
+
+
+def test_postgres_settings_rejects_invalid_runtime_profile(monkeypatch) -> None:
+    monkeypatch.setenv("APP_RUNTIME_PROFILE", "qa")
+
+    with pytest.raises(ValueError, match="APP_RUNTIME_PROFILE"):
+        _ = PostgresSettings.from_env()
+
+
+def test_postgres_settings_disables_fallback_in_prod(monkeypatch) -> None:
+    monkeypatch.setenv("APP_RUNTIME_PROFILE", "prod")
+    monkeypatch.delenv("APP_DB_DSN", raising=False)
+
+    settings = PostgresSettings.from_env()
+
+    assert settings.runtime_profile == "prod"
+    assert settings.allow_fallback_persistence is False
+
+
+def test_api_container_requires_dsn_in_prod(monkeypatch) -> None:
+    monkeypatch.setenv("APP_RUNTIME_PROFILE", "prod")
+    monkeypatch.delenv("APP_DB_DSN", raising=False)
+
+    with pytest.raises(ValueError, match="DSN обязателен"):
+        _ = ApiContainer()
 
 
 def test_psycopg_mode_requires_dsn() -> None:

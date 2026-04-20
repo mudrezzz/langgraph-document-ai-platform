@@ -147,13 +147,38 @@ def test_e2e_tasks_history_endpoint(server_base_url: str) -> None:
     task_id_1 = _start_task(server_base_url)
     task_id_2 = _start_task(server_base_url)
 
-    status, body = _request("GET", f"{server_base_url}/api/v1/tasks?limit=20&offset=0")
+    status, body = _request("GET", f"{server_base_url}/api/v1/tasks?limit=1")
 
     assert status == 200
-    assert body["total_returned"] >= 2
-    task_ids = {item["task_id"] for item in body["items"]}
+    assert body["total_returned"] == 1
+    assert body["has_more"] is True
+    assert body["next_cursor"]
+
+    next_cursor = body["next_cursor"]
+    status_2, body_2 = _request("GET", f"{server_base_url}/api/v1/tasks?limit=20&cursor={next_cursor}")
+    assert status_2 == 200
+
+    task_ids = {item["task_id"] for item in body["items"] + body_2["items"]}
     assert task_id_1 in task_ids
     assert task_id_2 in task_ids
+
+
+def test_e2e_task_events_endpoint(server_base_url: str) -> None:
+    task_id = _start_task(server_base_url)
+
+    status, body = _request("GET", f"{server_base_url}/api/v1/tasks/events?limit=1&task_id={task_id}")
+    assert status == 200
+    assert body["total_returned"] == 1
+    assert body["items"][0]["task_id"] == task_id
+    assert body["items"][0]["to_status"] in {"running", "completed"}
+    assert body["next_cursor"]
+
+    status_2, body_2 = _request(
+        "GET",
+        f"{server_base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&cursor={body['next_cursor']}",
+    )
+    assert status_2 == 200
+    assert body_2["total_returned"] >= 1
 
 
 def test_e2e_evidence_endpoint(server_base_url: str) -> None:

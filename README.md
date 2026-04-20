@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 8`.
+Текущий инкремент: `Increment 10`.
 
 Сделано:
 
@@ -32,6 +32,18 @@
 - добавлены Linux-скрипты (`.sh`) для Ubuntu 24: postgres up/migrate/down, migrations, smoke, demo;
 - подготовлен handoff-документ для переноса разработки на Linux-сервер:
   - `docs/handoff/2026-04-19_ubuntu24_server_handoff.md`.
+- добавлены runtime profiles (`APP_RUNTIME_PROFILE=dev|stage|prod`) с отключением fallback persistence в `prod`;
+- расширен endpoint `GET /api/v1/tasks`:
+  - фильтры `status`, `task_type`, `from`, `to`;
+  - курсорная пагинация (`cursor`, `next_cursor`, `has_more`);
+- добавлен аудит переходов статусов:
+  - таблица `app.task_events` (`backend/migrations/0003_task_events.sql`);
+  - запись событий при создании задачи и при смене статуса.
+- добавлен endpoint аудита переходов статусов `GET /api/v1/tasks/events`:
+  - фильтры `task_id`, `task_type`, `from`, `to`;
+  - курсорная пагинация (`cursor`, `next_cursor`, `has_more`).
+- исправлен Linux demo-скрипт `backend/scripts/demo_saa_release_readiness_case.sh` (устранена ошибка парсинга JSON вывода smoke).
+- в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API по `task_id`.
 
 ## Структура
 
@@ -106,6 +118,18 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
   --query "Какие ограничения и approval точки важны перед релизом?"
 ```
 
+5. Smoke c оставлением API поднятым для ручного `curl` (Linux):
+
+```bash
+bash ./backend/scripts/smoke_retrieval_api.sh \
+  --host 127.0.0.1 \
+  --port 8010 \
+  --keep-server
+
+# после проверки:
+kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicorn_8010.pid
+```
+
 ### Как интерпретировать результат demo/smoke
 
 Скрипт возвращает JSON со следующими полями:
@@ -118,6 +142,8 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
 - `resume_decision`: решение, переданное в `resume` (`rerun`, `continue`, ...);
 - `history_returned`: сколько задач вернул endpoint истории `GET /api/v1/tasks`;
 - `history_contains_task`: попала ли только что запущенная задача в историю.
+- `events_returned`: сколько событий вернул endpoint аудита `GET /api/v1/tasks/events` для текущей задачи;
+- `events_has_running_to_completed`: найден ли переход `running -> completed`.
 
 Нормальный для текущей версии результат:
 
@@ -127,7 +153,9 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
 - в `top_sources` присутствуют документы из кейса, например `METH-001`, `GOV-021`, `OPS-002`;
 - `resume_status=completed`;
 - `history_returned >= 1`;
-- `history_contains_task=true`.
+- `history_contains_task=true`;
+- `events_returned >= 2`;
+- `events_has_running_to_completed=true`.
 
 Если `evidence_blocks=0` или в `top_sources` нет ожидаемых документов кейса, это сигнал, что сломалась маршрутизация retrieval или dataset wiring.
 
@@ -141,15 +169,53 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
 - локальный PostgreSQL профиль поднимается/мигрируется через PowerShell и Bash scripts;
 - e2e сценарий проверяется и в in-memory режиме, и с реальным PostgreSQL;
 - lifecycle задач хранится в персистентном реестре (`PostgresTaskRegistry`);
-- API отдает историю задач через `GET /api/v1/tasks`.
+- API отдает историю задач через `GET /api/v1/tasks` с фильтрами и курсорной пагинацией;
+- API отдает аудит событий через `GET /api/v1/tasks/events` с фильтрами и курсорной пагинацией;
+- переходы статусов фиксируются в аудит-таблице `app.task_events`;
+- `prod` профиль запрещает in-memory fallback persistence.
+
+## Контракт GET /api/v1/tasks
+
+Параметры:
+
+- `limit` (1..200)
+- `cursor` (opaque cursor следующей страницы)
+- `status` (например `running`, `completed`, `failed`, `interrupted`)
+- `task_type` (например `retrieval_pack`)
+- `from` / `to` (ISO datetime, фильтрация по `updated_at`)
+
+Ответ:
+
+- `items`: список задач;
+- `limit`: размер страницы;
+- `total_returned`: сколько элементов вернулось в текущем ответе;
+- `next_cursor`: курсор следующей страницы или `null`;
+- `has_more`: есть ли следующая страница.
+
+## Контракт GET /api/v1/tasks/events
+
+Параметры:
+
+- `limit` (1..200)
+- `cursor` (opaque cursor следующей страницы)
+- `task_id`
+- `task_type`
+- `from` / `to` (ISO datetime, фильтрация по `created_at`)
+
+Ответ:
+
+- `items`: список событий переходов;
+- `limit`: размер страницы;
+- `total_returned`: сколько событий вернулось в текущем ответе;
+- `next_cursor`: курсор следующей страницы или `null`;
+- `has_more`: есть ли следующая страница.
 
 ## Что будет в следующих итерациях
 
-- runtime profiles (`dev/stage/prod`) и отключение fallback в `prod`;
 - реальный LangGraph checkpointer поверх PostgreSQL;
 - FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
-- расширение API-истории задач (фильтры, курсоры, аудит изменений статусов).
+- отдельный observability-контур для метрик/дашбордов по `task_events`.
 
 ## Тестовая стратегия
 
@@ -160,17 +226,17 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
 ## Запуск тестов
 
 ```bash
-python -m pytest backend/tests -q
+python3 -m pytest backend/tests -q
 ```
 
 ## Локальный запуск PostgreSQL профиля
 
 ### Windows (PowerShell)
 
-1. Подготовить env-файл:
+1. Подготовить `backend/.env` (см. `docs/manual_smoke_postgres_runbook.md`):
 
 ```powershell
-Copy-Item .\backend\.env.example .\backend\.env
+# Создайте backend/.env вручную с APP_DB_DSN/APP_DB_SCHEMA/APP_RUNTIME_PROFILE
 ```
 
 2. Поднять контейнер PostgreSQL + pgvector:
@@ -201,10 +267,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\postgres_d
 
 ### Linux (Ubuntu 24, Bash)
 
-1. Подготовить env-файл:
+1. Подготовить `backend/.env` (см. `docs/manual_smoke_postgres_runbook.md`):
 
 ```bash
-cp ./backend/.env.example ./backend/.env
+# Создайте backend/.env вручную с APP_DB_DSN/APP_DB_SCHEMA/APP_RUNTIME_PROFILE
 ```
 
 2. Поднять контейнер PostgreSQL + pgvector:
@@ -222,7 +288,7 @@ bash ./backend/scripts/postgres_migrate.sh
 4. Запустить smoke в PostgreSQL-режиме:
 
 ```bash
-APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
+APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
   bash ./backend/scripts/smoke_retrieval_api.sh --port 8010
 ```
 
@@ -235,7 +301,7 @@ bash ./backend/scripts/postgres_down.sh --remove-volumes
 Отдельный e2e прогон PostgreSQL контура (Windows/Linux):
 
 ```bash
-python -m pytest backend/tests/e2e/test_fastapi_retrieval_e2e_postgres.py -q
+python3 -m pytest backend/tests/e2e/test_fastapi_retrieval_e2e_postgres.py -q
 ```
 
 ## Применение миграций

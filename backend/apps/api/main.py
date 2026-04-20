@@ -1,14 +1,17 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 
-from application.errors import InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError
+from application.errors import InvalidCursorError, InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError
 from apps.api.dependencies import ApiContainer, get_container
 from schemas.api.contracts import (
     EvidencePackResponse,
     ResumeTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    TaskEventsResponse,
     TaskHistoryResponse,
     TaskStatusResponse,
 )
@@ -39,12 +42,51 @@ def start_retrieval_task(
 @app.get("/api/v1/tasks", response_model=TaskHistoryResponse)
 def get_tasks_history(
     limit: int = Query(default=50, ge=1, le=200),
-    offset: int = Query(default=0, ge=0),
+    cursor: str | None = Query(default=None, min_length=8, max_length=512),
+    status_filter: str | None = Query(default=None, alias="status"),
+    task_type: str | None = Query(default=None),
+    updated_from: datetime | None = Query(default=None, alias="from"),
+    updated_to: datetime | None = Query(default=None, alias="to"),
     container: ApiContainer = Depends(get_container),
 ) -> TaskHistoryResponse:
-    """Возвращает историю задач в порядке убывания времени обновления."""
+    """Возвращает историю задач с фильтрами и курсорной пагинацией."""
 
-    return container.retrieval_service.history(limit=limit, offset=offset)
+    try:
+        return container.retrieval_service.history(
+            limit=limit,
+            cursor=cursor,
+            status=status_filter,
+            task_type=task_type,
+            updated_from=updated_from,
+            updated_to=updated_to,
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/tasks/events", response_model=TaskEventsResponse)
+def get_task_events(
+    limit: int = Query(default=100, ge=1, le=200),
+    cursor: str | None = Query(default=None, min_length=8, max_length=512),
+    task_id: str | None = Query(default=None),
+    task_type: str | None = Query(default=None),
+    created_from: datetime | None = Query(default=None, alias="from"),
+    created_to: datetime | None = Query(default=None, alias="to"),
+    container: ApiContainer = Depends(get_container),
+) -> TaskEventsResponse:
+    """Возвращает аудит переходов статусов задач с фильтрами и курсорами."""
+
+    try:
+        return container.retrieval_service.events(
+            limit=limit,
+            cursor=cursor,
+            task_id=task_id,
+            task_type=task_type,
+            created_from=created_from,
+            created_to=created_to,
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)

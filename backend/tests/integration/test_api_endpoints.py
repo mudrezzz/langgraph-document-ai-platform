@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -104,27 +107,105 @@ def test_status_endpoint_returns_task_state(client: TestClient) -> None:
     assert payload["status"] == "completed"
 
 
-def test_tasks_history_endpoint_returns_created_tasks(client: TestClient) -> None:
+def test_tasks_history_endpoint_supports_cursor_pagination(client: TestClient) -> None:
     task_id_1 = _create_task(client)
     task_id_2 = _create_task(client)
 
-    response = client.get("/api/v1/tasks?limit=10&offset=0")
+    first_response = client.get("/api/v1/tasks?limit=1")
+    assert first_response.status_code == 200
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["limit"] == 10
-    assert payload["offset"] == 0
-    assert payload["total_returned"] >= 2
+    first_payload = first_response.json()
+    assert first_payload["limit"] == 1
+    assert first_payload["total_returned"] == 1
+    assert first_payload["has_more"] is True
+    assert first_payload["next_cursor"]
 
-    ids = {item["task_id"] for item in payload["items"]}
+    second_response = client.get(f"/api/v1/tasks?limit=10&cursor={quote(first_payload['next_cursor'])}")
+    assert second_response.status_code == 200
+    second_payload = second_response.json()
+
+    ids = {item["task_id"] for item in first_payload["items"] + second_payload["items"]}
     assert task_id_1 in ids
     assert task_id_2 in ids
+
+
+def test_tasks_history_endpoint_applies_filters(client: TestClient) -> None:
+    completed_task_id = _create_task(client)
+    interrupted_task_id = _create_interrupted_task(client)
+
+    completed = client.get("/api/v1/tasks?limit=20&status=completed")
+    assert completed.status_code == 200
+    completed_ids = {item["task_id"] for item in completed.json()["items"]}
+    assert completed_task_id in completed_ids
+    assert interrupted_task_id not in completed_ids
+
+    interrupted = client.get("/api/v1/tasks?limit=20&status=interrupted")
+    assert interrupted.status_code == 200
+    interrupted_ids = {item["task_id"] for item in interrupted.json()["items"]}
+    assert interrupted_task_id in interrupted_ids
+    assert completed_task_id not in interrupted_ids
+
+    task_type_filtered = client.get("/api/v1/tasks?limit=20&task_type=retrieval_pack")
+    assert task_type_filtered.status_code == 200
+    assert task_type_filtered.json()["total_returned"] >= 2
+
+    now_utc = datetime.now(timezone.utc)
+    from_param = quote((now_utc - timedelta(minutes=5)).isoformat())
+    to_param = quote((now_utc + timedelta(minutes=5)).isoformat())
+    ranged = client.get(f"/api/v1/tasks?limit=20&from={from_param}&to={to_param}")
+    assert ranged.status_code == 200
+    ranged_ids = {item["task_id"] for item in ranged.json()["items"]}
+    assert completed_task_id in ranged_ids
+    assert interrupted_task_id in ranged_ids
+
+
+def test_tasks_history_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks?limit=20&cursor=invalid_cursor_payload")
+
+    assert response.status_code == 400
 
 
 def test_tasks_history_endpoint_validates_limit(client: TestClient) -> None:
     response = client.get("/api/v1/tasks?limit=0")
 
     assert response.status_code == 422
+
+
+def test_task_events_endpoint_supports_cursor_and_filters(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    first_response = client.get("/api/v1/tasks/events?limit=1")
+    assert first_response.status_code == 200
+    first_payload = first_response.json()
+    assert first_payload["limit"] == 1
+    assert first_payload["total_returned"] == 1
+    assert first_payload["items"][0]["task_id"] == task_id
+    assert first_payload["next_cursor"] is not None
+    assert first_payload["has_more"] is True
+
+    second_response = client.get(f"/api/v1/tasks/events?limit=20&cursor={quote(first_payload['next_cursor'])}")
+    assert second_response.status_code == 200
+    second_payload = second_response.json()
+    assert second_payload["total_returned"] >= 1
+
+    filtered = client.get(f"/api/v1/tasks/events?limit=20&task_id={task_id}&task_type=retrieval_pack")
+    assert filtered.status_code == 200
+    filtered_payload = filtered.json()
+    assert filtered_payload["total_returned"] >= 2
+    assert {item["task_id"] for item in filtered_payload["items"]} == {task_id}
+
+    now_utc = datetime.now(timezone.utc)
+    from_param = quote((now_utc - timedelta(minutes=5)).isoformat())
+    to_param = quote((now_utc + timedelta(minutes=5)).isoformat())
+    ranged = client.get(f"/api/v1/tasks/events?limit=20&from={from_param}&to={to_param}")
+    assert ranged.status_code == 200
+    assert ranged.json()["total_returned"] >= 2
+
+
+def test_task_events_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:
+    response = client.get("/api/v1/tasks/events?limit=20&cursor=invalid_cursor_payload")
+
+    assert response.status_code == 400
 
 
 def test_status_endpoint_returns_404_for_unknown_task(client: TestClient) -> None:

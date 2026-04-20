@@ -11,3 +11,7 @@ class InvalidTaskStateError(ValueError):
 
 class WorkflowExecutionError(RuntimeError):
     """Ошибка исполнения workflow на application-уровне."""
+
+
+class InvalidCursorError(ValueError):
+    """Некорректный курсор пагинации истории задач."""
