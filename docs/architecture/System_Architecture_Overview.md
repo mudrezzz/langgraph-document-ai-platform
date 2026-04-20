@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 19
+Статус: Increment 20
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 19)
+## 2. Текущая реализация (Increment 20)
 
 Реализовано:
 
@@ -55,8 +55,9 @@
 - authoring API:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
-  - traceability payload: `retrieval_task_id` + `source_refs`;
-  - `draft_strategy`: `auto|deterministic|llm`.
+  - traceability payload: `retrieval_task_id`, `source_refs`, `sections`;
+  - `draft_strategy`: `auto|deterministic|llm`;
+  - `workflow_mode`: `single_pass|multi_step`.
 - аудит переходов статусов:
   - таблица `app.task_events`;
   - событие при создании задачи и при каждой смене `status`.
@@ -89,12 +90,13 @@
   - app entrypoint `apps/mcp_artifact_writer/main.py`;
   - сервис `FastMcpArtifactWriterService`;
   - MCP tools: `write_artifact`, `get_artifact`, `list_artifacts`.
-- Authoring application flow MVP:
+- Authoring application flow:
   - `AuthoringApplicationService`;
-  - orchestration `retrieval -> draft -> artifact`;
+  - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
-  - fallback в deterministic draft при недоступности LLM (если strict-mode выключен).
+  - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);
+  - steps read-model в task details и artifact metadata (`steps_summary`).
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -129,12 +131,13 @@
   - `docs/adr/0021-repository-mcp-mvp-and-document-tools.md`;
   - `docs/adr/0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`;
   - `docs/adr/0023-authoring-api-flow-and-task-artifact-traceability-link.md`;
-  - `docs/adr/0024-openrouter-llm-authoring-draft-gateway.md`.
+  - `docs/adr/0024-openrouter-llm-authoring-draft-gateway.md`;
+  - `docs/adr/0025-multistep-authoring-workflow-and-section-traceability.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
-- authoring flow поддерживает single-pass LLM draft, но без multi-step section writer/reviewer/HITL цикла;
+- authoring flow multi-step уже есть, но пока без HITL/revision-loop и без асинхронного выполнения шагов;
 - отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
 - API синхронный, без очередей long-running задач;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
@@ -145,13 +148,13 @@
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Ввести async/queue execution для long-running задач и retry-политику.
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
-4. Развить authoring workflow до multi-step (research/writer/reviewer/HITL/assembly).
+4. Развить authoring workflow до HITL/revision-loop поверх текущего multi-step.
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Разбить authoring flow на этапы `research -> writer -> reviewer -> assembly` с явными state contracts.
+1. Добавить HITL/revision-loop в authoring (`reviewer -> feedback -> rewrite -> re-review`).
 2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
-3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals).
+3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
-5. Добавить интеграционные тесты для расширенного authoring read-model и audit метрик.
+5. Добавить интеграционные тесты для расширенного authoring read-model, HITL и audit метрик.

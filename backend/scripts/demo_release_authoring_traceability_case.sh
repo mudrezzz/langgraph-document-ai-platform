@@ -37,6 +37,7 @@ SMOKE_OUTPUT="$(
       --artifact-type "release_report" \
       --artifact-title "Release Authoring Traceability Demo" \
       --artifact-format "markdown" \
+      --workflow-mode "multi_step" \
       --case-dataset-id "saa_release_readiness"
 )"
 

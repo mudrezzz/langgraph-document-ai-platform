@@ -111,6 +111,7 @@ class StartAuthoringTaskRequest(BaseModel):
     artifact_title: str | None = None
     artifact_format: str = "markdown"
     draft_strategy: Literal["auto", "deterministic", "llm"] = "auto"
+    workflow_mode: Literal["single_pass", "multi_step"] = "multi_step"
 
 
 class ResumeTaskRequest(BaseModel):
@@ -128,11 +129,21 @@ class EvidencePackResponse(BaseModel):
     evidence_pack: EvidencePack
 
 
+class TaskArtifactSectionTraceabilityResponse(BaseModel):
+    """Traceability-связи по отдельной секции итогового артефакта."""
+
+    section_id: str
+    title: str
+    review_status: str = "not_reviewed"
+    source_refs: list[SourceRef] = Field(default_factory=list)
+
+
 class TaskArtifactTraceabilityResponse(BaseModel):
     """Traceability-связи итогового артефакта с retrieval источниками."""
 
     retrieval_task_id: str
     source_refs: list[SourceRef] = Field(default_factory=list)
+    sections: list[TaskArtifactSectionTraceabilityResponse] = Field(default_factory=list)
 
 
 class TaskArtifactResponse(BaseModel):

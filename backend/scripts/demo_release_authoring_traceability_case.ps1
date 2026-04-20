@@ -21,6 +21,7 @@ $smokeOutput = powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $b
     -ArtifactType "release_report" `
     -ArtifactTitle "Release Authoring Traceability Demo" `
     -ArtifactFormat "markdown" `
+    -WorkflowMode "multi_step" `
     -CaseDatasetId "saa_release_readiness"
 
 Write-Host "[2/2] Сохраняем demo-результат..."

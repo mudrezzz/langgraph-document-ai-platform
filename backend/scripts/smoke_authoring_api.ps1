@@ -9,6 +9,8 @@ param(
     [string]$ArtifactFormat = "markdown",
     [ValidateSet("auto", "deterministic", "llm")]
     [string]$DraftStrategy = "auto",
+    [ValidateSet("single_pass", "multi_step")]
+    [string]$WorkflowMode = "multi_step",
     [switch]$RequireLlm,
     [string]$CaseDatasetId = "saa_release_readiness",
     [string]$CaseDatasetPath = "",
@@ -67,6 +69,7 @@ try {
         "--artifact-title", $ArtifactTitle,
         "--artifact-format", $ArtifactFormat,
         "--draft-strategy", $DraftStrategy,
+        "--workflow-mode", $WorkflowMode,
         "--case-dataset-id", $CaseDatasetId,
         "--case-dataset-path", $CaseDatasetPath,
         "--case-dataset-dir", $CaseDatasetDir

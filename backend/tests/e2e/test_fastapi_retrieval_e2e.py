@@ -202,6 +202,7 @@ def _start_authoring_task(base_url: str) -> str:
             "artifact_title": "E2E Authoring Draft",
             "artifact_format": "markdown",
             "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
         },
     )
 
@@ -340,6 +341,9 @@ def test_e2e_authoring_start_and_artifact_endpoint(server_base_url: str) -> None
     assert status_code == 200
     assert status_payload["status"] == "completed"
     assert status_payload["details"]["artifact_id"]
+    assert status_payload["details"]["current_step"] == "completed"
+    assert status_payload["details"]["workflow_mode"] == "multi_step"
+    assert len(status_payload["details"]["steps_summary"]) == 4
 
     artifact_code, artifact_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}/artifact")
     assert artifact_code == 200
@@ -347,4 +351,7 @@ def test_e2e_authoring_start_and_artifact_endpoint(server_base_url: str) -> None
     assert artifact_payload["artifact_type"] == "release_report"
     assert artifact_payload["title"] == "E2E Authoring Draft"
     assert artifact_payload["metadata"]["draft_generation_mode"] in {"deterministic", "deterministic_fallback"}
+    assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
+    assert len(artifact_payload["metadata"]["steps_summary"]) == 4
     assert len(artifact_payload["traceability"]["source_refs"]) >= 1
+    assert len(artifact_payload["traceability"]["sections"]) >= 3

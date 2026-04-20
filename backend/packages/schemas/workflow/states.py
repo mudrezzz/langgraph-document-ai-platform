@@ -57,7 +57,13 @@ class AuthoringTaskState(BaseModel):
     artifact_title: str | None = None
     artifact_format: str = "markdown"
     draft_strategy: str = "auto"
+    workflow_mode: str = "multi_step"
+    current_step: str | None = None
+    steps_summary: list[dict] = Field(default_factory=list)
+    research_summary: str | None = None
     draft: str | None = None
+    review_result: dict = Field(default_factory=dict)
+    section_traceability: list[dict] = Field(default_factory=list)
     draft_generation_mode: str = "deterministic"
     draft_generation_metadata: dict = Field(default_factory=dict)
     traceability: dict = Field(default_factory=dict)

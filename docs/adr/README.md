@@ -34,3 +34,4 @@
 - `0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`
 - `0023-authoring-api-flow-and-task-artifact-traceability-link.md`
 - `0024-openrouter-llm-authoring-draft-gateway.md`
+- `0025-multistep-authoring-workflow-and-section-traceability.md`

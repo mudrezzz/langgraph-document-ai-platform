@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--artifact-title", default="Smoke Authoring Draft")
     parser.add_argument("--artifact-format", default="markdown")
     parser.add_argument("--draft-strategy", default="auto", choices=["auto", "deterministic", "llm"])
+    parser.add_argument("--workflow-mode", default="multi_step", choices=["single_pass", "multi_step"])
     parser.add_argument("--require-llm", action="store_true")
     parser.add_argument("--case-dataset-id", default="saa_release_readiness")
     parser.add_argument("--case-dataset-path", default="")
@@ -123,6 +124,7 @@ def main() -> None:
                 "artifact_title": args.artifact_title,
                 "artifact_format": args.artifact_format,
                 "draft_strategy": args.draft_strategy,
+                "workflow_mode": args.workflow_mode,
             },
         )
         if start_status != 200:
@@ -166,6 +168,10 @@ def main() -> None:
             "draft_generation_mode": generation_mode,
             "draft_model_provider": artifact_payload.get("metadata", {}).get("draft_model_provider"),
             "draft_model_name": artifact_payload.get("metadata", {}).get("draft_model_name"),
+            "workflow_mode": artifact_payload.get("metadata", {}).get("workflow_mode"),
+            "steps_total": len(artifact_payload.get("metadata", {}).get("steps_summary", [])),
+            "traceability_sections": len(artifact_payload.get("traceability", {}).get("sections", [])),
+            "review_status": artifact_payload.get("metadata", {}).get("review_status"),
             "traceability_sources": len(artifact_payload.get("traceability", {}).get("source_refs", [])),
             "events_summary_total": summary_payload.get("total_events"),
             "events_summary_has_running_to_completed": has_completed_transition,

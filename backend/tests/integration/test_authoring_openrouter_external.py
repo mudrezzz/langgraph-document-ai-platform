@@ -46,6 +46,7 @@ def test_external_authoring_openrouter_llm_flow(monkeypatch: pytest.MonkeyPatch)
                 "artifact_title": "External LLM Authoring Draft",
                 "artifact_format": "markdown",
                 "draft_strategy": "llm",
+                "workflow_mode": "multi_step",
             },
         )
         assert start_response.status_code == 200
@@ -57,6 +58,8 @@ def test_external_authoring_openrouter_llm_flow(monkeypatch: pytest.MonkeyPatch)
         artifact_payload = artifact_response.json()
         assert artifact_payload["metadata"]["draft_generation_mode"] == "llm"
         assert artifact_payload["metadata"]["draft_model_provider"] == "openrouter"
+        assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
+        assert len(artifact_payload["metadata"]["steps_summary"]) == 4
         assert len(artifact_payload["content"].strip()) >= 80
     finally:
         get_container.cache_clear()

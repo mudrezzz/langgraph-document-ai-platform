@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 19`.
+Текущий инкремент: `Increment 20`.
 
 Сделано:
 
@@ -108,6 +108,12 @@
   - fallback на deterministic draft при недоступности LLM (когда `APP_LLM_STRICT=false`).
 - добавлен внешний integration тест для real LLM:
   - `backend/tests/integration/test_authoring_openrouter_external.py` (активируется только с `RUN_EXTERNAL_LLM_TESTS=1`).
+- authoring flow расширен до multi-step этапов:
+  - `research -> writer -> reviewer -> assembly`;
+  - `workflow_mode` в API (`single_pass|multi_step`);
+  - в статусе задачи и metadata артефакта сохраняется `steps_summary`.
+- traceability расширен до секций итогового артефакта:
+  - `traceability.sections[]` с `section_id`, `title`, `review_status`, `source_refs`.
 
 ## Структура
 
@@ -290,20 +296,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_arti
 20. Smoke Authoring API (Linux):
 
 ```bash
-bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
+bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
 ```
 
 21. Smoke Authoring API (Windows):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030 -WorkflowMode multi_step
 ```
 
 22. Smoke Authoring API c обязательной LLM-генерацией (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
-bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --draft-strategy llm --require-llm
+APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
+bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
 23. Demo Authoring + Traceability (Linux):
@@ -411,6 +418,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - добавлен authoring API flow (`authoring/start`, `tasks/{task_id}/artifact`) с итоговым draft-артефактом.
 - сохраняется traceability link `task -> artifact -> retrieval sources` в `app.task_artifacts`.
 - authoring draft поддерживает реальную LLM (OpenRouter) с режимами `auto|deterministic|llm`.
+- multi-step authoring поддерживает шаги `research -> writer -> reviewer -> assembly` и сохраняет их в `steps_summary`.
+- traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -433,6 +442,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - `artifact_title` (опционально)
 - `artifact_format` (по умолчанию `markdown`)
 - `draft_strategy` (`auto|deterministic|llm`, по умолчанию `auto`)
+- `workflow_mode` (`single_pass|multi_step`, по умолчанию `multi_step`)
 
 Ответ:
 
@@ -453,6 +463,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - `traceability`:
   - `retrieval_task_id`
   - `source_refs` (`doc_id`, `version`, `block_id`)
+  - `sections[]`:
+    - `section_id`
+    - `title`
+    - `review_status`
+    - `source_refs` (`doc_id`, `version`, `block_id`)
 
 ## MCP Контракты (MVP)
 
@@ -523,7 +538,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- расширение authoring flow до multi-step `research -> writer -> reviewer -> assembly`;
+- развитие multi-step authoring до HITL/feedback-петли и итеративного reviewer цикла;
 - ingestion расширение на PDF/DOCX/OCR с quality gates;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 

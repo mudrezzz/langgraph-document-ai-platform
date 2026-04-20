@@ -258,7 +258,7 @@ APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
+bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
 ```
 
 Что увидеть в JSON:
@@ -266,6 +266,10 @@ bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
 - `start_status=completed` и `task_status=completed`;
 - `artifact_id` и `artifact_title` заполнены;
 - `draft_generation_mode` обычно `deterministic` (если LLM не включена);
+- `workflow_mode=multi_step`;
+- `steps_total=4` (research/writer/reviewer/assembly);
+- `traceability_sections >= 3`;
+- `review_status` заполнен (`completed|needs_revision|skipped`);
 - `traceability_sources >= 1`;
 - `events_summary_has_running_to_completed=true`.
 
@@ -279,13 +283,14 @@ bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030
 set -a && source backend/.env && set +a
 APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --draft-strategy llm --require-llm
+bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
 Что увидеть в JSON для LLM-режима:
 
 - `draft_generation_mode=llm`;
 - заполнены `draft_model_provider=openrouter` и `draft_model_name`.
+- `steps_total=4` и `traceability_sections >= 3`.
 
 ## 15. Расширенный demo: authoring + traceability
 

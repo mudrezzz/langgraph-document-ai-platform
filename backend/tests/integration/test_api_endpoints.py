@@ -72,6 +72,7 @@ def _create_authoring_task(client: TestClient) -> str:
             "artifact_title": "Integration Authoring Draft",
             "artifact_format": "markdown",
             "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
         },
     )
 
@@ -437,6 +438,9 @@ def test_authoring_start_endpoint_returns_task_id(client: TestClient) -> None:
     assert payload["status"] == "completed"
     assert payload["details"]["artifact_id"]
     assert payload["details"]["retrieval_task_id"]
+    assert payload["details"]["current_step"] == "completed"
+    assert payload["details"]["workflow_mode"] == "multi_step"
+    assert len(payload["details"]["steps_summary"]) == 4
 
 
 def test_task_artifact_endpoint_returns_authoring_artifact(client: TestClient) -> None:
@@ -451,8 +455,12 @@ def test_task_artifact_endpoint_returns_authoring_artifact(client: TestClient) -
     assert payload["title"] == "Integration Authoring Draft"
     assert len(payload["content"]) >= 10
     assert payload["metadata"]["draft_generation_mode"] in {"deterministic", "deterministic_fallback"}
+    assert payload["metadata"]["workflow_mode"] == "multi_step"
+    assert payload["metadata"]["review_status"] in {"completed", "needs_revision", "skipped"}
+    assert len(payload["metadata"]["steps_summary"]) == 4
     assert payload["traceability"]["retrieval_task_id"]
     assert len(payload["traceability"]["source_refs"]) >= 1
+    assert len(payload["traceability"]["sections"]) >= 3
 
 
 def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:

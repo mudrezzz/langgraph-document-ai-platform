@@ -28,6 +28,7 @@
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
 - `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.
   - поддерживает `--draft-strategy auto|deterministic|llm`;
+  - поддерживает `--workflow-mode single_pass|multi_step`;
   - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
 - `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
 
@@ -59,12 +60,12 @@ bash backend/scripts/run_artifact_writer_mcp.sh
 bash backend/scripts/smoke_artifact_writer_mcp.sh
 
 # Authoring API smoke:
-bash backend/scripts/smoke_authoring_api.sh --port 8030
+bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step
 
 # Authoring API smoke c реальной LLM (при заданном OPENROUTER_API_KEY):
 set -a && source backend/.env && set +a
 APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
-  bash backend/scripts/smoke_authoring_api.sh --port 8030 --draft-strategy llm --require-llm
+  bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 
 # Authoring demo:
 bash backend/scripts/demo_release_authoring_traceability_case.sh --port 8040
