@@ -6,6 +6,7 @@ PORT="8000"
 STARTUP_TIMEOUT_SEC="30"
 QUERY="evidence pack retrieval"
 CASE_DATASET_ID="saa_release_readiness"
+CASE_DATASET_PATH=""
 KEEP_SERVER="false"
 SERVER_PID_FILE=""
 STARTED_OK="false"
@@ -32,6 +33,10 @@ while [[ $# -gt 0 ]]; do
             CASE_DATASET_ID="$2"
             shift 2
             ;;
+        --case-dataset-path)
+            CASE_DATASET_PATH="$2"
+            shift 2
+            ;;
         --keep-server)
             KEEP_SERVER="true"
             shift
@@ -52,12 +57,21 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BACKEND_ROOT="${REPO_ROOT}/backend"
 BASE_URL="http://${HOST_NAME}:${PORT}"
 
-if command -v python >/dev/null 2>&1; then
+if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+    # Предпочитаем локальное окружение репозитория, чтобы не зависеть от системного python.
+    PYTHON_BIN="${REPO_ROOT}/.venv/bin/python"
+elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
 elif command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN="python3"
 else
     echo "Не найден интерпретатор python/python3" >&2
+    exit 1
+fi
+
+if ! "${PYTHON_BIN}" -c "import uvicorn" >/dev/null 2>&1; then
+    echo "В выбранном интерпретаторе (${PYTHON_BIN}) не найден модуль uvicorn." >&2
+    echo "Активируйте .venv или установите зависимости (например: pip install uvicorn fastapi)." >&2
     exit 1
 fi
 
@@ -159,7 +173,7 @@ if [[ "${started}" != "true" ]]; then
 fi
 STARTED_OK="true"
 
-start_payload="$(QUERY="${QUERY}" CASE_DATASET_ID="${CASE_DATASET_ID}" "${PYTHON_BIN}" - <<'PY'
+start_payload="$(QUERY="${QUERY}" CASE_DATASET_ID="${CASE_DATASET_ID}" CASE_DATASET_PATH="${CASE_DATASET_PATH}" "${PYTHON_BIN}" - <<'PY'
 import json
 import os
 
@@ -174,6 +188,10 @@ payload = {
         "case_dataset_id": os.environ["CASE_DATASET_ID"],
     },
 }
+
+case_dataset_path = os.environ.get("CASE_DATASET_PATH", "").strip()
+if case_dataset_path:
+    payload["task_context"]["case_dataset_path"] = case_dataset_path
 
 print(json.dumps(payload, ensure_ascii=False))
 PY

@@ -4,7 +4,10 @@ param(
     [int]$Port = 8000,
     [int]$StartupTimeoutSec = 30,
     [string]$Query = "evidence pack retrieval",
-    [string]$CaseDatasetId = "saa_release_readiness"
+    [string]$CaseDatasetId = "saa_release_readiness",
+    [string]$CaseDatasetPath = "",
+    [switch]$KeepServer,
+    [string]$ServerPidFile = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -13,6 +16,42 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Resolve-Path (Join-Path $scriptDir "..\..")
 $backendRoot = Join-Path $repoRoot "backend"
 $baseUrl = "http://$HostName`:$Port"
+$startedOk = $false
+
+function Resolve-PythonExecutable {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $venvPython = Join-Path $RepoRoot ".venv\Scripts\python.exe"
+    if (Test-Path $venvPython) {
+        # Предпочитаем python из локального venv, чтобы исключить расхождения окружений.
+        return $venvPython
+    }
+
+    $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCmd) {
+        return $pythonCmd.Source
+    }
+
+    $python3Cmd = Get-Command python3 -ErrorAction SilentlyContinue
+    if ($python3Cmd) {
+        return $python3Cmd.Source
+    }
+
+    throw "Не найден интерпретатор python/python3"
+}
+
+$pythonExe = Resolve-PythonExecutable -RepoRoot $repoRoot
+& $pythonExe -c "import uvicorn" *> $null
+if ($LASTEXITCODE -ne 0) {
+    throw "В выбранном интерпретаторе ($pythonExe) не найден модуль uvicorn. Активируйте .venv или установите зависимости."
+}
+
+if ($KeepServer -and [string]::IsNullOrWhiteSpace($ServerPidFile)) {
+    $ServerPidFile = Join-Path $backendRoot ".smoke_uvicorn_$Port.pid"
+}
 
 $prevPythonPath = $env:PYTHONPATH
 $env:PYTHONPATH = "$backendRoot;$backendRoot\packages"
@@ -27,7 +66,7 @@ $serverProcess = $null
 
 try {
     # Запускаем API сервер в отдельном процессе для smoke-проверки endpoint-ов.
-    $serverProcess = Start-Process -FilePath "python" -ArgumentList $serverArgs -WorkingDirectory $backendRoot -PassThru
+    $serverProcess = Start-Process -FilePath $pythonExe -ArgumentList $serverArgs -WorkingDirectory $backendRoot -PassThru
 
     $started = $false
     $deadline = (Get-Date).AddSeconds($StartupTimeoutSec)
@@ -47,6 +86,7 @@ try {
     if (-not $started) {
         throw "API сервер не поднялся за $StartupTimeoutSec секунд"
     }
+    $startedOk = $true
 
     $startRequest = @{
         query = $Query
@@ -59,6 +99,12 @@ try {
             case_dataset_id = $CaseDatasetId
         }
     } | ConvertTo-Json -Depth 10
+
+    if (-not [string]::IsNullOrWhiteSpace($CaseDatasetPath)) {
+        $startRequestObject = $startRequest | ConvertFrom-Json
+        $startRequestObject.task_context.case_dataset_path = $CaseDatasetPath
+        $startRequest = $startRequestObject | ConvertTo-Json -Depth 10
+    }
     $startBody = [System.Text.Encoding]::UTF8.GetBytes($startRequest)
 
     $startResponse = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/tasks/retrieval/start" -ContentType "application/json; charset=utf-8" -Body $startBody
@@ -108,7 +154,14 @@ try {
 }
 finally {
     if ($serverProcess -and -not $serverProcess.HasExited) {
-        Stop-Process -Id $serverProcess.Id -Force
+        if ($KeepServer -and $startedOk) {
+            Set-Content -Path $ServerPidFile -Value "$($serverProcess.Id)" -Encoding utf8
+            Write-Warning "Smoke: API сервер оставлен запущенным (pid=$($serverProcess.Id))."
+            Write-Warning "Smoke: stop command -> Stop-Process -Id $($serverProcess.Id) -Force; Remove-Item '$ServerPidFile'"
+        }
+        else {
+            Stop-Process -Id $serverProcess.Id -Force
+        }
     }
 
     if ($null -eq $prevPythonPath) {

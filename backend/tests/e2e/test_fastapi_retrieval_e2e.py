@@ -121,6 +121,38 @@ def _start_task(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_task_with_dataset_path(base_url: str) -> str:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_path = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "saa_release_readiness_case"
+        / "input"
+        / "knowledge_layers.json"
+    )
+
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/retrieval/start",
+        payload={
+            "query": "release approval constraints",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-test-dataset-path",
+                "case_dataset_path": str(dataset_path),
+            },
+        },
+    )
+
+    assert status == 200
+    return body["task_id"]
+
+
 def test_e2e_health_endpoint(server_base_url: str) -> None:
     status, body = _request("GET", f"{server_base_url}/health")
 
@@ -130,6 +162,12 @@ def test_e2e_health_endpoint(server_base_url: str) -> None:
 
 def test_e2e_start_endpoint(server_base_url: str) -> None:
     task_id = _start_task(server_base_url)
+
+    assert task_id
+
+
+def test_e2e_start_endpoint_supports_case_dataset_path(server_base_url: str) -> None:
+    task_id = _start_task_with_dataset_path(server_base_url)
 
     assert task_id
 

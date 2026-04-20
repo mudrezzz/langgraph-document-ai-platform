@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-20
-Статус: Increment 13
+Статус: Increment 14
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 13)
+## 2. Текущая реализация (Increment 14)
 
 Реализовано:
 
@@ -61,14 +61,23 @@
   - `backend/docker-compose.postgres.yml`;
   - scripts: `postgres_up/down/migrate` (`.ps1` + `.sh`), `apply_migrations` (`.ps1` + `.sh`), smoke/demo.
   - smoke/demo дополнены проверкой `events/summary`.
+- file-based demo pipeline для release readiness:
+  - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
+  - запуск retrieval через `case_dataset_path`;
+  - генерация итогового markdown-отчета `release_readiness_report.md` с GO/NO-GO интерпретацией.
+- усилена операционная стабильность smoke/demo:
+  - приоритет `./.venv` интерпретатора в `.sh/.ps1` скриптах;
+  - явная проверка `uvicorn` до запуска API в smoke-скриптах.
 - тестовое покрытие:
   - unit + integration + e2e;
   - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
+  - e2e покрытие старта задачи с `case_dataset_path`;
   - smoke сценарий: `backend/scripts/smoke_retrieval_api.sh`.
 - архитектурные решения:
   - `docs/adr/0016-langgraph-postgres-checkpointer-runtime-integration.md`;
   - `docs/adr/0017-dedicated-langgraph-checkpoint-storage.md`;
-  - `docs/adr/0018-task-events-status-filters-and-summary-read-model.md`.
+  - `docs/adr/0018-task-events-status-filters-and-summary-read-model.md`;
+  - `docs/adr/0019-file-based-demo-release-go-no-go-pipeline.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -82,14 +91,14 @@
 
 1. Поднять FastMCP сервисы по контрактам blueprint (`Retrieval MCP`, `Repository MCP`, `Artifact Writer MCP`).
 2. Ввести async/queue execution для long-running задач и retry-политику.
-3. Собрать production deployment-профиль для Ubuntu 24: конфигурации, секреты, мониторинг, runbook.
+3. Развить file-based ingestion за пределы release packet (многофайловые источники, валидация форматов).
 4. Развить ingestion/template/authoring/assembly workflows.
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
 1. Подготовить первый FastMCP runtime сервис (`Retrieval MCP`) на FastMCP.
-2. Зафиксировать deployment smoke/runbook для Ubuntu 24 c `stage`/`prod` профилями.
-3. Расширить reference-case `saa_release_readiness` шагом authoring + traceability.
+2. Собрать ingestion-слой для нескольких входных документов (не только одиночный markdown).
+3. Расширить reference-case шагом authoring + traceability поверх текущего retrieval/demo.
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
 5. Добавить интеграционные тесты для расширенного audit read-model.

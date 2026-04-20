@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 13`.
+Текущий инкремент: `Increment 14`.
 
 Сделано:
 
@@ -59,6 +59,17 @@
 - добавлена cleanup-политика `keep_latest/delete` в `PostgresLangGraphCheckpointer.prune(...)`.
 - добавлена миграция индексов для аналитических фильтров task events:
   - `backend/migrations/0005_task_events_status_filter_indexes.sql`.
+- добавлен file-based demo-кейс `release_go_no_go_case`:
+  - входной markdown `release_packet.md`;
+  - сборка retrieval dataset через `build_release_packet_dataset.py`;
+  - осмысленный итоговый артефакт `release_readiness_report.md`.
+- добавлен end-to-end demo pipeline:
+  - Linux: `backend/scripts/demo_release_go_no_go_case.sh`;
+  - Windows: `backend/scripts/demo_release_go_no_go_case.ps1`.
+- добавлено e2e покрытие старта задачи с `task_context.case_dataset_path`.
+- усилена надежность smoke/demo-скриптов:
+  - приоритет python из `./.venv`;
+  - ранняя проверка наличия модуля `uvicorn`.
 
 ## Структура
 
@@ -145,6 +156,36 @@ bash ./backend/scripts/smoke_retrieval_api.sh \
 kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicorn_8010.pid
 ```
 
+6. Расширенный file-based demo (Linux):
+
+```bash
+bash ./backend/scripts/demo_release_go_no_go_case.sh --host 127.0.0.1 --port 8020
+```
+
+7. Расширенный file-based demo (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_go_no_go_case.ps1
+```
+
+## Reference Case: Release Go/No-Go (File-Based)
+
+Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
+
+1. Входной файл:
+   - `backend/examples/cases/release_go_no_go_case/input/release_packet.md`
+2. Автогенерация dataset:
+   - `backend/examples/cases/release_go_no_go_case/output/release_packet_dataset.generated.json`
+3. Запуск retrieval с `task_context.case_dataset_path`.
+4. Итоговый отчет:
+   - `backend/examples/cases/release_go_no_go_case/output/release_readiness_report.md`
+
+Что проверяем в этом demo:
+
+- корректность file-based ingest в retrieval pipeline;
+- сохранение task lifecycle и audit events в том же контуре API;
+- интерпретируемый результат для релизного решения (GO/NO-GO, blockers, approvals).
+
 ### Как интерпретировать результат demo/smoke
 
 Скрипт возвращает JSON со следующими полями:
@@ -197,6 +238,17 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - `prod` профиль запрещает in-memory fallback persistence.
 - LangGraph runtime использует PostgreSQL checkpointer в БД-контуре и `InMemorySaver` в fallback-контуре.
 - task payload продолжает храниться в `app.checkpoints`, а runtime checkpointing вынесен в отдельный storage-контур `app.langgraph_*`.
+- retrieval start поддерживает file-based датасет через `task_context.case_dataset_path`;
+- добавлен новый реалистичный demo-кейс release go/no-go с генерацией итогового markdown-отчета.
+
+## Контракт POST /api/v1/tasks/retrieval/start (task_context)
+
+Поддерживаемые поля в `task_context`:
+
+- `case_dataset_id` — загрузка встроенного demo-датасета по id;
+- `case_dataset_path` — загрузка датасета из JSON-файла на диске (file-based режим).
+
+Если заданы оба поля, приоритет у `case_dataset_path`.
 
 ## Контракт GET /api/v1/tasks
 

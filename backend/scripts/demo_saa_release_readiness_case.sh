@@ -22,9 +22,13 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SMOKE_PATH="${SCRIPT_DIR}/smoke_retrieval_api.sh"
 
-if command -v python >/dev/null 2>&1; then
+if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
+    # В demo-режиме предпочитаем python из локального venv репозитория.
+    PYTHON_BIN="${REPO_ROOT}/.venv/bin/python"
+elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
 elif command -v python3 >/dev/null 2>&1; then
     PYTHON_BIN="python3"

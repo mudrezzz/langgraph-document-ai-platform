@@ -1,8 +1,8 @@
-# Ручной Прогон: PostgreSQL + Миграции + Smoke
+# Ручной Прогон: PostgreSQL + Smoke + Расширенный Demo
 
-Краткий чеклист для самостоятельной проверки проекта на Linux-сервере.
+Краткая актуальная инструкция для Linux-сервера.
 
-## 1. Подготовка (один раз)
+## 1. Подготовка окружения
 
 ```bash
 cd /root/langgraph-document-ai-platform
@@ -12,9 +12,12 @@ pip install fastapi pydantic langgraph "psycopg[binary]" uvicorn pytest
 chmod +x backend/scripts/*.sh
 ```
 
-Ожидаемо: команды завершаются без ошибок.
+Что увидеть:
 
-## 2. Подготовить `backend/.env`
+- команды завершаются без ошибок;
+- в проекте есть `./.venv` (smoke/demo теперь автоматически предпочитает этот python).
+
+## 2. Создать `backend/.env`
 
 ```bash
 cat > backend/.env <<'EOF'
@@ -30,30 +33,24 @@ POSTGRES_PORT=55432
 EOF
 ```
 
-## 3. Поднять PostgreSQL в Docker
+Что это значит:
+
+- `prod` профиль запрещает in-memory fallback persistence;
+- проверяется именно реальный PostgreSQL-контур.
+
+## 3. Поднять PostgreSQL и применить миграции
 
 ```bash
 bash backend/scripts/postgres_up.sh
-docker compose -f backend/docker-compose.postgres.yml --project-name langgraph ps
-```
-
-Ожидаемо: контейнер `langgraph-db` в статусе `Up ... (healthy)`.
-
-## 4. Применить миграции
-
-```bash
 PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 ```
 
-Ожидаемо:
+Что увидеть:
 
-- `applied: 0001_baseline.sql`
-- `applied: 0002_task_registry.sql`
-- `applied: 0003_task_events.sql`
-- `applied: 0004_langgraph_checkpoint_storage.sql`
-- `applied: 0005_task_events_status_filter_indexes.sql`
+- контейнер `langgraph-db` в состоянии `healthy`;
+- применены миграции `0001`..`0005`.
 
-## 5. Прогнать smoke-сценарий
+## 4. Базовый smoke retrieval
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -63,23 +60,21 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_retrieval_api.sh --host 127.0.0.1 --port 8010
 ```
 
-Ожидаемо в JSON-результате:
+Что увидеть в JSON:
 
-- `start_status = "completed"`
-- `task_status = "completed"`
-- `evidence_blocks >= 1`
-- `history_contains_task = true`
-- `events_returned >= 2`
-- `events_has_running_to_completed = true`
-- `events_summary_total >= 2`
-- `events_summary_unique_tasks = 1`
-- `events_summary_has_running_to_completed = true`
+- `start_status=completed`, `task_status=completed`;
+- `evidence_blocks >= 1`;
+- `history_contains_task=true`;
+- `events_has_running_to_completed=true`;
+- `events_summary_has_running_to_completed=true`.
 
-Дополнительно полезно: в `top_sources` обычно есть `METH-001`, `OPS-002`, `INT-015`.
+Как интерпретировать:
 
-## 6. Проверить `task_id` вручную через API событий
+- это минимальное подтверждение, что retrieval + task history + task events + events summary работают в PostgreSQL-контуре.
 
-Если нужно сразу после smoke вручную дергать API по `task_id`, оставьте сервер поднятым:
+## 5. Ручной аудит событий по `task_id`
+
+Если хотите вручную пройти API после smoke:
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -89,11 +84,7 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_retrieval_api.sh --host 127.0.0.1 --port 8010 --keep-server
 ```
 
-В stderr будет подсказка с PID-файлом, например:
-
-- `backend/.smoke_uvicorn_8010.pid`
-
-Проверка событий по задаче:
+Дальше:
 
 ```bash
 TASK_ID="<task_id_из_smoke_json>"
@@ -102,63 +93,63 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
   --data-urlencode "task_id=$TASK_ID" \
   --data-urlencode "task_type=retrieval_pack"
 
-curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
-  --data-urlencode "limit=20" \
-  --data-urlencode "task_id=$TASK_ID" \
-  --data-urlencode "from_status=running" \
-  --data-urlencode "to_status=completed"
-
 curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events/summary" \
   --data-urlencode "task_id=$TASK_ID" \
   --data-urlencode "task_type=retrieval_pack"
 ```
 
-## 7. Быстрая интерпретация результата
+Что увидеть:
 
-- `evidence_blocks = 0`: проблема в retrieval/dataset wiring.
-- `history_contains_task = false`: проблема в persistence/task history.
-- `events_has_running_to_completed = false`: проблема в lifecycle transitions или аудите task events.
-- `events_summary_has_running_to_completed = false`: проблема в summary read-model или статусных фильтрах.
-- ошибка про `psycopg`: не активирован venv или не установлены зависимости.
-- `API сервер завершился до /health`: смотреть лог smoke-скрипта и проверить env.
+- в `events` есть переходы `null -> running` и `running -> completed`;
+- в `summary.transitions` есть `running -> completed`.
 
-## 8. (Опционально) Проверить записи в БД
+## 6. Расширенный demo (реалистичный file-based сценарий)
 
 ```bash
-docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
-  psql -U app -d langgraph -c "SELECT task_id,status,updated_at FROM app.tasks ORDER BY updated_at DESC LIMIT 5;"
-
-docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
-  psql -U app -d langgraph -c "SELECT task_id,from_status,to_status,created_at FROM app.task_events ORDER BY created_at DESC LIMIT 10;"
-
-docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
-  psql -U app -d langgraph -c "SELECT thread_id,checkpoint_ns,checkpoint_id,updated_at FROM app.langgraph_checkpoints ORDER BY updated_at DESC LIMIT 5;"
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/demo_release_go_no_go_case.sh --host 127.0.0.1 --port 8020
 ```
 
-Ожидаемо: свежая задача в `app.tasks`, события переходов статусов в `app.task_events` и как минимум одна запись в `app.langgraph_checkpoints` для текущего `task_id`.
+Что делает скрипт:
 
-## 9. Завершение
+1. берёт `input/release_packet.md`;
+2. строит dataset JSON;
+3. запускает retrieval через `task_context.case_dataset_path`;
+4. формирует отчет `output/release_readiness_report.md`.
 
-```bash
-bash backend/scripts/postgres_down.sh --remove-volumes
-```
+Что увидеть:
 
-Ожидаемо: контейнер/сеть/volume удалены.
+- `evidence_blocks > 0`;
+- в конце выведены пути к `dataset` и `report`;
+- в отчете есть GO/NO-GO, blockers, pending approvals, evidence sources, task events summary.
 
-Если запускали smoke с `--keep-server`, сначала остановите API:
+## 7. Готово / Не реализовано в demo-контуре
+
+Готово:
+
+- file-based вход (`markdown -> dataset -> retrieval task`);
+- аудит статусов и summary API в том же прогоне;
+- осмысленный итоговый markdown-отчет для ручной проверки.
+
+Еще не реализовано:
+
+- универсальный ingestion произвольных форматов (пока фокус на структуре release packet);
+- LLM-авторинг итогового решения (сейчас используются rule-based эвристики);
+- отдельный production dashboard по агрегатам task events за периоды.
+
+## 8. Завершение и остановка сервисов
+
+Если запускали `--keep-server`, остановить API:
 
 ```bash
 kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_8010.pid
 ```
 
-Если PID-файл устарел, найдите процесс по порту и завершите его:
+Остановить PostgreSQL и удалить volume:
 
 ```bash
-ss -ltnp '( sport = :8010 )'
-# затем kill <pid>
+bash backend/scripts/postgres_down.sh --remove-volumes
 ```
-
-## Примечания
-
-- Для основной проверки использовать `smoke_retrieval_api.sh`.
-- Demo-скрипт `demo_saa_release_readiness_case.sh` использует тот же smoke-контур и должен стабильно отрабатывать.

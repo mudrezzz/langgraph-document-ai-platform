@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 import pytest
@@ -102,6 +103,35 @@ def test_start_endpoint_returns_400_for_empty_query(client: TestClient) -> None:
     )
 
     assert response.status_code == 400
+
+
+def test_start_endpoint_supports_case_dataset_path(client: TestClient) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_path = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "saa_release_readiness_case"
+        / "input"
+        / "knowledge_layers.json"
+    )
+
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "release approval constraints",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "case_dataset_path": str(dataset_path),
+                "requester": "integration-path-test",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
 
 
 def test_status_endpoint_returns_task_state(client: TestClient) -> None:

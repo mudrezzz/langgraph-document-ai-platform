@@ -28,3 +28,4 @@
 - `0016-langgraph-postgres-checkpointer-runtime-integration.md`
 - `0017-dedicated-langgraph-checkpoint-storage.md`
 - `0018-task-events-status-filters-and-summary-read-model.md`
+- `0019-file-based-demo-release-go-no-go-pipeline.md`
