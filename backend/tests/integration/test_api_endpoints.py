@@ -209,6 +209,34 @@ def test_task_events_endpoint_supports_cursor_and_filters(client: TestClient) ->
     assert ranged.status_code == 200
     assert ranged.json()["total_returned"] >= 2
 
+    completed_only = client.get(
+        f"/api/v1/tasks/events?limit=20&task_id={task_id}&from_status=running&to_status=completed"
+    )
+    assert completed_only.status_code == 200
+    completed_payload = completed_only.json()
+    assert completed_payload["total_returned"] == 1
+    assert completed_payload["items"][0]["from_status"] == "running"
+    assert completed_payload["items"][0]["to_status"] == "completed"
+
+
+def test_task_events_summary_endpoint_returns_aggregates(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    response = client.get(
+        f"/api/v1/tasks/events/summary?task_id={task_id}&task_type=retrieval_pack"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_events"] >= 2
+    assert payload["unique_tasks"] == 1
+
+    transitions = {
+        (item["from_status"], item["to_status"]): item["total"]
+        for item in payload["transitions"]
+    }
+    assert transitions[(None, "running")] >= 1
+    assert transitions[("running", "completed")] >= 1
+
 
 def test_task_events_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:
     response = client.get("/api/v1/tasks/events?limit=20&cursor=invalid_cursor_payload")

@@ -84,6 +84,7 @@ EVIDENCE_FILE="$(mktemp)"
 RESUME_FILE="$(mktemp)"
 HISTORY_FILE="$(mktemp)"
 EVENTS_FILE="$(mktemp)"
+EVENTS_SUMMARY_FILE="$(mktemp)"
 
 cleanup() {
     if [[ -n "${SERVER_PID:-}" ]] && kill -0 "${SERVER_PID}" 2>/dev/null; then
@@ -102,7 +103,7 @@ cleanup() {
     if [[ "${KEEP_SERVER}" != "true" ]]; then
         rm -f "${SERVER_LOG}"
     fi
-    rm -f "${START_FILE}" "${STATUS_FILE}" "${EVIDENCE_FILE}" "${RESUME_FILE}" "${HISTORY_FILE}" "${EVENTS_FILE}"
+    rm -f "${START_FILE}" "${STATUS_FILE}" "${EVIDENCE_FILE}" "${RESUME_FILE}" "${HISTORY_FILE}" "${EVENTS_FILE}" "${EVENTS_SUMMARY_FILE}"
 
     if [[ -z "${PREV_PYTHONPATH}" ]]; then
         unset PYTHONPATH
@@ -198,8 +199,9 @@ curl -fsS \
 
 curl -fsS "${BASE_URL}/api/v1/tasks?limit=5&status=completed&task_type=retrieval_pack" >"${HISTORY_FILE}"
 curl -fsS "${BASE_URL}/api/v1/tasks/events?limit=10&task_id=${task_id}&task_type=retrieval_pack" >"${EVENTS_FILE}"
+curl -fsS "${BASE_URL}/api/v1/tasks/events/summary?task_id=${task_id}&task_type=retrieval_pack" >"${EVENTS_SUMMARY_FILE}"
 
-"${PYTHON_BIN}" - "${BASE_URL}" "${CASE_DATASET_ID}" "${QUERY}" "${task_id}" "${START_FILE}" "${STATUS_FILE}" "${EVIDENCE_FILE}" "${RESUME_FILE}" "${HISTORY_FILE}" "${EVENTS_FILE}" <<'PY'
+"${PYTHON_BIN}" - "${BASE_URL}" "${CASE_DATASET_ID}" "${QUERY}" "${task_id}" "${START_FILE}" "${STATUS_FILE}" "${EVIDENCE_FILE}" "${RESUME_FILE}" "${HISTORY_FILE}" "${EVENTS_FILE}" "${EVENTS_SUMMARY_FILE}" <<'PY'
 import json
 import sys
 
@@ -214,6 +216,7 @@ import sys
     resume_file,
     history_file,
     events_file,
+    events_summary_file,
 ) = sys.argv[1:]
 
 with open(start_file, encoding="utf-8") as f:
@@ -228,6 +231,8 @@ with open(history_file, encoding="utf-8") as f:
     history_response = json.load(f)
 with open(events_file, encoding="utf-8") as f:
     events_response = json.load(f)
+with open(events_summary_file, encoding="utf-8") as f:
+    events_summary_response = json.load(f)
 
 top_sources = evidence_response.get("evidence_pack", {}).get("selected_sources", [])[:3]
 history_items = history_response.get("items", [])
@@ -236,6 +241,11 @@ event_items = events_response.get("items", [])
 has_completed_transition = any(
     item.get("from_status") == "running" and item.get("to_status") == "completed"
     for item in event_items
+)
+summary_transitions = events_summary_response.get("transitions", [])
+summary_has_completed_transition = any(
+    item.get("from_status") == "running" and item.get("to_status") == "completed"
+    for item in summary_transitions
 )
 
 result = {
@@ -253,6 +263,9 @@ result = {
     "history_contains_task": task_id in history_ids,
     "events_returned": len(event_items),
     "events_has_running_to_completed": has_completed_transition,
+    "events_summary_total": events_summary_response.get("total_events"),
+    "events_summary_unique_tasks": events_summary_response.get("unique_tasks"),
+    "events_summary_has_running_to_completed": summary_has_completed_transition,
 }
 
 print(json.dumps(result, ensure_ascii=False, indent=4))

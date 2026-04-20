@@ -283,4 +283,27 @@ def test_e2e_postgres_task_flow(postgres_backed_server_context: dict[str, str]) 
     assert events_code == 200
     assert events_payload["total_returned"] >= 2
     assert {item["task_id"] for item in events_payload["items"]} == {task_id}
+
+    completed_events_code, completed_events_payload = _request(
+        "GET",
+        f"{base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&from_status=running&to_status=completed",
+    )
+    assert completed_events_code == 200
+    assert completed_events_payload["total_returned"] >= 1
+    assert all(
+        item["from_status"] == "running" and item["to_status"] == "completed"
+        for item in completed_events_payload["items"]
+    )
+
+    summary_code, summary_payload = _request(
+        "GET",
+        f"{base_url}/api/v1/tasks/events/summary?task_id={task_id}&task_type=retrieval_pack",
+    )
+    assert summary_code == 200
+    assert summary_payload["total_events"] >= 2
+    assert summary_payload["unique_tasks"] == 1
+    transitions = {(item["from_status"], item["to_status"]) for item in summary_payload["transitions"]}
+    assert (None, "running") in transitions
+    assert ("running", "completed") in transitions
+
     assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True

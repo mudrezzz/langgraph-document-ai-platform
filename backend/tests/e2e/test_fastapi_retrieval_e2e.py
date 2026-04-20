@@ -180,6 +180,30 @@ def test_e2e_task_events_endpoint(server_base_url: str) -> None:
     assert status_2 == 200
     assert body_2["total_returned"] >= 1
 
+    status_3, body_3 = _request(
+        "GET",
+        f"{server_base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&from_status=running&to_status=completed",
+    )
+    assert status_3 == 200
+    assert body_3["total_returned"] == 1
+    assert body_3["items"][0]["from_status"] == "running"
+    assert body_3["items"][0]["to_status"] == "completed"
+
+
+def test_e2e_task_events_summary_endpoint(server_base_url: str) -> None:
+    task_id = _start_task(server_base_url)
+
+    status, body = _request(
+        "GET",
+        f"{server_base_url}/api/v1/tasks/events/summary?task_id={task_id}&task_type=retrieval_pack",
+    )
+    assert status == 200
+    assert body["total_events"] >= 2
+    assert body["unique_tasks"] == 1
+    transitions = {(item["from_status"], item["to_status"]) for item in body["transitions"]}
+    assert (None, "running") in transitions
+    assert ("running", "completed") in transitions
+
 
 def test_e2e_evidence_endpoint(server_base_url: str) -> None:
     task_id = _start_task(server_base_url)

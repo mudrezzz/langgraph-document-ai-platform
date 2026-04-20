@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 12`.
+Текущий инкремент: `Increment 13`.
 
 Сделано:
 
@@ -42,6 +42,11 @@
 - добавлен endpoint аудита переходов статусов `GET /api/v1/tasks/events`:
   - фильтры `task_id`, `task_type`, `from`, `to`;
   - курсорная пагинация (`cursor`, `next_cursor`, `has_more`).
+- расширен endpoint аудита `GET /api/v1/tasks/events`:
+  - фильтры `from_status`, `to_status`.
+- добавлен агрегированный endpoint аудита `GET /api/v1/tasks/events/summary`:
+  - сводка `total_events`, `unique_tasks`;
+  - группировка переходов `from_status -> to_status` с полем `total`.
 - исправлен Linux demo-скрипт `backend/scripts/demo_saa_release_readiness_case.sh` (устранена ошибка парсинга JSON вывода smoke).
 - в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API по `task_id`.
 - добавлен production checkpointer LangGraph поверх PostgreSQL (`PostgresLangGraphCheckpointer`) с подключением в runtime compile/invoke.
@@ -52,6 +57,8 @@
   - `app.langgraph_checkpoint_writes`;
   - миграция `backend/migrations/0004_langgraph_checkpoint_storage.sql`.
 - добавлена cleanup-политика `keep_latest/delete` в `PostgresLangGraphCheckpointer.prune(...)`.
+- добавлена миграция индексов для аналитических фильтров task events:
+  - `backend/migrations/0005_task_events_status_filter_indexes.sql`.
 
 ## Структура
 
@@ -152,6 +159,9 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - `history_contains_task`: попала ли только что запущенная задача в историю.
 - `events_returned`: сколько событий вернул endpoint аудита `GET /api/v1/tasks/events` для текущей задачи;
 - `events_has_running_to_completed`: найден ли переход `running -> completed`.
+- `events_summary_total`: сколько событий попало в агрегированную сводку `GET /api/v1/tasks/events/summary`;
+- `events_summary_unique_tasks`: по скольким задачам построена сводка;
+- `events_summary_has_running_to_completed`: есть ли в сводке переход `running -> completed`.
 
 Нормальный для текущей версии результат:
 
@@ -164,6 +174,9 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - `history_contains_task=true`;
 - `events_returned >= 2`;
 - `events_has_running_to_completed=true`.
+- `events_summary_total >= 2`;
+- `events_summary_unique_tasks = 1` для smoke по одному `task_id`;
+- `events_summary_has_running_to_completed=true`.
 
 Если `evidence_blocks=0` или в `top_sources` нет ожидаемых документов кейса, это сигнал, что сломалась маршрутизация retrieval или dataset wiring.
 
@@ -179,6 +192,7 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - lifecycle задач хранится в персистентном реестре (`PostgresTaskRegistry`);
 - API отдает историю задач через `GET /api/v1/tasks` с фильтрами и курсорной пагинацией;
 - API отдает аудит событий через `GET /api/v1/tasks/events` с фильтрами и курсорной пагинацией;
+- API отдает агрегированную сводку аудита через `GET /api/v1/tasks/events/summary`;
 - переходы статусов фиксируются в аудит-таблице `app.task_events`;
 - `prod` профиль запрещает in-memory fallback persistence.
 - LangGraph runtime использует PostgreSQL checkpointer в БД-контуре и `InMemorySaver` в fallback-контуре.
@@ -210,6 +224,8 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - `cursor` (opaque cursor следующей страницы)
 - `task_id`
 - `task_type`
+- `from_status`
+- `to_status`
 - `from` / `to` (ISO datetime, фильтрация по `created_at`)
 
 Ответ:
@@ -220,10 +236,27 @@ kill "$(cat ./backend/.smoke_uvicorn_8010.pid)" && rm -f ./backend/.smoke_uvicor
 - `next_cursor`: курсор следующей страницы или `null`;
 - `has_more`: есть ли следующая страница.
 
+## Контракт GET /api/v1/tasks/events/summary
+
+Параметры:
+
+- `task_id`
+- `task_type`
+- `from_status`
+- `to_status`
+- `from` / `to` (ISO datetime, фильтрация по `created_at`)
+
+Ответ:
+
+- `total_events`: общее число событий по фильтру;
+- `unique_tasks`: число уникальных `task_id` по фильтру;
+- `transitions`: агрегированные переходы со структурой `from_status`, `to_status`, `total`.
+
 ## Что будет в следующих итерациях
 
 - FastMCP runtime-сервисы (`Retrieval MCP`, `Repository MCP`, далее `Artifact Writer MCP`);
 - расширение reference-case: переход от retrieval-only к связке retrieval + authoring + traceability;
+- агрегированные read-model/дашборды поверх `task_events` (по периодам, task_type, SLA);
 - отдельный observability-контур для метрик/дашбордов по `task_events`.
 
 ## Тестовая стратегия

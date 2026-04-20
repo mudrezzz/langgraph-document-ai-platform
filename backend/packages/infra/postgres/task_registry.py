@@ -7,6 +7,8 @@ from application.errors import TaskNotFoundError
 from application.task_service import (
     TaskEventListPage,
     TaskEventRecord,
+    TaskEventSummary,
+    TaskEventTransitionStat,
     TaskListPage,
     TaskRecord,
     TaskRegistry,
@@ -237,6 +239,8 @@ class PostgresTaskRegistry(TaskRegistry):
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventListPage:
@@ -246,6 +250,8 @@ class PostgresTaskRegistry(TaskRegistry):
                 cursor=cursor,
                 task_id=task_id,
                 task_type=task_type,
+                from_status=from_status,
+                to_status=to_status,
                 created_from=created_from,
                 created_to=created_to,
             )
@@ -263,6 +269,12 @@ class PostgresTaskRegistry(TaskRegistry):
         if task_type:
             where_clauses.append("task_type = %s")
             params.append(task_type)
+        if from_status is not None:
+            where_clauses.append("from_status = %s")
+            params.append(from_status)
+        if to_status:
+            where_clauses.append("to_status = %s")
+            params.append(to_status)
         if normalized_from:
             where_clauses.append("created_at >= %s")
             params.append(normalized_from)
@@ -308,6 +320,93 @@ class PostgresTaskRegistry(TaskRegistry):
             total_returned=len(items),
             next_cursor=next_cursor,
             has_more=has_more,
+        )
+
+    def summarize_task_events(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventSummary:
+        if self._use_fallback:
+            return self._summarize_task_events_fallback(
+                task_id=task_id,
+                task_type=task_type,
+                from_status=from_status,
+                to_status=to_status,
+                created_from=created_from,
+                created_to=created_to,
+            )
+
+        normalized_from = _normalize_datetime(created_from) if created_from else None
+        normalized_to = _normalize_datetime(created_to) if created_to else None
+
+        where_clauses = ["1=1"]
+        params: list[object] = []
+
+        if task_id:
+            where_clauses.append("task_id = %s")
+            params.append(task_id)
+        if task_type:
+            where_clauses.append("task_type = %s")
+            params.append(task_type)
+        if from_status is not None:
+            where_clauses.append("from_status = %s")
+            params.append(from_status)
+        if to_status:
+            where_clauses.append("to_status = %s")
+            params.append(to_status)
+        if normalized_from:
+            where_clauses.append("created_at >= %s")
+            params.append(normalized_from)
+        if normalized_to:
+            where_clauses.append("created_at <= %s")
+            params.append(normalized_to)
+
+        where_clause = " AND ".join(where_clauses)
+        psycopg, dict_row = _import_psycopg()
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT from_status, to_status, COUNT(*) AS total
+                    FROM {self._schema}.task_events
+                    WHERE {where_clause}
+                    GROUP BY from_status, to_status
+                    ORDER BY total DESC, to_status ASC, from_status ASC
+                    """,
+                    tuple(params),
+                )
+                rows = cur.fetchall()
+
+                cur.execute(
+                    f"""
+                    SELECT
+                        COUNT(*) AS total_events,
+                        COUNT(DISTINCT task_id) AS unique_tasks
+                    FROM {self._schema}.task_events
+                    WHERE {where_clause}
+                    """,
+                    tuple(params),
+                )
+                totals_row = cur.fetchone() or {}
+
+        transitions = [
+            TaskEventTransitionStat(
+                from_status=row.get("from_status"),
+                to_status=row["to_status"],
+                total=int(row["total"]),
+            )
+            for row in rows
+        ]
+        return TaskEventSummary(
+            total_events=int(totals_row.get("total_events", 0) or 0),
+            unique_tasks=int(totals_row.get("unique_tasks", 0) or 0),
+            transitions=transitions,
         )
 
     def _save_with_fallback(self, record: TaskRecord) -> None:
@@ -391,6 +490,8 @@ class PostgresTaskRegistry(TaskRegistry):
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventListPage:
@@ -403,6 +504,10 @@ class PostgresTaskRegistry(TaskRegistry):
             if task_id and item.task_id != task_id:
                 continue
             if task_type and item.task_type != task_type:
+                continue
+            if from_status is not None and item.from_status != from_status:
+                continue
+            if to_status and item.to_status != to_status:
                 continue
 
             item_created_at = _effective_event_timestamp(item)
@@ -426,6 +531,54 @@ class PostgresTaskRegistry(TaskRegistry):
             total_returned=len(items),
             next_cursor=next_cursor,
             has_more=has_more,
+        )
+
+    def _summarize_task_events_fallback(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventSummary:
+        normalized_from = _normalize_datetime(created_from) if created_from else None
+        normalized_to = _normalize_datetime(created_to) if created_to else None
+
+        filtered: list[TaskEventRecord] = []
+        for item in self._events:
+            if task_id and item.task_id != task_id:
+                continue
+            if task_type and item.task_type != task_type:
+                continue
+            if from_status is not None and item.from_status != from_status:
+                continue
+            if to_status and item.to_status != to_status:
+                continue
+
+            item_created_at = _effective_event_timestamp(item)
+            if normalized_from and item_created_at < normalized_from:
+                continue
+            if normalized_to and item_created_at > normalized_to:
+                continue
+            filtered.append(item)
+
+        buckets: dict[tuple[str | None, str], int] = {}
+        for item in filtered:
+            key = (item.from_status, item.to_status)
+            buckets[key] = buckets.get(key, 0) + 1
+
+        transitions = [
+            TaskEventTransitionStat(from_status=from_status_key, to_status=to_status_key, total=total)
+            for (from_status_key, to_status_key), total in buckets.items()
+        ]
+        transitions.sort(key=lambda item: (-item.total, item.to_status, item.from_status or ""))
+
+        return TaskEventSummary(
+            total_events=len(filtered),
+            unique_tasks=len({item.task_id for item in filtered}),
+            transitions=transitions,
         )
 
 

@@ -51,6 +51,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 - `applied: 0002_task_registry.sql`
 - `applied: 0003_task_events.sql`
 - `applied: 0004_langgraph_checkpoint_storage.sql`
+- `applied: 0005_task_events_status_filter_indexes.sql`
 
 ## 5. Прогнать smoke-сценарий
 
@@ -70,6 +71,9 @@ bash backend/scripts/smoke_retrieval_api.sh --host 127.0.0.1 --port 8010
 - `history_contains_task = true`
 - `events_returned >= 2`
 - `events_has_running_to_completed = true`
+- `events_summary_total >= 2`
+- `events_summary_unique_tasks = 1`
+- `events_summary_has_running_to_completed = true`
 
 Дополнительно полезно: в `top_sources` обычно есть `METH-001`, `OPS-002`, `INT-015`.
 
@@ -97,6 +101,16 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
   --data-urlencode "limit=20" \
   --data-urlencode "task_id=$TASK_ID" \
   --data-urlencode "task_type=retrieval_pack"
+
+curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
+  --data-urlencode "limit=20" \
+  --data-urlencode "task_id=$TASK_ID" \
+  --data-urlencode "from_status=running" \
+  --data-urlencode "to_status=completed"
+
+curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events/summary" \
+  --data-urlencode "task_id=$TASK_ID" \
+  --data-urlencode "task_type=retrieval_pack"
 ```
 
 ## 7. Быстрая интерпретация результата
@@ -104,6 +118,7 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
 - `evidence_blocks = 0`: проблема в retrieval/dataset wiring.
 - `history_contains_task = false`: проблема в persistence/task history.
 - `events_has_running_to_completed = false`: проблема в lifecycle transitions или аудите task events.
+- `events_summary_has_running_to_completed = false`: проблема в summary read-model или статусных фильтрах.
 - ошибка про `psycopg`: не активирован venv или не установлены зависимости.
 - `API сервер завершился до /health`: смотреть лог smoke-скрипта и проверить env.
 

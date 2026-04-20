@@ -59,4 +59,7 @@ print(f"History returned: {result.get('history_returned')}")
 print(f"History contains task: {result.get('history_contains_task')}")
 print(f"Events returned: {result.get('events_returned')}")
 print(f"Has running->completed event: {result.get('events_has_running_to_completed')}")
+print(f"Events summary total: {result.get('events_summary_total')}")
+print(f"Events summary unique tasks: {result.get('events_summary_unique_tasks')}")
+print(f"Summary has running->completed: {result.get('events_summary_has_running_to_completed')}")
 PY

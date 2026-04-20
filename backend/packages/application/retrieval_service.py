@@ -11,7 +11,9 @@ from schemas.api.contracts import (
     StartRetrievalTaskRequest,
     StartTaskResponse,
     TaskEventItem,
+    TaskEventTransitionSummaryItem,
     TaskEventsResponse,
+    TaskEventsSummaryResponse,
     TaskHistoryItem,
     TaskHistoryResponse,
     TaskStatusResponse,
@@ -141,6 +143,8 @@ class RetrievalApplicationService:
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventsResponse:
@@ -149,6 +153,8 @@ class RetrievalApplicationService:
             cursor=cursor,
             task_id=task_id,
             task_type=task_type,
+            from_status=from_status,
+            to_status=to_status,
             created_from=created_from,
             created_to=created_to,
         )
@@ -172,6 +178,37 @@ class RetrievalApplicationService:
             total_returned=page.total_returned,
             next_cursor=page.next_cursor,
             has_more=page.has_more,
+        )
+
+    def events_summary(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventsSummaryResponse:
+        summary = self._task_service.summarize_task_events(
+            task_id=task_id,
+            task_type=task_type,
+            from_status=from_status,
+            to_status=to_status,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return TaskEventsSummaryResponse(
+            total_events=summary.total_events,
+            unique_tasks=summary.unique_tasks,
+            transitions=[
+                TaskEventTransitionSummaryItem(
+                    from_status=item.from_status,
+                    to_status=item.to_status,
+                    total=item.total,
+                )
+                for item in summary.transitions
+            ],
         )
 
     def evidence(self, task_id: str) -> EvidencePackResponse:

@@ -218,6 +218,12 @@ def test_postgres_task_registry_fallback_task_events_cursor_and_filters() -> Non
     type_filtered = registry.list_task_events(limit=10, task_type="indexing_pack")
     assert {item.task_id for item in type_filtered.items} == {"task-2"}
 
+    transition_filtered = registry.list_task_events(limit=10, from_status="running", to_status="completed")
+    assert len(transition_filtered.items) == 1
+    assert transition_filtered.items[0].task_id == "task-1"
+    assert transition_filtered.items[0].from_status == "running"
+    assert transition_filtered.items[0].to_status == "completed"
+
     now_utc = datetime.now(timezone.utc)
     ranged = registry.list_task_events(
         limit=10,
@@ -225,3 +231,40 @@ def test_postgres_task_registry_fallback_task_events_cursor_and_filters() -> Non
         created_to=now_utc + timedelta(minutes=5),
     )
     assert len(ranged.items) >= 1
+
+
+def test_postgres_task_registry_fallback_task_events_summary() -> None:
+    registry = PostgresTaskRegistry(dsn=None, use_fallback_if_unset=True)
+
+    registry.save(
+        TaskRecord(
+            task_id="task-1",
+            task_type="retrieval_pack",
+            status="running",
+            current_node="start",
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="task-1",
+            task_type="retrieval_pack",
+            status="completed",
+            current_node="completed",
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="task-2",
+            task_type="retrieval_pack",
+            status="running",
+            current_node="start",
+        )
+    )
+
+    summary = registry.summarize_task_events(task_type="retrieval_pack")
+
+    assert summary.total_events == 3
+    assert summary.unique_tasks == 2
+    transitions = {(item.from_status, item.to_status): item.total for item in summary.transitions}
+    assert transitions[(None, "running")] == 2
+    assert transitions[("running", "completed")] == 1

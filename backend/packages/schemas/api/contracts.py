@@ -76,6 +76,22 @@ class TaskEventsResponse(BaseModel):
     has_more: bool = False
 
 
+class TaskEventTransitionSummaryItem(BaseModel):
+    """Агрегированная запись перехода статусов."""
+
+    from_status: str | None = None
+    to_status: str
+    total: int
+
+
+class TaskEventsSummaryResponse(BaseModel):
+    """Сводка по переходам статусов задач."""
+
+    total_events: int
+    unique_tasks: int
+    transitions: list[TaskEventTransitionSummaryItem] = Field(default_factory=list)
+
+
 class StartRetrievalTaskRequest(BaseModel):
     """Типизированный запрос на запуск retrieval workflow."""
 

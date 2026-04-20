@@ -58,6 +58,22 @@ class TaskEventListPage(BaseModel):
     has_more: bool = False
 
 
+class TaskEventTransitionStat(BaseModel):
+    """Агрегированная статистика по переходу статусов."""
+
+    from_status: str | None = None
+    to_status: str
+    total: int
+
+
+class TaskEventSummary(BaseModel):
+    """Сводка аудита переходов статусов."""
+
+    total_events: int
+    unique_tasks: int
+    transitions: list[TaskEventTransitionStat] = Field(default_factory=list)
+
+
 class TaskCursor(BaseModel):
     """Декодированное значение курсора истории задач."""
 
@@ -101,10 +117,24 @@ class TaskRegistry(Protocol):
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventListPage:
         """Возвращает события аудита переходов статусов."""
+
+    def summarize_task_events(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventSummary:
+        """Возвращает агрегированную сводку по переходам статусов."""
 
 
 class InMemoryTaskRegistry(TaskRegistry):
@@ -187,6 +217,8 @@ class InMemoryTaskRegistry(TaskRegistry):
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventListPage:
@@ -199,6 +231,10 @@ class InMemoryTaskRegistry(TaskRegistry):
             if task_id and item.task_id != task_id:
                 continue
             if task_type and item.task_type != task_type:
+                continue
+            if from_status is not None and item.from_status != from_status:
+                continue
+            if to_status and item.to_status != to_status:
                 continue
 
             item_created_at = _effective_event_timestamp(item)
@@ -226,6 +262,54 @@ class InMemoryTaskRegistry(TaskRegistry):
             total_returned=len(items),
             next_cursor=next_cursor,
             has_more=has_more,
+        )
+
+    def summarize_task_events(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventSummary:
+        normalized_from = _normalize_datetime(created_from) if created_from else None
+        normalized_to = _normalize_datetime(created_to) if created_to else None
+
+        filtered: list[TaskEventRecord] = []
+        for item in self._events:
+            if task_id and item.task_id != task_id:
+                continue
+            if task_type and item.task_type != task_type:
+                continue
+            if from_status is not None and item.from_status != from_status:
+                continue
+            if to_status and item.to_status != to_status:
+                continue
+
+            item_created_at = _effective_event_timestamp(item)
+            if normalized_from and item_created_at < normalized_from:
+                continue
+            if normalized_to and item_created_at > normalized_to:
+                continue
+            filtered.append(item)
+
+        buckets: dict[tuple[str | None, str], int] = {}
+        for item in filtered:
+            key = (item.from_status, item.to_status)
+            buckets[key] = buckets.get(key, 0) + 1
+
+        transitions = [
+            TaskEventTransitionStat(from_status=from_status_key, to_status=to_status_key, total=total)
+            for (from_status_key, to_status_key), total in buckets.items()
+        ]
+        transitions.sort(key=lambda item: (-item.total, item.to_status, item.from_status or ""))
+
+        return TaskEventSummary(
+            total_events=len(filtered),
+            unique_tasks=len({item.task_id for item in filtered}),
+            transitions=transitions,
         )
 
     def _register_status_event(self, *, previous: TaskRecord | None, current: TaskRecord) -> None:
@@ -336,6 +420,8 @@ class TaskApplicationService:
         cursor: str | None = None,
         task_id: str | None = None,
         task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
     ) -> TaskEventListPage:
@@ -344,6 +430,27 @@ class TaskApplicationService:
             cursor=cursor,
             task_id=task_id,
             task_type=task_type,
+            from_status=from_status,
+            to_status=to_status,
+            created_from=created_from,
+            created_to=created_to,
+        )
+
+    def summarize_task_events(
+        self,
+        *,
+        task_id: str | None = None,
+        task_type: str | None = None,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> TaskEventSummary:
+        return self._registry.summarize_task_events(
+            task_id=task_id,
+            task_type=task_type,
+            from_status=from_status,
+            to_status=to_status,
             created_from=created_from,
             created_to=created_to,
         )

@@ -12,6 +12,7 @@ from schemas.api.contracts import (
     StartRetrievalTaskRequest,
     StartTaskResponse,
     TaskEventsResponse,
+    TaskEventsSummaryResponse,
     TaskHistoryResponse,
     TaskStatusResponse,
 )
@@ -70,6 +71,8 @@ def get_task_events(
     cursor: str | None = Query(default=None, min_length=8, max_length=512),
     task_id: str | None = Query(default=None),
     task_type: str | None = Query(default=None),
+    from_status: str | None = Query(default=None),
+    to_status: str | None = Query(default=None),
     created_from: datetime | None = Query(default=None, alias="from"),
     created_to: datetime | None = Query(default=None, alias="to"),
     container: ApiContainer = Depends(get_container),
@@ -82,11 +85,35 @@ def get_task_events(
             cursor=cursor,
             task_id=task_id,
             task_type=task_type,
+            from_status=from_status,
+            to_status=to_status,
             created_from=created_from,
             created_to=created_to,
         )
     except InvalidCursorError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/tasks/events/summary", response_model=TaskEventsSummaryResponse)
+def get_task_events_summary(
+    task_id: str | None = Query(default=None),
+    task_type: str | None = Query(default=None),
+    from_status: str | None = Query(default=None),
+    to_status: str | None = Query(default=None),
+    created_from: datetime | None = Query(default=None, alias="from"),
+    created_to: datetime | None = Query(default=None, alias="to"),
+    container: ApiContainer = Depends(get_container),
+) -> TaskEventsSummaryResponse:
+    """Возвращает агрегированную сводку по переходам статусов задач."""
+
+    return container.retrieval_service.events_summary(
+        task_id=task_id,
+        task_type=task_type,
+        from_status=from_status,
+        to_status=to_status,
+        created_from=created_from,
+        created_to=created_to,
+    )
 
 
 @app.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)

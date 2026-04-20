@@ -27,3 +27,4 @@
 - `0015-smoke-keep-server-mode-for-post-smoke-api-validation.md`
 - `0016-langgraph-postgres-checkpointer-runtime-integration.md`
 - `0017-dedicated-langgraph-checkpoint-storage.md`
+- `0018-task-events-status-filters-and-summary-read-model.md`
