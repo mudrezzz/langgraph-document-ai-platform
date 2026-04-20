@@ -21,8 +21,9 @@ except Exception:  # pragma: no cover - защитная ветка для ок�
 class BaseWorkflow(ABC, IWorkflow):
     """Базовая абстракция workflow с поддержкой LangGraph runtime."""
 
-    def __init__(self, use_langgraph_runtime: bool = True) -> None:
+    def __init__(self, use_langgraph_runtime: bool = True, checkpointer: Any | None = None) -> None:
         self._use_langgraph_runtime = use_langgraph_runtime
+        self._langgraph_checkpointer = checkpointer
         self._compiled_graph: Any | None = None
         self._compiled_resume_graph: Any | None = None
         self._runtime_mode: str = "fallback"
@@ -91,7 +92,7 @@ class BaseWorkflow(ABC, IWorkflow):
         builder.add_edge(START, entry_node_name)
         builder.add_edge(entry_node_name, END)
 
-        return builder.compile()
+        return builder.compile(checkpointer=self._langgraph_checkpointer)
 
     def _invoke_langgraph(self, state: BaseModel, is_resume: bool) -> BaseModel:
         """Выполняет compiled LangGraph и возвращает типизированный state."""
@@ -103,5 +104,35 @@ class BaseWorkflow(ABC, IWorkflow):
         if graph is None:
             raise RuntimeError("Граф workflow не скомпилирован")
 
-        result_payload = graph.invoke(state.model_dump(mode="json"))
+        invoke_config = self._build_langgraph_config(state)
+        state_payload = state.model_dump(mode="json")
+        if invoke_config is None:
+            result_payload = graph.invoke(state_payload)
+        else:
+            result_payload = graph.invoke(state_payload, config=invoke_config)
         return self.state_schema().model_validate(result_payload)
+
+    def _build_langgraph_config(self, state: BaseModel) -> dict[str, Any] | None:
+        """Строит runtime-config для LangGraph; при checkpointer обязателен `thread_id`."""
+
+        if self._langgraph_checkpointer is None:
+            return None
+
+        thread_id = self._resolve_thread_id(state)
+        return {"configurable": {"thread_id": thread_id}}
+
+    @staticmethod
+    def _resolve_thread_id(state: BaseModel) -> str:
+        """Извлекает thread_id из state для устойчивого checkpointing."""
+
+        task_context = getattr(state, "task_context", None)
+        if isinstance(task_context, dict):
+            candidate = task_context.get("task_id")
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate
+
+        candidate = getattr(state, "task_id", None)
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate
+
+        raise ValueError("Для LangGraph checkpointer требуется task_id в state.task_context или state.task_id")

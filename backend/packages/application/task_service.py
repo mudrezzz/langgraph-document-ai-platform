@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime, timezone
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -353,6 +353,14 @@ class TaskApplicationService:
         if payload is None:
             raise TaskNotFoundError(f"Checkpoint для задачи {task_id} не найден")
         return payload
+
+    def get_langgraph_checkpointer(self) -> Any | None:
+        """Возвращает checkpointer для LangGraph, если текущий store его поддерживает."""
+
+        builder = getattr(self._checkpoint_store, "build_langgraph_checkpointer", None)
+        if callable(builder):
+            return builder()
+        return None
 
 
 def build_task_cursor(task: TaskRecord) -> str:

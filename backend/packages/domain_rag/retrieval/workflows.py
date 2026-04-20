@@ -8,8 +8,8 @@ from schemas.workflow.states import RetrievalWorkflowState
 class RetrievalPackWorkflow(BaseWorkflow):
     """Первый рабочий вертикальный срез retrieval workflow."""
 
-    def __init__(self, pipeline: HierarchicalRAGPipeline) -> None:
-        super().__init__(use_langgraph_runtime=True)
+    def __init__(self, pipeline: HierarchicalRAGPipeline, checkpointer: object | None = None) -> None:
+        super().__init__(use_langgraph_runtime=True, checkpointer=checkpointer)
         self._pipeline = pipeline
         self.compile()
 

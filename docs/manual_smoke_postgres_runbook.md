@@ -114,9 +114,12 @@ docker compose -f backend/docker-compose.postgres.yml --project-name langgraph e
 
 docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
   psql -U app -d langgraph -c "SELECT task_id,from_status,to_status,created_at FROM app.task_events ORDER BY created_at DESC LIMIT 10;"
+
+docker compose -f backend/docker-compose.postgres.yml --project-name langgraph exec -T postgres \
+  psql -U app -d langgraph -c "SELECT run_id,updated_at FROM app.checkpoints WHERE run_id LIKE 'lg_thread:%' ORDER BY updated_at DESC LIMIT 5;"
 ```
 
-Ожидаемо: свежая задача в `app.tasks` и события переходов статусов в `app.task_events`.
+Ожидаемо: свежая задача в `app.tasks`, события переходов статусов в `app.task_events` и как минимум одна запись `lg_thread:*` в `app.checkpoints` (это LangGraph runtime checkpoint namespace).
 
 ## 9. Завершение
 

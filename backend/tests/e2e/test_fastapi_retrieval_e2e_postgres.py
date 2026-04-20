@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import shutil
@@ -33,7 +34,7 @@ def _docker_available() -> bool:
 
 
 @pytest.fixture(scope="module")
-def postgres_backed_server_base_url() -> str:
+def postgres_backed_server_context() -> dict[str, str]:
     """Поднимает PostgreSQL через docker compose и запускает API с реальным APP_DB_DSN."""
 
     if not _docker_available():
@@ -123,7 +124,7 @@ def postgres_backed_server_base_url() -> str:
         base_url = f"http://127.0.0.1:{api_port}"
         _wait_for_health(base_url, timeout_sec=30, process=api_process)
 
-        yield base_url
+        yield {"base_url": base_url, "dsn": dsn}
     finally:
         if api_process is not None:
             api_process.terminate()
@@ -218,31 +219,46 @@ def _start_task(base_url: str) -> str:
     return body["task_id"]
 
 
-def test_e2e_postgres_health_endpoint(postgres_backed_server_base_url: str) -> None:
-    status, body = _request("GET", f"{postgres_backed_server_base_url}/health")
+def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
+    import psycopg
+
+    encoded_task_id = base64.urlsafe_b64encode(task_id.encode("utf-8")).decode("ascii").rstrip("=")
+    run_id = f"lg_thread:{encoded_task_id}:ns:"
+
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM app.checkpoints WHERE run_id = %s LIMIT 1", (run_id,))
+            return cur.fetchone() is not None
+
+
+def test_e2e_postgres_health_endpoint(postgres_backed_server_context: dict[str, str]) -> None:
+    base_url = postgres_backed_server_context["base_url"]
+    status, body = _request("GET", f"{base_url}/health")
 
     assert status == 200
     assert body["status"] == "ok"
 
 
-def test_e2e_postgres_task_flow(postgres_backed_server_base_url: str) -> None:
-    task_id = _start_task(postgres_backed_server_base_url)
+def test_e2e_postgres_task_flow(postgres_backed_server_context: dict[str, str]) -> None:
+    base_url = postgres_backed_server_context["base_url"]
+    dsn = postgres_backed_server_context["dsn"]
+    task_id = _start_task(base_url)
 
     status_code, status_payload = _request(
-        "GET", f"{postgres_backed_server_base_url}/api/v1/tasks/{task_id}"
+        "GET", f"{base_url}/api/v1/tasks/{task_id}"
     )
     assert status_code == 200
     assert status_payload["status"] == "completed"
 
     evidence_code, evidence_payload = _request(
-        "GET", f"{postgres_backed_server_base_url}/api/v1/tasks/{task_id}/evidence"
+        "GET", f"{base_url}/api/v1/tasks/{task_id}/evidence"
     )
     assert evidence_code == 200
     assert len(evidence_payload["evidence_pack"]["selected_blocks"]) >= 1
 
     resume_code, resume_payload = _request(
         "POST",
-        f"{postgres_backed_server_base_url}/api/v1/tasks/{task_id}/resume",
+        f"{base_url}/api/v1/tasks/{task_id}/resume",
         payload={
             "decision": "rerun",
             "comment": "postgres e2e rerun",
@@ -254,7 +270,7 @@ def test_e2e_postgres_task_flow(postgres_backed_server_base_url: str) -> None:
     assert resume_payload["details"]["resume_decision"] == "rerun"
 
     history_code, history_payload = _request(
-        "GET", f"{postgres_backed_server_base_url}/api/v1/tasks?limit=20&status=completed&task_type=retrieval_pack"
+        "GET", f"{base_url}/api/v1/tasks?limit=20&status=completed&task_type=retrieval_pack"
     )
     assert history_code == 200
     assert history_payload["total_returned"] >= 1
@@ -263,8 +279,9 @@ def test_e2e_postgres_task_flow(postgres_backed_server_base_url: str) -> None:
 
     events_code, events_payload = _request(
         "GET",
-        f"{postgres_backed_server_base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&task_type=retrieval_pack",
+        f"{base_url}/api/v1/tasks/events?limit=20&task_id={task_id}&task_type=retrieval_pack",
     )
     assert events_code == 200
     assert events_payload["total_returned"] >= 2
     assert {item["task_id"] for item in events_payload["items"]} == {task_id}
+    assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True

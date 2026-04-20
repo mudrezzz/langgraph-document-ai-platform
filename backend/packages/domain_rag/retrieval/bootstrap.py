@@ -13,6 +13,7 @@ def build_retrieval_workflow(
     *,
     case_dataset_id: str | None = None,
     case_dataset_path: str | None = None,
+    checkpointer: object | None = None,
 ) -> RetrievalPackWorkflow:
     """Собирает retrieval workflow из concrete adapters и тестового case dataset."""
 
@@ -27,4 +28,4 @@ def build_retrieval_workflow(
         reranker=GatewayReranker(TeiRerankGateway()),
         evidence_builder=EvidenceBuilder(),
     )
-    return RetrievalPackWorkflow(pipeline)
+    return RetrievalPackWorkflow(pipeline, checkpointer=checkpointer)

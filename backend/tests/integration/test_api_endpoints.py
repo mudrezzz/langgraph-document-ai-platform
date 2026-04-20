@@ -83,6 +83,14 @@ def test_start_endpoint_returns_task_id(client: TestClient) -> None:
     assert body["task_id"]
 
 
+def test_start_endpoint_persists_task_id_in_task_context(client: TestClient) -> None:
+    task_id = _create_task(client)
+
+    payload = get_container().task_service.get_state_payload(task_id)
+
+    assert payload["task_context"]["task_id"] == task_id
+
+
 def test_start_endpoint_returns_400_for_empty_query(client: TestClient) -> None:
     response = client.post(
         "/api/v1/tasks/retrieval/start",
