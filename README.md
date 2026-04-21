@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 20`.
+Текущий инкремент: `Increment 21`.
 
 Сделано:
 
@@ -114,6 +114,18 @@
   - в статусе задачи и metadata артефакта сохраняется `steps_summary`.
 - traceability расширен до секций итогового артефакта:
   - `traceability.sections[]` с `section_id`, `title`, `review_status`, `source_refs`.
+- добавлен async authoring запуск через Celery/Redis:
+  - endpoint `POST /api/v1/tasks/authoring/start_async`;
+  - worker app `apps/worker` + Celery task `run_authoring_task`;
+  - docker-compose контур `backend/docker-compose.async.yml` (`redis` + `celery-worker`).
+- добавлен базовый HITL API:
+  - `GET /api/v1/tasks/{task_id}/hitl`;
+  - `POST /api/v1/tasks/{task_id}/hitl/submit`;
+  - статус задачи `waiting_human` и продолжение пайплайна после submit.
+- добавлены async/HITL smoke и demo скрипты:
+  - `smoke_authoring_async_api.sh/.ps1`;
+  - `demo_release_authoring_async_hitl_case.sh/.ps1`;
+  - `async_up/down.sh` и `async_up/down.ps1`.
 
 ## Структура
 
@@ -124,6 +136,7 @@ backend/
     mcp_artifact_writer/
     mcp_repository/
     mcp_retrieval/
+    worker/
   examples/
     cases/
   migrations/
@@ -325,6 +338,38 @@ bash ./backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_authoring_traceability_case.ps1 -HostName 127.0.0.1 -Port 8040
 ```
 
+25. Поднять Redis + Celery worker (Linux):
+
+```bash
+bash ./backend/scripts/async_up.sh
+```
+
+26. Smoke Async Authoring API + HITL (Linux):
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+```
+
+27. Demo Async Authoring + HITL (Linux):
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision approve
+```
+
+28. Остановить Redis + Celery worker (Linux):
+
+```bash
+bash ./backend/scripts/async_down.sh
+```
+
 ## Reference Case: Release Go/No-Go (File-Based)
 
 Новый сценарий показывает реалистичный поток "документ -> retrieval -> отчет":
@@ -420,6 +465,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - authoring draft поддерживает реальную LLM (OpenRouter) с режимами `auto|deterministic|llm`.
 - multi-step authoring поддерживает шаги `research -> writer -> reviewer -> assembly` и сохраняет их в `steps_summary`.
 - traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
+- async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
+- HITL контур поддерживает паузу `waiting_human` и ручное решение через `hitl/submit`.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -443,11 +490,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 - `artifact_format` (по умолчанию `markdown`)
 - `draft_strategy` (`auto|deterministic|llm`, по умолчанию `auto`)
 - `workflow_mode` (`single_pass|multi_step`, по умолчанию `multi_step`)
+- `hitl_required` (`true|false`, по умолчанию `false`)
 
 Ответ:
 
 - `task_id`
 - `status`
+
+## Контракт POST /api/v1/tasks/authoring/start_async
+
+Поля запроса совпадают с `authoring/start`.
+
+Ответ:
+
+- `task_id`
+- `status` (`queued`)
 
 ## Контракт GET /api/v1/tasks/{task_id}/artifact
 
@@ -468,6 +525,32 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
     - `title`
     - `review_status`
     - `source_refs` (`doc_id`, `version`, `block_id`)
+
+## Контракт GET /api/v1/tasks/{task_id}/hitl
+
+Ответ:
+
+- `task_id`
+- `status`
+- `required`
+- `pending_reason`
+- `reviewer_notes`
+- `actions[]` (`decision`, `comment`, `metadata`, `created_at`)
+
+## Контракт POST /api/v1/tasks/{task_id}/hitl/submit
+
+Поля запроса:
+
+- `decision` (`approve|needs_changes|reject`)
+- `comment`
+- `metadata`
+
+Ответ:
+
+- `task_id`
+- `status`
+- `current_node`
+- `details`
 
 ## MCP Контракты (MVP)
 
@@ -538,7 +621,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_relea
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- развитие multi-step authoring до HITL/feedback-петли и итеративного reviewer цикла;
+- развитие HITL до полноценной feedback-петли с несколькими итерациями reviewer/rewrite;
 - ingestion расширение на PDF/DOCX/OCR с quality gates;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 

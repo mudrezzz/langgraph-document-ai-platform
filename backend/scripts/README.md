@@ -16,6 +16,8 @@
 - `postgres_up.sh` — поднять PostgreSQL + pgvector через docker compose.
 - `postgres_migrate.sh` — загрузить `.env` и применить SQL-миграции.
 - `postgres_down.sh` — остановить PostgreSQL контейнер (опционально удалить volume).
+- `async_up.sh` — поднять Redis + Celery worker через docker compose.
+- `async_down.sh` — остановить Redis + Celery worker (опционально удалить volume).
 - `apply_migrations.sh` — применить миграции при уже заданной `APP_DB_DSN`.
 - `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
   - поддерживает `--keep-server` (не выключать API после smoke);
@@ -31,6 +33,8 @@
   - поддерживает `--workflow-mode single_pass|multi_step`;
   - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
 - `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
+- `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact`.
+- `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
 
 ### Пример полного цикла
 
@@ -38,6 +42,7 @@
 # Создайте backend/.env вручную (пример полей см. docs/manual_smoke_postgres_runbook.md)
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
+bash backend/scripts/async_up.sh
 APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
   bash backend/scripts/smoke_retrieval_api.sh --port 8010
 
@@ -69,6 +74,17 @@ APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
 
 # Authoring demo:
 bash backend/scripts/demo_release_authoring_traceability_case.sh --port 8040
+
+# Async authoring + HITL smoke:
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+  bash backend/scripts/smoke_authoring_async_api.sh --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+
+# Async authoring + HITL demo:
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+  bash backend/scripts/demo_release_authoring_async_hitl_case.sh --port 8060 --hitl-decision approve
+bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
@@ -77,6 +93,8 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `postgres_up.ps1`
 - `postgres_migrate.ps1`
 - `postgres_down.ps1`
+- `async_up.ps1`
+- `async_down.ps1`
 - `apply_migrations.ps1`
 - `smoke_retrieval_api.ps1`
 - `demo_saa_release_readiness_case.ps1`
@@ -87,3 +105,5 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `smoke_artifact_writer_mcp.ps1`
 - `smoke_authoring_api.ps1`
 - `demo_release_authoring_traceability_case.ps1`
+- `smoke_authoring_async_api.ps1`
+- `demo_release_authoring_async_hitl_case.ps1`

@@ -1,0 +1,15 @@
+FROM python:3.12-slim
+
+WORKDIR /workspace/backend
+
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir \
+        fastapi \
+        pydantic \
+        langgraph \
+        "psycopg[binary]" \
+        celery \
+        redis \
+        uvicorn
+
+ENV PYTHONUNBUFFERED=1

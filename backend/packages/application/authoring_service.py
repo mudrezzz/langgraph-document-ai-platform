@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Protocol
 
 from pydantic import BaseModel, Field
 
+from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
 from application.errors import (
     InvalidTaskStateError,
@@ -15,11 +16,15 @@ from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from framework.models.interfaces import IChatModelGateway
 from schemas.api.contracts import (
+    HitlReviewActionResponse,
+    HitlReviewStatusResponse,
+    SubmitHitlReviewRequest,
     StartAuthoringTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
     TaskArtifactResponse,
     TaskArtifactSectionTraceabilityResponse,
+    TaskStatusResponse,
     TaskArtifactTraceabilityResponse,
 )
 from schemas.rag.contracts import EvidencePack, SourceRef
@@ -99,8 +104,80 @@ class AuthoringApplicationService:
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
+        return self.run_existing_task(task_id=task.task_id, request=request)
 
-        task_context = {**request.task_context, "task_id": task.task_id}
+    def start_async(
+        self,
+        request: StartAuthoringTaskRequest,
+        *,
+        dispatcher: AuthoringAsyncDispatcher,
+    ) -> StartTaskResponse:
+        task = self._task_service.create_task(
+            task_type="authoring_pack",
+            initial_status="queued",
+            initial_node="queued",
+            details={
+                "execution_mode": "async",
+                "workflow_mode": request.workflow_mode,
+                "hitl_required": request.hitl_required,
+            },
+        )
+
+        try:
+            dispatch_id = dispatcher.enqueue_authoring_start(
+                task_id=task.task_id,
+                request_payload=request.model_dump(mode="json"),
+            )
+        except Exception as exc:
+            self._task_service.update_task(
+                task.task_id,
+                status="failed",
+                current_node="failed",
+                details={"error": str(exc), "execution_mode": "async"},
+            )
+            raise WorkflowExecutionError(f"Не удалось поставить задачу в async очередь: {exc}") from exc
+
+        current = self._task_service.get_task(task.task_id)
+        next_status = current.status
+        next_node = current.current_node
+        if current.status == "queued":
+            next_status = "queued"
+            next_node = "queued"
+
+        self._task_service.update_task(
+            task.task_id,
+            status=next_status,
+            current_node=next_node,
+            details={
+                **current.details,
+                "dispatch_id": dispatch_id,
+                "workflow_mode": request.workflow_mode,
+                "hitl_required": request.hitl_required,
+            },
+        )
+        return StartTaskResponse(task_id=task.task_id, status="queued")
+
+    def run_existing_task(self, *, task_id: str, request: StartAuthoringTaskRequest) -> StartTaskResponse:
+        current = self._task_service.get_task(task_id)
+        if current.task_type != "authoring_pack":
+            raise InvalidTaskStateError(
+                f"Ожидался task_type=authoring_pack для run_existing_task, получен {current.task_type}"
+            )
+
+        self._task_service.update_task(
+            task_id,
+            status="running",
+            current_node="start",
+            details={
+                **current.details,
+                "workflow_mode": request.workflow_mode,
+                "hitl_required": request.hitl_required,
+            },
+        )
+        return self._run_authoring_pipeline(task_id=task_id, request=request)
+
+    def _run_authoring_pipeline(self, *, task_id: str, request: StartAuthoringTaskRequest) -> StartTaskResponse:
+        task_context = {**request.task_context, "task_id": task_id}
         initial_state = AuthoringTaskState(
             task_context=task_context,
             query=request.query,
@@ -110,6 +187,7 @@ class AuthoringApplicationService:
             artifact_format=request.artifact_format,
             draft_strategy=request.draft_strategy,
             workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
             current_step="retrieval",
         )
 
@@ -117,10 +195,7 @@ class AuthoringApplicationService:
             retrieval_request = StartRetrievalTaskRequest(
                 query=request.query,
                 filters=request.filters,
-                task_context={
-                    **task_context,
-                    "parent_task_id": task.task_id,
-                },
+                task_context={**task_context, "parent_task_id": task_id},
             )
             retrieval_started = self._retrieval_service.start(retrieval_request)
             retrieval_task_id = retrieval_started.task_id
@@ -171,107 +246,204 @@ class AuthoringApplicationService:
                 )
             )
 
-            section_traceability = self._build_section_traceability(evidence_pack=evidence_pack, review_result=review_result)
-            final_content = self._assemble_document(
-                query=request.query,
+            section_traceability = self._build_section_traceability(
+                evidence_pack=evidence_pack,
+                review_result=review_result,
+            )
+
+            if request.hitl_required and request.workflow_mode == "multi_step":
+                waiting_traceability = {
+                    "retrieval_task_id": retrieval_task_id,
+                    "source_refs": self._dedup_source_dicts(evidence_pack.selected_sources),
+                    "sections": section_traceability,
+                    "workflow_steps": [step.model_dump(mode="json") for step in steps],
+                }
+                waiting_state = initial_state.model_copy(
+                    update={
+                        "current_step": "waiting_human",
+                        "retrieval_task_id": retrieval_task_id,
+                        "research_summary": research_summary,
+                        "draft": draft_result.content,
+                        "review_result": review_result,
+                        "section_traceability": section_traceability,
+                        "steps_summary": [step.model_dump(mode="json") for step in steps],
+                        "traceability": waiting_traceability,
+                        "draft_generation_mode": draft_result.mode,
+                        "draft_generation_metadata": draft_result.metadata,
+                        "hitl_status": "pending",
+                    }
+                )
+                self._task_service.save_checkpoint(task_id, waiting_state.model_dump(mode="json"))
+                self._task_service.update_task(
+                    task_id,
+                    status="waiting_human",
+                    current_node="waiting_human",
+                    details={
+                        "current_step": "waiting_human",
+                        "workflow_mode": request.workflow_mode,
+                        "hitl_required": True,
+                        "pending_reason": "Требуется ручное решение reviewer.",
+                        "review_status": review_result["status"],
+                        "final_recommendation": review_result["recommendation"],
+                        "steps_summary": [step.model_dump(mode="json") for step in steps],
+                    },
+                )
+                return StartTaskResponse(task_id=task_id, status="waiting_human")
+
+            return self._finalize_task(
+                task_id=task_id,
+                request=request,
+                retrieval_task_id=retrieval_task_id,
                 research_summary=research_summary,
                 writer_draft=draft_result.content,
                 review_result=review_result,
                 section_traceability=section_traceability,
-                workflow_mode=request.workflow_mode,
+                steps=steps,
+                draft_result=draft_result,
+                initial_state=initial_state,
             )
-            steps.append(
-                AuthoringStepResult(
-                    step="assembly",
-                    status="completed",
-                    notes="Собран финальный артефакт.",
-                    metadata={"section_count": len(section_traceability)},
-                )
-            )
-
-            artifact_title = request.artifact_title or "Release Readiness Draft"
-            artifact_metadata = {
-                "authoring_task_id": task.task_id,
-                "retrieval_task_id": retrieval_task_id,
-                "source_count": len(evidence_pack.selected_sources),
-                "draft_generation_mode": draft_result.mode,
-                "draft_generation_requested_strategy": request.draft_strategy,
-                "workflow_mode": request.workflow_mode,
-                "review_status": review_result["status"],
-                "final_recommendation": review_result["recommendation"],
-                "steps_summary": [step.model_dump(mode="json") for step in steps],
-            }
-            if draft_result.metadata.get("provider"):
-                artifact_metadata["draft_model_provider"] = draft_result.metadata["provider"]
-            if draft_result.metadata.get("model_name"):
-                artifact_metadata["draft_model_name"] = draft_result.metadata["model_name"]
-            if draft_result.metadata.get("fallback_reason"):
-                artifact_metadata["draft_fallback_reason"] = draft_result.metadata["fallback_reason"]
-
-            artifact = self._artifact_service.write_artifact(
-                artifact_type=request.artifact_type,
-                payload={
-                    "title": artifact_title,
-                    "content": final_content,
-                    "format": request.artifact_format,
-                    "metadata": artifact_metadata,
-                },
-            )
-
-            traceability = self._build_traceability(
-                retrieval_task_id=retrieval_task_id,
-                evidence_pack=evidence_pack,
-                section_traceability=section_traceability,
-                workflow_steps=steps,
-            )
-            self._task_artifact_registry.save_link(
-                task_id=task.task_id,
-                artifact_id=artifact.artifact_id,
-                retrieval_task_id=retrieval_task_id,
-                traceability=traceability,
-            )
-
-            completed_state = initial_state.model_copy(
-                update={
-                    "current_step": "completed",
-                    "retrieval_task_id": retrieval_task_id,
-                    "artifact_id": artifact.artifact_id,
-                    "research_summary": research_summary,
-                    "draft": draft_result.content,
-                    "review_result": review_result,
-                    "section_traceability": section_traceability,
-                    "steps_summary": [step.model_dump(mode="json") for step in steps],
-                    "traceability": traceability,
-                    "draft_generation_mode": draft_result.mode,
-                    "draft_generation_metadata": draft_result.metadata,
-                }
-            )
-            self._task_service.complete_task(
-                task_id=task.task_id,
-                state_payload=completed_state.model_dump(mode="json"),
-                details={
-                    "artifact_id": artifact.artifact_id,
-                    "artifact_type": artifact.artifact_type,
-                    "retrieval_task_id": retrieval_task_id,
-                    "current_step": "completed",
-                    "workflow_mode": request.workflow_mode,
-                    "traceability_sources": len(traceability.get("source_refs", [])),
-                    "traceability_sections": len(traceability.get("sections", [])),
-                    "draft_generation_mode": draft_result.mode,
-                    "review_status": review_result["status"],
-                    "final_recommendation": review_result["recommendation"],
-                    "steps_summary": [step.model_dump(mode="json") for step in steps],
-                },
-            )
-            return StartTaskResponse(task_id=task.task_id, status="completed")
         except Exception as exc:
             failed_state = initial_state.model_copy(update={"error_message": str(exc), "current_step": "failed"})
             self._task_service.fail_task(
-                task_id=task.task_id,
+                task_id=task_id,
                 state_payload=failed_state.model_dump(mode="json"),
                 error_message=str(exc),
             )
             raise WorkflowExecutionError(str(exc)) from exc
+
+    def hitl_status(self, task_id: str) -> HitlReviewStatusResponse:
+        task = self._task_service.get_task(task_id)
+        if task.task_type != "authoring_pack":
+            raise InvalidTaskStateError(
+                f"HITL доступен только для задач authoring_pack, получен task_type={task.task_type}"
+            )
+
+        state_payload = self._task_service.get_state_payload(task_id)
+        state = AuthoringTaskState.model_validate(state_payload)
+        actions: list[HitlReviewActionResponse] = []
+        for item in state.hitl_actions:
+            created_at_raw = item.get("created_at")
+            created_at = None
+            if isinstance(created_at_raw, str):
+                try:
+                    created_at = datetime.fromisoformat(created_at_raw)
+                except ValueError:
+                    created_at = None
+            actions.append(
+                HitlReviewActionResponse(
+                    decision=str(item.get("decision", "")),
+                    comment=item.get("comment"),
+                    metadata=dict(item.get("metadata") or {}),
+                    created_at=created_at,
+                )
+            )
+
+        return HitlReviewStatusResponse(
+            task_id=task_id,
+            status=task.status,
+            required=bool(state.hitl_required),
+            pending_reason=task.details.get("pending_reason"),
+            reviewer_notes=str(state.review_result.get("notes", "")) or None,
+            actions=actions,
+        )
+
+    def submit_hitl(self, task_id: str, request: SubmitHitlReviewRequest) -> TaskStatusResponse:
+        task = self._task_service.get_task(task_id)
+        if task.task_type != "authoring_pack":
+            raise InvalidTaskStateError(
+                f"HITL доступен только для задач authoring_pack, получен task_type={task.task_type}"
+            )
+        if task.status != "waiting_human":
+            raise InvalidTaskStateError(
+                f"HITL submit допустим только для waiting_human, текущий статус={task.status}"
+            )
+
+        state_payload = self._task_service.get_state_payload(task_id)
+        state = AuthoringTaskState.model_validate(state_payload)
+        if not state.retrieval_task_id:
+            raise InvalidTaskStateError("Для HITL submit отсутствует retrieval_task_id в state")
+
+        action = {
+            "decision": request.decision,
+            "comment": request.comment,
+            "metadata": request.metadata,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        hitl_actions = [*state.hitl_actions, action]
+
+        if request.decision == "reject":
+            failed_state = state.model_copy(update={"hitl_status": "rejected", "hitl_actions": hitl_actions})
+            self._task_service.fail_task(
+                task_id=task_id,
+                state_payload=failed_state.model_dump(mode="json"),
+                error_message=request.comment or "Ручной reviewer отклонил задачу",
+            )
+            failed = self._task_service.get_task(task_id)
+            return TaskStatusResponse(
+                task_id=failed.task_id,
+                status=failed.status,
+                current_node=failed.current_node,
+                details=failed.details,
+            )
+
+        updated_draft = state.draft or ""
+        updated_review_result = dict(state.review_result)
+        steps = [AuthoringStepResult.model_validate(item) for item in state.steps_summary]
+
+        if request.decision == "needs_changes":
+            updated_draft = self._apply_human_feedback_to_draft(
+                draft=updated_draft,
+                comment=request.comment or "",
+                metadata=request.metadata,
+            )
+            updated_review_result["status"] = "completed"
+            updated_review_result["notes"] = "Reviewer внес правки и подтвердил итог."
+            updated_review_result["recommendation"] = "conditional_go"
+            steps.append(
+                AuthoringStepResult(
+                    step="rewrite",
+                    status="completed",
+                    notes="Черновик обновлен после ручного feedback.",
+                    metadata={"decision": request.decision},
+                )
+            )
+        else:
+            updated_review_result["status"] = "completed"
+            updated_review_result["notes"] = request.comment or "Reviewer утвердил без правок."
+
+        section_traceability = self._set_section_review_status(
+            sections=state.section_traceability,
+            review_status="approved",
+        )
+        steps.append(
+            AuthoringStepResult(
+                step="assembly",
+                status="completed",
+                notes="Собран финальный артефакт после HITL решения.",
+                metadata={"decision": request.decision},
+            )
+        )
+
+        final_content = self._assemble_document(
+            query=state.query,
+            research_summary=state.research_summary or "",
+            writer_draft=updated_draft,
+            review_result=updated_review_result,
+            section_traceability=section_traceability,
+            workflow_mode=state.workflow_mode,
+        )
+
+        return self._finalize_from_hitl(
+            task_id=task_id,
+            state=state,
+            final_content=final_content,
+            updated_draft=updated_draft,
+            review_result=updated_review_result,
+            section_traceability=section_traceability,
+            steps=steps,
+            hitl_actions=hitl_actions,
+            decision=request.decision,
+        )
 
     def artifact(self, task_id: str) -> TaskArtifactResponse:
         task = self._task_service.get_task(task_id)
@@ -315,6 +487,243 @@ class AuthoringApplicationService:
                 sections=sections,
             ),
         )
+
+    def _finalize_task(
+        self,
+        *,
+        task_id: str,
+        request: StartAuthoringTaskRequest,
+        retrieval_task_id: str,
+        research_summary: str,
+        writer_draft: str,
+        review_result: dict[str, Any],
+        section_traceability: list[dict[str, Any]],
+        steps: list[AuthoringStepResult],
+        draft_result: DraftGenerationResult,
+        initial_state: AuthoringTaskState,
+    ) -> StartTaskResponse:
+        final_content = self._assemble_document(
+            query=request.query,
+            research_summary=research_summary,
+            writer_draft=writer_draft,
+            review_result=review_result,
+            section_traceability=section_traceability,
+            workflow_mode=request.workflow_mode,
+        )
+        steps.append(
+            AuthoringStepResult(
+                step="assembly",
+                status="completed",
+                notes="Собран финальный артефакт.",
+                metadata={"section_count": len(section_traceability)},
+            )
+        )
+
+        artifact_title = request.artifact_title or "Release Readiness Draft"
+        artifact_metadata = {
+            "authoring_task_id": task_id,
+            "retrieval_task_id": retrieval_task_id,
+            "source_count": len(self._dedup_source_dicts(self._to_source_refs_from_evidence(section_traceability))),
+            "draft_generation_mode": draft_result.mode,
+            "draft_generation_requested_strategy": request.draft_strategy,
+            "workflow_mode": request.workflow_mode,
+            "review_status": review_result.get("status"),
+            "final_recommendation": review_result.get("recommendation"),
+            "steps_summary": [step.model_dump(mode="json") for step in steps],
+        }
+        if draft_result.metadata.get("provider"):
+            artifact_metadata["draft_model_provider"] = draft_result.metadata["provider"]
+        if draft_result.metadata.get("model_name"):
+            artifact_metadata["draft_model_name"] = draft_result.metadata["model_name"]
+        if draft_result.metadata.get("fallback_reason"):
+            artifact_metadata["draft_fallback_reason"] = draft_result.metadata["fallback_reason"]
+
+        artifact = self._artifact_service.write_artifact(
+            artifact_type=request.artifact_type,
+            payload={
+                "title": artifact_title,
+                "content": final_content,
+                "format": request.artifact_format,
+                "metadata": artifact_metadata,
+            },
+        )
+
+        traceability = {
+            "retrieval_task_id": retrieval_task_id,
+            "source_refs": self._dedup_source_dicts(self._to_source_refs_from_evidence(section_traceability)),
+            "sections": section_traceability,
+            "workflow_steps": [step.model_dump(mode="json") for step in steps],
+        }
+        self._task_artifact_registry.save_link(
+            task_id=task_id,
+            artifact_id=artifact.artifact_id,
+            retrieval_task_id=retrieval_task_id,
+            traceability=traceability,
+        )
+
+        completed_state = initial_state.model_copy(
+            update={
+                "current_step": "completed",
+                "retrieval_task_id": retrieval_task_id,
+                "artifact_id": artifact.artifact_id,
+                "research_summary": research_summary,
+                "draft": writer_draft,
+                "review_result": review_result,
+                "section_traceability": section_traceability,
+                "steps_summary": [step.model_dump(mode="json") for step in steps],
+                "traceability": traceability,
+                "draft_generation_mode": draft_result.mode,
+                "draft_generation_metadata": draft_result.metadata,
+                "hitl_status": "not_required" if not request.hitl_required else "resolved",
+            }
+        )
+        self._task_service.complete_task(
+            task_id=task_id,
+            state_payload=completed_state.model_dump(mode="json"),
+            details={
+                "artifact_id": artifact.artifact_id,
+                "artifact_type": artifact.artifact_type,
+                "retrieval_task_id": retrieval_task_id,
+                "current_step": "completed",
+                "workflow_mode": request.workflow_mode,
+                "hitl_required": request.hitl_required,
+                "traceability_sources": len(traceability.get("source_refs", [])),
+                "traceability_sections": len(traceability.get("sections", [])),
+                "draft_generation_mode": draft_result.mode,
+                "review_status": review_result.get("status"),
+                "final_recommendation": review_result.get("recommendation"),
+                "steps_summary": [step.model_dump(mode="json") for step in steps],
+            },
+        )
+        return StartTaskResponse(task_id=task_id, status="completed")
+
+    def _finalize_from_hitl(
+        self,
+        *,
+        task_id: str,
+        state: AuthoringTaskState,
+        final_content: str,
+        updated_draft: str,
+        review_result: dict[str, Any],
+        section_traceability: list[dict[str, Any]],
+        steps: list[AuthoringStepResult],
+        hitl_actions: list[dict[str, Any]],
+        decision: str,
+    ) -> TaskStatusResponse:
+        artifact_title = state.artifact_title or "Release Readiness Draft"
+        artifact_metadata = {
+            "authoring_task_id": task_id,
+            "retrieval_task_id": state.retrieval_task_id,
+            "draft_generation_mode": state.draft_generation_mode,
+            "workflow_mode": state.workflow_mode,
+            "review_status": review_result.get("status"),
+            "final_recommendation": review_result.get("recommendation"),
+            "hitl_decision": decision,
+            "steps_summary": [step.model_dump(mode="json") for step in steps],
+        }
+        if state.draft_generation_metadata.get("provider"):
+            artifact_metadata["draft_model_provider"] = state.draft_generation_metadata.get("provider")
+        if state.draft_generation_metadata.get("model_name"):
+            artifact_metadata["draft_model_name"] = state.draft_generation_metadata.get("model_name")
+
+        artifact = self._artifact_service.write_artifact(
+            artifact_type=state.artifact_type,
+            payload={
+                "title": artifact_title,
+                "content": final_content,
+                "format": state.artifact_format,
+                "metadata": artifact_metadata,
+            },
+        )
+
+        traceability = {
+            "retrieval_task_id": state.retrieval_task_id,
+            "source_refs": state.traceability.get("source_refs", []),
+            "sections": section_traceability,
+            "workflow_steps": [step.model_dump(mode="json") for step in steps],
+        }
+        self._task_artifact_registry.save_link(
+            task_id=task_id,
+            artifact_id=artifact.artifact_id,
+            retrieval_task_id=state.retrieval_task_id or "",
+            traceability=traceability,
+        )
+
+        completed_state = state.model_copy(
+            update={
+                "current_step": "completed",
+                "artifact_id": artifact.artifact_id,
+                "draft": updated_draft,
+                "review_result": review_result,
+                "section_traceability": section_traceability,
+                "steps_summary": [step.model_dump(mode="json") for step in steps],
+                "traceability": traceability,
+                "hitl_status": "resolved",
+                "hitl_actions": hitl_actions,
+            }
+        )
+        self._task_service.complete_task(
+            task_id=task_id,
+            state_payload=completed_state.model_dump(mode="json"),
+            details={
+                "artifact_id": artifact.artifact_id,
+                "artifact_type": state.artifact_type,
+                "retrieval_task_id": state.retrieval_task_id,
+                "current_step": "completed",
+                "workflow_mode": state.workflow_mode,
+                "hitl_required": True,
+                "hitl_decision": decision,
+                "review_status": review_result.get("status"),
+                "final_recommendation": review_result.get("recommendation"),
+                "traceability_sources": len(traceability.get("source_refs", [])),
+                "traceability_sections": len(traceability.get("sections", [])),
+                "steps_summary": [step.model_dump(mode="json") for step in steps],
+            },
+        )
+        task = self._task_service.get_task(task_id)
+        return TaskStatusResponse(
+            task_id=task.task_id,
+            status=task.status,
+            current_node=task.current_node,
+            details=task.details,
+        )
+
+    def _apply_human_feedback_to_draft(self, *, draft: str, comment: str, metadata: dict[str, Any]) -> str:
+        """Добавляет ручной feedback в writer draft перед финальной сборкой."""
+
+        lines = [draft.strip(), "", "### Human Feedback", comment.strip() or "Изменения подтверждены reviewer."]
+        if metadata:
+            lines.append("")
+            lines.append("### Human Feedback Metadata")
+            for key, value in metadata.items():
+                lines.append(f"- {key}: {value}")
+        return "\n".join(lines).strip()
+
+    def _set_section_review_status(self, *, sections: list[dict[str, Any]], review_status: str) -> list[dict[str, Any]]:
+        """Обновляет review_status по traceability секциям (кроме информационной)."""
+
+        updated: list[dict[str, Any]] = []
+        for section in sections:
+            current = dict(section)
+            if current.get("section_id") != "evidence_register":
+                current["review_status"] = review_status
+            updated.append(current)
+        return updated
+
+    def _to_source_refs_from_evidence(self, sections: list[dict[str, Any]]) -> list[SourceRef]:
+        refs: list[SourceRef] = []
+        seen: set[tuple[str, str, str]] = set()
+        for section in sections:
+            for item in section.get("source_refs", []):
+                doc_id = str(item.get("doc_id", ""))
+                version = str(item.get("version", ""))
+                block_id = str(item.get("block_id", ""))
+                key = (doc_id, version, block_id)
+                if key in seen:
+                    continue
+                seen.add(key)
+                refs.append(SourceRef(doc_id=doc_id, version=version, block_id=block_id))
+        return refs
 
     def _to_source_refs(self, raw_refs: list[dict[str, Any]]) -> list[SourceRef]:
         refs: list[SourceRef] = []

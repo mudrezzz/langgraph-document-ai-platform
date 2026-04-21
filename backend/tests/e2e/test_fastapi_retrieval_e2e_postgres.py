@@ -277,6 +277,34 @@ def _start_authoring_task(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_authoring_task_async(base_url: str, *, hitl_required: bool = True) -> str:
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/authoring/start_async",
+        payload={
+            "query": "подготовь async authoring draft с traceability",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-postgres-authoring-async",
+                "case_dataset_id": "saa_release_readiness",
+            },
+            "artifact_type": "release_report",
+            "artifact_title": "Postgres E2E Async Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+            "hitl_required": hitl_required,
+        },
+    )
+
+    assert status == 200
+    assert body["status"] == "queued"
+    return body["task_id"]
+
+
 def _has_langgraph_checkpoint_for_task(dsn: str, task_id: str) -> bool:
     import psycopg
 
@@ -414,6 +442,45 @@ def test_e2e_postgres_authoring_flow(postgres_backed_server_context: dict[str, s
     assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
     assert len(artifact_payload["metadata"]["steps_summary"]) == 4
     assert len(artifact_payload["traceability"]["source_refs"]) >= 1
+    assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+    assert _has_task_artifact_link(dsn=dsn, task_id=task_id) is True
+
+
+def test_e2e_postgres_authoring_async_hitl_flow(postgres_backed_server_context: dict[str, str]) -> None:
+    base_url = postgres_backed_server_context["base_url"]
+    dsn = postgres_backed_server_context["dsn"]
+    task_id = _start_authoring_task_async(base_url, hitl_required=True)
+
+    status_payload: dict = {}
+    for _ in range(40):
+        status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if status_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.1)
+
+    assert status_payload["status"] == "waiting_human"
+
+    hitl_code, hitl_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/hitl")
+    assert hitl_code == 200
+    assert hitl_payload["required"] is True
+
+    submit_code, submit_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/{task_id}/hitl/submit",
+        payload={
+            "decision": "approve",
+            "comment": "postgres e2e reviewer approved",
+            "metadata": {"source": "e2e-postgres-authoring-async"},
+        },
+    )
+    assert submit_code == 200
+    assert submit_payload["status"] == "completed"
+
+    artifact_code, artifact_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/artifact")
+    assert artifact_code == 200
+    assert artifact_payload["metadata"]["hitl_decision"] == "approve"
     assert len(artifact_payload["traceability"]["sections"]) >= 3
 
     assert _has_task_artifact_link(dsn=dsn, task_id=task_id) is True

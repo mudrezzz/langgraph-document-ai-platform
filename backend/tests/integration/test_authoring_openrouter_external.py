@@ -20,6 +20,9 @@ def _external_llm_tests_enabled() -> bool:
     reason="RUN_EXTERNAL_LLM_TESTS=1 и OPENROUTER_API_KEY обязательны для external LLM теста",
 )
 def test_external_authoring_openrouter_llm_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_RUNTIME_PROFILE", "dev")
+    monkeypatch.delenv("APP_DB_DSN", raising=False)
+    monkeypatch.setenv("APP_DB_SCHEMA", "app")
     monkeypatch.setenv("APP_LLM_ENABLED", "true")
     monkeypatch.setenv("APP_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("APP_LLM_STRICT", "true")

@@ -338,14 +338,21 @@ class TaskApplicationService:
         self._registry = registry
         self._checkpoint_store = checkpoint_store
 
-    def create_task(self, task_type: str) -> TaskRecord:
+    def create_task(
+        self,
+        task_type: str,
+        *,
+        initial_status: str = "running",
+        initial_node: str = "start",
+        details: dict | None = None,
+    ) -> TaskRecord:
         now_utc = datetime.now(timezone.utc)
         task = TaskRecord(
             task_id=str(uuid4()),
             task_type=task_type,
-            status="running",
-            current_node="start",
-            details={},
+            status=initial_status,
+            current_node=initial_node,
+            details=details or {},
             created_at=now_utc,
             updated_at=now_utc,
         )

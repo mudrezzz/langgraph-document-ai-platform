@@ -35,3 +35,4 @@
 - `0023-authoring-api-flow-and-task-artifact-traceability-link.md`
 - `0024-openrouter-llm-authoring-draft-gateway.md`
 - `0025-multistep-authoring-workflow-and-section-traceability.md`
+- `0026-celery-redis-async-authoring-and-hitl-mvp.md`

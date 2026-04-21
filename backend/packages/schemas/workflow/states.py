@@ -58,11 +58,14 @@ class AuthoringTaskState(BaseModel):
     artifact_format: str = "markdown"
     draft_strategy: str = "auto"
     workflow_mode: str = "multi_step"
+    hitl_required: bool = False
     current_step: str | None = None
     steps_summary: list[dict] = Field(default_factory=list)
     research_summary: str | None = None
     draft: str | None = None
     review_result: dict = Field(default_factory=dict)
+    hitl_status: str | None = None
+    hitl_actions: list[dict] = Field(default_factory=list)
     section_traceability: list[dict] = Field(default_factory=list)
     draft_generation_mode: str = "deterministic"
     draft_generation_metadata: dict = Field(default_factory=dict)

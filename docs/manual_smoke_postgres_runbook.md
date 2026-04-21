@@ -38,6 +38,11 @@ OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openai/gpt-4o-mini
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_TIMEOUT_SEC=60
+APP_ASYNC_PROVIDER=inline
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0
+APP_CELERY_QUEUE=authoring
+REDIS_PORT=56379
 
 POSTGRES_DB=langgraph
 POSTGRES_USER=app
@@ -292,7 +297,58 @@ bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workf
 - заполнены `draft_model_provider=openrouter` и `draft_model_name`.
 - `steps_total=4` и `traceability_sections >= 3`.
 
-## 15. Расширенный demo: authoring + traceability
+## 15. Поднять Redis + Celery worker (async контур)
+
+```bash
+bash backend/scripts/async_up.sh
+```
+
+Что увидеть:
+
+- сервисы `redis` и `celery-worker` в состоянии `running`/`healthy` (`docker compose ... ps`).
+
+## 16. Smoke Async Authoring API + HITL
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+```
+
+Что увидеть в JSON:
+
+- `start_status=queued`;
+- после poll задача доходит до `task_status=completed`;
+- `steps_total >= 4`;
+- `traceability_sections >= 3`;
+- `hitl_submit_status=completed`.
+
+Как интерпретировать:
+
+- это подтверждает, что async запуск через Celery/Redis работает, а HITL submit корректно завершает workflow.
+
+## 17. Расширенный demo: authoring async + HITL
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision approve
+```
+
+Что делает скрипт:
+
+1. запускает async authoring через `authoring/start_async`;
+2. дожидается `waiting_human`;
+3. отправляет ручное решение reviewer в `hitl/submit`;
+4. сохраняет результат в `output/authoring_async_hitl_result.json`.
+
+## 18. Расширенный demo: authoring + traceability
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -308,7 +364,7 @@ bash backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.
 2. получает итоговый task artifact и summary событий;
 3. сохраняет итог в `output/authoring_traceability_result.json`.
 
-## 16. Завершение и остановка сервисов
+## 19. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 
@@ -319,5 +375,6 @@ kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_80
 Остановить PostgreSQL и удалить volume:
 
 ```bash
+bash backend/scripts/async_down.sh --remove-volumes
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```

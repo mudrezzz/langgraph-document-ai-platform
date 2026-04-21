@@ -5,10 +5,16 @@ from typing import Any
 import pytest
 
 from application.authoring_service import AuthoringApplicationService, TaskArtifactLinkRecord
+from application.async_dispatcher import InlineAuthoringAsyncDispatcher
 from application.errors import InvalidTaskStateError
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
-from schemas.api.contracts import EvidencePackResponse, StartAuthoringTaskRequest, StartTaskResponse
+from schemas.api.contracts import (
+    EvidencePackResponse,
+    StartAuthoringTaskRequest,
+    StartTaskResponse,
+    SubmitHitlReviewRequest,
+)
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
 
 
@@ -228,6 +234,86 @@ def test_authoring_service_single_pass_marks_reviewer_skipped() -> None:
     artifact = service.artifact(response.task_id)
     assert artifact.metadata["workflow_mode"] == "single_pass"
     assert artifact.metadata["review_status"] == "skipped"
+
+
+def test_authoring_service_supports_hitl_wait_and_submit() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+
+    started = service.start(
+        StartAuthoringTaskRequest(
+            query="hitl required draft",
+            artifact_type="release_report",
+            artifact_title="Unit HITL Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            workflow_mode="multi_step",
+            hitl_required=True,
+            task_context={"requester": "unit-test"},
+        )
+    )
+    assert started.status == "waiting_human"
+
+    hitl_status = service.hitl_status(started.task_id)
+    assert hitl_status.status == "waiting_human"
+    assert hitl_status.required is True
+
+    submitted = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="approve",
+            comment="looks good",
+            metadata={"reviewer": "unit"},
+        ),
+    )
+    assert submitted.status == "completed"
+    artifact = service.artifact(started.task_id)
+    assert artifact.metadata["hitl_decision"] == "approve"
+
+
+def test_authoring_service_start_async_with_inline_dispatcher() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+    dispatcher = InlineAuthoringAsyncDispatcher(
+        runner=lambda task_id, payload: service.run_existing_task(
+            task_id=task_id,
+            request=StartAuthoringTaskRequest.model_validate(payload),
+        )
+    )
+
+    started = service.start_async(
+        StartAuthoringTaskRequest(
+            query="async unit draft",
+            artifact_type="release_report",
+            artifact_title="Unit Async Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            workflow_mode="multi_step",
+            hitl_required=False,
+            task_context={"requester": "unit-test"},
+        ),
+        dispatcher=dispatcher,
+    )
+    assert started.status == "queued"
+
+    task = task_service.get_task(started.task_id)
+    assert task.status == "completed"
 
 
 def test_authoring_artifact_endpoint_rejects_non_authoring_task() -> None:

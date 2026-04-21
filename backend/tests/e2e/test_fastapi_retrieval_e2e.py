@@ -210,6 +210,34 @@ def _start_authoring_task(base_url: str) -> str:
     return body["task_id"]
 
 
+def _start_authoring_task_async(base_url: str, *, hitl_required: bool = True) -> str:
+    status, body = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/authoring/start_async",
+        payload={
+            "query": "подготовь async release readiness draft",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-authoring-async-test",
+                "case_dataset_id": "saa_release_readiness",
+            },
+            "artifact_type": "release_report",
+            "artifact_title": "E2E Async Authoring Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+            "hitl_required": hitl_required,
+        },
+    )
+
+    assert status == 200
+    assert body["status"] == "queued"
+    return body["task_id"]
+
+
 def test_e2e_health_endpoint(server_base_url: str) -> None:
     status, body = _request("GET", f"{server_base_url}/health")
 
@@ -354,4 +382,39 @@ def test_e2e_authoring_start_and_artifact_endpoint(server_base_url: str) -> None
     assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
     assert len(artifact_payload["metadata"]["steps_summary"]) == 4
     assert len(artifact_payload["traceability"]["source_refs"]) >= 1
+    assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+
+def test_e2e_authoring_async_hitl_flow(server_base_url: str) -> None:
+    task_id = _start_authoring_task_async(server_base_url, hitl_required=True)
+
+    status_payload = {}
+    for _ in range(40):
+        status_code, status_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if status_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.1)
+
+    assert status_payload["status"] == "waiting_human"
+
+    hitl_code, hitl_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}/hitl")
+    assert hitl_code == 200
+    assert hitl_payload["required"] is True
+
+    submit_code, submit_payload = _request(
+        "POST",
+        f"{server_base_url}/api/v1/tasks/{task_id}/hitl/submit",
+        payload={
+            "decision": "approve",
+            "comment": "e2e reviewer approved",
+            "metadata": {"source": "e2e-authoring-async-test"},
+        },
+    )
+    assert submit_code == 200
+    assert submit_payload["status"] == "completed"
+
+    artifact_code, artifact_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}/artifact")
+    assert artifact_code == 200
+    assert artifact_payload["metadata"]["hitl_decision"] == "approve"
     assert len(artifact_payload["traceability"]["sections"]) >= 3

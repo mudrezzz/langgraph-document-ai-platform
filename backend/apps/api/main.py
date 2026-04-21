@@ -14,7 +14,9 @@ from application.errors import (
 from apps.api.dependencies import ApiContainer, get_container
 from schemas.api.contracts import (
     EvidencePackResponse,
+    HitlReviewStatusResponse,
     ResumeTaskRequest,
+    SubmitHitlReviewRequest,
     StartAuthoringTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
@@ -57,6 +59,19 @@ def start_authoring_task(
 
     try:
         return container.authoring_service.start(request)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/tasks/authoring/start_async", response_model=StartTaskResponse)
+def start_authoring_task_async(
+    request: StartAuthoringTaskRequest,
+    container: ApiContainer = Depends(get_container),
+) -> StartTaskResponse:
+    """Ставит authoring workflow в async очередь и возвращает queued task id."""
+
+    try:
+        return container.authoring_service.start_async(request, dispatcher=container.authoring_dispatcher)
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -180,6 +195,39 @@ def get_task_artifact(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTaskStateError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/tasks/{task_id}/hitl", response_model=HitlReviewStatusResponse)
+def get_task_hitl_status(
+    task_id: str,
+    container: ApiContainer = Depends(get_container),
+) -> HitlReviewStatusResponse:
+    """Возвращает HITL-статус задачи authoring."""
+
+    try:
+        return container.authoring_service.hitl_status(task_id)
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvalidTaskStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/tasks/{task_id}/hitl/submit", response_model=TaskStatusResponse)
+def submit_task_hitl(
+    task_id: str,
+    request: SubmitHitlReviewRequest,
+    container: ApiContainer = Depends(get_container),
+) -> TaskStatusResponse:
+    """Принимает ручное решение reviewer и продолжает authoring flow."""
+
+    try:
+        return container.authoring_service.submit_hitl(task_id, request)
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvalidTaskStateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/tasks/{task_id}/resume", response_model=TaskStatusResponse)

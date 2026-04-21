@@ -112,6 +112,7 @@ class StartAuthoringTaskRequest(BaseModel):
     artifact_format: str = "markdown"
     draft_strategy: Literal["auto", "deterministic", "llm"] = "auto"
     workflow_mode: Literal["single_pass", "multi_step"] = "multi_step"
+    hitl_required: bool = False
 
 
 class ResumeTaskRequest(BaseModel):
@@ -120,6 +121,34 @@ class ResumeTaskRequest(BaseModel):
     decision: str
     comment: str | None = None
     metadata: dict = Field(default_factory=dict)
+
+
+class SubmitHitlReviewRequest(BaseModel):
+    """Запрос ручного решения по задаче в статусе waiting_human."""
+
+    decision: Literal["approve", "needs_changes", "reject"]
+    comment: str | None = None
+    metadata: dict = Field(default_factory=dict)
+
+
+class HitlReviewActionResponse(BaseModel):
+    """Запись действия человека в HITL контуре."""
+
+    decision: str
+    comment: str | None = None
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+
+
+class HitlReviewStatusResponse(BaseModel):
+    """Текущий статус HITL по задаче."""
+
+    task_id: str
+    status: str
+    required: bool
+    pending_reason: str | None = None
+    reviewer_notes: str | None = None
+    actions: list[HitlReviewActionResponse] = Field(default_factory=list)
 
 
 class EvidencePackResponse(BaseModel):

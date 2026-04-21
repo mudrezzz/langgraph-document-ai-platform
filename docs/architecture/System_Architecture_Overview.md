@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-20
-Статус: Increment 20
+Дата обновления: 2026-04-21
+Статус: Increment 21
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 20)
+## 2. Текущая реализация (Increment 21)
 
 Реализовано:
 
@@ -54,10 +54,14 @@
   - агрегаты `total_events`, `unique_tasks`, `transitions(from_status,to_status,total)`.
 - authoring API:
   - `POST /api/v1/tasks/authoring/start`;
+  - `POST /api/v1/tasks/authoring/start_async`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
+  - `GET /api/v1/tasks/{task_id}/hitl`;
+  - `POST /api/v1/tasks/{task_id}/hitl/submit`;
   - traceability payload: `retrieval_task_id`, `source_refs`, `sections`;
   - `draft_strategy`: `auto|deterministic|llm`;
-  - `workflow_mode`: `single_pass|multi_step`.
+  - `workflow_mode`: `single_pass|multi_step`;
+  - `hitl_required`: bool.
 - аудит переходов статусов:
   - таблица `app.task_events`;
   - событие при создании задачи и при каждой смене `status`.
@@ -96,7 +100,13 @@
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
   - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);
-  - steps read-model в task details и artifact metadata (`steps_summary`).
+  - steps read-model в task details и artifact metadata (`steps_summary`);
+  - поддержан статус паузы `waiting_human` и возобновление по `hitl/submit`.
+- async execution контур:
+  - Celery worker app: `apps/worker/celery_app.py` + `apps/worker/tasks.py`;
+  - dispatcher policy: `APP_ASYNC_PROVIDER=inline|celery`;
+  - docker deployment для очереди: `backend/docker-compose.async.yml` (`redis` + `celery-worker`);
+  - operational scripts: `backend/scripts/async_up/down.sh(.ps1)`.
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -115,6 +125,9 @@
 - добавлены authoring API scripts:
   - `backend/scripts/smoke_authoring_api.sh/.ps1` + `smoke_authoring_api.py`;
   - `backend/scripts/demo_release_authoring_traceability_case.sh/.ps1`.
+- добавлены async authoring scripts:
+  - `backend/scripts/smoke_authoring_async_api.sh/.ps1` + `smoke_authoring_async_api.py`;
+  - `backend/scripts/demo_release_authoring_async_hitl_case.sh/.ps1`.
 - тестовое покрытие:
   - unit + integration + e2e;
   - e2e с реальным PostgreSQL: `test_fastapi_retrieval_e2e_postgres.py`;
@@ -132,29 +145,30 @@
   - `docs/adr/0022-artifact-writer-mcp-mvp-and-postgres-artifact-store.md`;
   - `docs/adr/0023-authoring-api-flow-and-task-artifact-traceability-link.md`;
   - `docs/adr/0024-openrouter-llm-authoring-draft-gateway.md`;
-  - `docs/adr/0025-multistep-authoring-workflow-and-section-traceability.md`.
+  - `docs/adr/0025-multistep-authoring-workflow-and-section-traceability.md`;
+  - `docs/adr/0026-celery-redis-async-authoring-and-hitl-mvp.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
-- authoring flow multi-step уже есть, но пока без HITL/revision-loop и без асинхронного выполнения шагов;
+- authoring flow имеет базовый HITL + async start, но без полноценной многократной review/rewrite петли;
 - отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
-- API синхронный, без очередей long-running задач;
+- async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
 
 ## 4. GAP к целевой архитектуре
 
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
-2. Ввести async/queue execution для long-running задач и retry-политику.
+2. Дорастить async execution до общего execution-plane (не только authoring).
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
-4. Развить authoring workflow до HITL/revision-loop поверх текущего multi-step.
+4. Развить authoring HITL в итеративный review/rewrite loop с лимитами и escalation.
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Добавить HITL/revision-loop в authoring (`reviewer -> feedback -> rewrite -> re-review`).
+1. Добавить итеративный HITL/revision-loop (`reviewer -> feedback -> rewrite -> re-review`) с max-iterations policy.
 2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
 3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
-5. Добавить интеграционные тесты для расширенного authoring read-model, HITL и audit метрик.
+5. Добавить интеграционные тесты для расширенного authoring read-model, async retries и audit метрик.

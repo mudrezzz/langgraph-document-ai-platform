@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+import time
 from urllib.parse import quote
 
 import pytest
@@ -73,6 +74,27 @@ def _create_authoring_task(client: TestClient) -> str:
             "artifact_format": "markdown",
             "draft_strategy": "deterministic",
             "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    return payload["task_id"]
+
+
+def _create_authoring_task_async(client: TestClient, *, hitl_required: bool = True) -> str:
+    response = client.post(
+        "/api/v1/tasks/authoring/start_async",
+        json={
+            "query": "подготовь async черновик release readiness и traceability",
+            "filters": {"project_id": "p1"},
+            "task_context": {"requester": "integration-authoring-async-test"},
+            "artifact_type": "release_report",
+            "artifact_title": "Integration Async Authoring Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+            "hitl_required": hitl_required,
         },
     )
 
@@ -475,3 +497,57 @@ def test_task_artifact_endpoint_returns_404_for_unknown_task(client: TestClient)
     response = client.get("/api/v1/tasks/unknown/artifact")
 
     assert response.status_code == 404
+
+
+def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> None:
+    task_id = _create_authoring_task_async(client, hitl_required=True)
+
+    status_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        status_payload = response.json()
+        if status_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+
+    assert status_payload["status"] == "waiting_human"
+    hitl_status = client.get(f"/api/v1/tasks/{task_id}/hitl")
+    assert hitl_status.status_code == 200
+    hitl_payload = hitl_status.json()
+    assert hitl_payload["required"] is True
+    assert hitl_payload["status"] == "waiting_human"
+
+    submit = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={
+            "decision": "approve",
+            "comment": "integration reviewer approved",
+            "metadata": {"reviewer": "integration"},
+        },
+    )
+    assert submit.status_code == 200
+    submit_payload = submit.json()
+    assert submit_payload["status"] == "completed"
+
+    artifact = client.get(f"/api/v1/tasks/{task_id}/artifact")
+    assert artifact.status_code == 200
+    artifact_payload = artifact.json()
+    assert artifact_payload["metadata"]["hitl_decision"] == "approve"
+    assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
+    assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+
+def test_authoring_async_endpoint_can_complete_without_hitl(client: TestClient) -> None:
+    task_id = _create_authoring_task_async(client, hitl_required=False)
+
+    status_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        status_payload = response.json()
+        if status_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.05)
+
+    assert status_payload["status"] == "completed"

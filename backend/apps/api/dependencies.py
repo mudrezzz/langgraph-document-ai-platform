@@ -4,12 +4,15 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+from application.async_dispatcher import AuthoringAsyncDispatcher, InlineAuthoringAsyncDispatcher
 from application.authoring_service import AuthoringApplicationService
 from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
+from schemas.api.contracts import StartAuthoringTaskRequest
 from framework.models.interfaces import IChatModelGateway
+from infra.celery import CeleryAuthoringAsyncDispatcher
 from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
@@ -108,6 +111,27 @@ def _build_llm_runtime_config() -> LlmRuntimeConfig:
     )
 
 
+def _build_authoring_dispatcher(
+    *,
+    authoring_service: AuthoringApplicationService,
+) -> AuthoringAsyncDispatcher:
+    """Собирает dispatcher запуска authoring в async режиме."""
+
+    provider = os.getenv("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline"
+
+    if provider == "celery":
+        return CeleryAuthoringAsyncDispatcher(queue_name=os.getenv("APP_CELERY_QUEUE", "authoring"))
+    if provider == "inline":
+        return InlineAuthoringAsyncDispatcher(
+            runner=lambda task_id, payload: authoring_service.run_existing_task(
+                task_id=task_id,
+                request=StartAuthoringTaskRequest.model_validate(payload),
+            )
+        )
+
+    raise ValueError(f"Неподдерживаемый APP_ASYNC_PROVIDER: {provider}")
+
+
 class ApiContainer:
     """DI-контейнер API сервиса."""
 
@@ -154,6 +178,7 @@ class ApiContainer:
             llm_provider=llm_runtime_config.provider,
             llm_model_name=llm_runtime_config.model_name,
         )
+        self.authoring_dispatcher = _build_authoring_dispatcher(authoring_service=self.authoring_service)
 
 
 @lru_cache(maxsize=1)

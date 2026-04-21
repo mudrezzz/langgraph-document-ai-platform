@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-REPO_ROOT="$(cd "${BACKEND_ROOT}/.." && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+BACKEND_ROOT="${REPO_ROOT}/backend"
 
 if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
     PYTHON_BIN="${REPO_ROOT}/.venv/bin/python"
@@ -16,23 +16,13 @@ else
     exit 1
 fi
 
-if [[ -z "${APP_DB_DSN:-}" ]]; then
-    echo "Переменная APP_DB_DSN не задана" >&2
+if ! "${PYTHON_BIN}" -c "import uvicorn" >/dev/null 2>&1; then
+    echo "В выбранном интерпретаторе (${PYTHON_BIN}) не найден модуль uvicorn." >&2
+    echo "Активируйте .venv или установите зависимости (например: pip install uvicorn fastapi)." >&2
     exit 1
 fi
 
-PREV_PYTHONPATH="${PYTHONPATH-}"
 export PYTHONPATH="${BACKEND_ROOT}:${BACKEND_ROOT}/packages${PYTHONPATH:+:${PYTHONPATH}}"
 
-cleanup() {
-    if [[ -z "${PREV_PYTHONPATH}" ]]; then
-        unset PYTHONPATH
-    else
-        export PYTHONPATH="${PREV_PYTHONPATH}"
-    fi
-}
-
-trap cleanup EXIT
-
-cd "${BACKEND_ROOT}"
-"${PYTHON_BIN}" ./scripts/apply_migrations.py
+cd "${REPO_ROOT}"
+exec "${PYTHON_BIN}" "${BACKEND_ROOT}/scripts/smoke_authoring_async_api.py" "$@"
