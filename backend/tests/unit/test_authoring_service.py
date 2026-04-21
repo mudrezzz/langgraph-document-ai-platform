@@ -99,6 +99,20 @@ class _FakeChatGateway:
         return self._response
 
 
+def _build_inline_dispatcher(service: AuthoringApplicationService) -> InlineAuthoringAsyncDispatcher:
+    return InlineAuthoringAsyncDispatcher(
+        runner=lambda task_id, payload: service.run_existing_task(
+            task_id=task_id,
+            request=StartAuthoringTaskRequest.model_validate(payload),
+        ),
+        hitl_runner=lambda task_id, payload: service.process_hitl_action(
+            task_id=task_id,
+            request=SubmitHitlReviewRequest.model_validate(payload.get("request", {})),
+            action_id=str(payload.get("action_id", "")),
+        ),
+    )
+
+
 def test_authoring_service_start_and_artifact_flow() -> None:
     task_service = TaskApplicationService(
         registry=InMemoryTaskRegistry(),
@@ -273,10 +287,99 @@ def test_authoring_service_supports_hitl_wait_and_submit() -> None:
             comment="looks good",
             metadata={"reviewer": "unit"},
         ),
+        dispatcher=_build_inline_dispatcher(service),
     )
     assert submitted.status == "completed"
     artifact = service.artifact(started.task_id)
     assert artifact.metadata["hitl_decision"] == "approve"
+    assert artifact.metadata["hitl_iteration"] == 1
+
+
+def test_authoring_service_hitl_iterations_and_idempotency() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        hitl_max_iterations=2,
+    )
+    dispatcher = _build_inline_dispatcher(service)
+
+    started = service.start(
+        StartAuthoringTaskRequest(
+            query="hitl iterative draft",
+            artifact_type="release_report",
+            artifact_title="Unit HITL Iterative Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            workflow_mode="multi_step",
+            hitl_required=True,
+            task_context={"requester": "unit-test"},
+        )
+    )
+    assert started.status == "waiting_human"
+
+    first_submit = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="needs_changes",
+            comment="добавь больше деталей по approvals",
+            idempotency_key="k-1",
+            expected_iteration=1,
+        ),
+        dispatcher=dispatcher,
+    )
+    assert first_submit.status == "waiting_human"
+
+    status_after_first = service.hitl_status(started.task_id)
+    assert status_after_first.current_iteration == 2
+    assert len(status_after_first.actions) == 1
+    assert status_after_first.actions[0].idempotency_key == "k-1"
+    assert status_after_first.actions[0].status == "completed"
+
+    replay = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="needs_changes",
+            comment="добавь больше деталей по approvals",
+            idempotency_key="k-1",
+            expected_iteration=2,
+        ),
+        dispatcher=dispatcher,
+    )
+    assert replay.status == "waiting_human"
+    status_after_replay = service.hitl_status(started.task_id)
+    assert len(status_after_replay.actions) == 1
+
+    with pytest.raises(InvalidTaskStateError, match="лимит HITL итераций"):
+        service.submit_hitl(
+            started.task_id,
+            SubmitHitlReviewRequest(
+                decision="needs_changes",
+                comment="еще правки",
+                expected_iteration=2,
+            ),
+            dispatcher=dispatcher,
+        )
+
+    approved = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="approve",
+            comment="финально ок",
+            idempotency_key="k-2",
+            expected_iteration=2,
+        ),
+        dispatcher=dispatcher,
+    )
+    assert approved.status == "completed"
+    artifact = service.artifact(started.task_id)
+    assert artifact.metadata["hitl_iteration"] == 2
+    assert artifact.metadata["hitl_max_iterations"] == 2
 
 
 def test_authoring_service_start_async_with_inline_dispatcher() -> None:
@@ -290,12 +393,7 @@ def test_authoring_service_start_async_with_inline_dispatcher() -> None:
         artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
         task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
     )
-    dispatcher = InlineAuthoringAsyncDispatcher(
-        runner=lambda task_id, payload: service.run_existing_task(
-            task_id=task_id,
-            request=StartAuthoringTaskRequest.model_validate(payload),
-        )
-    )
+    dispatcher = _build_inline_dispatcher(service)
 
     started = service.start_async(
         StartAuthoringTaskRequest(

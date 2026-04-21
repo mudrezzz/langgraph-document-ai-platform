@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-21
-Статус: Increment 21
+Статус: Increment 22
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 21)
+## 2. Текущая реализация (Increment 22)
 
 Реализовано:
 
@@ -107,6 +107,12 @@
   - dispatcher policy: `APP_ASYNC_PROVIDER=inline|celery`;
   - docker deployment для очереди: `backend/docker-compose.async.yml` (`redis` + `celery-worker`);
   - operational scripts: `backend/scripts/async_up/down.sh(.ps1)`.
+- iterative HITL контур:
+  - `hitl/submit` поддерживает `idempotency_key` и `expected_iteration`;
+  - continuation после submit исполняется через async dispatcher (`enqueue_hitl_action`);
+  - worker task `run_authoring_hitl_action` обрабатывает approve/reject/needs_changes;
+  - `needs_changes` запускает rewrite + reviewer rerun и переводит задачу в новую итерацию `waiting_human`;
+  - введены лимиты итераций и SLA-дедлайн (`APP_HITL_MAX_ITERATIONS`, `APP_HITL_WAIT_TIMEOUT_SEC`).
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -147,11 +153,12 @@
   - `docs/adr/0024-openrouter-llm-authoring-draft-gateway.md`;
   - `docs/adr/0025-multistep-authoring-workflow-and-section-traceability.md`;
   - `docs/adr/0026-celery-redis-async-authoring-and-hitl-mvp.md`.
+  - `docs/adr/0027-iterative-hitl-loop-and-async-submit-continuation.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
-- authoring flow имеет базовый HITL + async start, но без полноценной многократной review/rewrite петли;
+- HITL now iterative, но нет отдельной reviewer UI/queue dashboard и расширенного SLA-monitoring read-model;
 - отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
@@ -162,12 +169,12 @@
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Дорастить async execution до общего execution-plane (не только authoring).
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
-4. Развить authoring HITL в итеративный review/rewrite loop с лимитами и escalation.
+4. Добавить отдельный persistence/read-model для reviewer действий (вынести из checkpoint payload).
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Добавить итеративный HITL/revision-loop (`reviewer -> feedback -> rewrite -> re-review`) с max-iterations policy.
+1. Вынести reviewer actions в отдельную таблицу и read-model API (query по периодам/decision/reviewer).
 2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
 3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
 4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.

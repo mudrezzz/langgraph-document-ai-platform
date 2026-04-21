@@ -129,13 +129,19 @@ class SubmitHitlReviewRequest(BaseModel):
     decision: Literal["approve", "needs_changes", "reject"]
     comment: str | None = None
     metadata: dict = Field(default_factory=dict)
+    idempotency_key: str | None = None
+    expected_iteration: int | None = Field(default=None, ge=1)
 
 
 class HitlReviewActionResponse(BaseModel):
     """Запись действия человека в HITL контуре."""
 
+    action_id: str | None = None
+    iteration: int | None = None
     decision: str
     comment: str | None = None
+    status: str | None = None
+    idempotency_key: str | None = None
     metadata: dict = Field(default_factory=dict)
     created_at: datetime | None = None
 
@@ -146,6 +152,11 @@ class HitlReviewStatusResponse(BaseModel):
     task_id: str
     status: str
     required: bool
+    current_iteration: int = 1
+    max_iterations: int = 1
+    deadline_at: datetime | None = None
+    can_submit: bool = False
+    pending_action_id: str | None = None
     pending_reason: str | None = None
     reviewer_notes: str | None = None
     actions: list[HitlReviewActionResponse] = Field(default_factory=list)

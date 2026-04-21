@@ -34,6 +34,7 @@
   - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
 - `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
 - `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact`.
+  - поддерживает `--hitl-decision-sequence` (например `needs_changes,approve`) для проверки итеративного HITL loop.
 - `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
 
 ### Пример полного цикла
@@ -77,16 +78,18 @@ bash backend/scripts/demo_release_authoring_traceability_case.sh --port 8040
 
 # Async authoring + HITL smoke:
 set -a && source backend/.env && set +a
-APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
-  bash backend/scripts/smoke_authoring_async_api.sh --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
+  bash backend/scripts/smoke_authoring_async_api.sh --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 
 # Async authoring + HITL demo:
 set -a && source backend/.env && set +a
-APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
-  bash backend/scripts/demo_release_authoring_async_hitl_case.sh --port 8060 --hitl-decision approve
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
+  bash backend/scripts/demo_release_authoring_async_hitl_case.sh --port 8060 --hitl-decision-sequence needs_changes,approve
 bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
+
+Если PostgreSQL поднят на нестандартном host-порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
 
 ## Windows (PowerShell)
 

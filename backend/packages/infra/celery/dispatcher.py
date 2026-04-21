@@ -25,3 +25,20 @@ class CeleryAuthoringAsyncDispatcher:
             queue=self.queue_name,
         )
         return str(result.id)
+
+    def enqueue_hitl_action(self, *, task_id: str, action_payload: dict) -> str:
+        try:
+            from apps.worker.tasks import run_authoring_hitl_action
+        except Exception as exc:  # pragma: no cover - зависит от окружения рантайма
+            raise RuntimeError(
+                "Не удалось импортировать Celery HITL task. Проверьте PYTHONPATH и зависимости worker-контейнера."
+            ) from exc
+
+        result = run_authoring_hitl_action.apply_async(
+            kwargs={
+                "task_id": task_id,
+                "action_payload": action_payload,
+            },
+            queue=self.queue_name,
+        )
+        return str(result.id)

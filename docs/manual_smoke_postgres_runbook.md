@@ -42,6 +42,8 @@ APP_ASYNC_PROVIDER=inline
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0
 APP_CELERY_QUEUE=authoring
+APP_HITL_MAX_ITERATIONS=2
+APP_HITL_WAIT_TIMEOUT_SEC=1800
 REDIS_PORT=56379
 
 POSTGRES_DB=langgraph
@@ -173,12 +175,14 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 - file-based вход (`markdown -> dataset -> retrieval task`);
 - multi-file вход (`directory -> retrieval task`) через `case_dataset_dir`;
 - аудит статусов и summary API в том же прогоне;
+- multi-step authoring цикл (`research -> writer -> reviewer -> assembly`);
+- HITL-петля с итерациями (`needs_changes -> rewrite -> re-review -> waiting_human(iteration+1)`);
 - осмысленный итоговый markdown-отчет для ручной проверки.
 
 Еще не реализовано:
 
 - универсальный ingestion для бинарных форматов (`.pdf/.docx`) и OCR;
-- multi-step authoring цикл (`research -> writer -> reviewer -> assembly`) и HITL-петля;
+- отдельный reviewer UI/dashboard для мониторинга очереди HITL решений;
 - отдельный production dashboard по агрегатам task events за периоды.
 
 ## 9. (Опционально) Проверка Retrieval MCP
@@ -314,17 +318,23 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery \
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+APP_HITL_MAX_ITERATIONS=2 \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
+
+Примечание:
+
+- если PostgreSQL опубликован не на `55432`, добавьте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед запуском `async_up.sh`.
 
 Что увидеть в JSON:
 
 - `start_status=queued`;
-- после poll задача доходит до `task_status=completed`;
+- после первого submit (`needs_changes`) задача снова становится `waiting_human` с `hitl_iteration=2`;
+- после второго submit (`approve`) задача доходит до `task_status=completed`;
 - `steps_total >= 4`;
 - `traceability_sections >= 3`;
-- `hitl_submit_status=completed`.
+- `hitl_submit_count=2`.
 
 Как интерпретировать:
 
@@ -337,15 +347,16 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery \
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+APP_HITL_MAX_ITERATIONS=2 \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision approve
+bash backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision-sequence needs_changes,approve
 ```
 
 Что делает скрипт:
 
 1. запускает async authoring через `authoring/start_async`;
 2. дожидается `waiting_human`;
-3. отправляет ручное решение reviewer в `hitl/submit`;
+3. выполняет последовательность reviewer-решений (`needs_changes -> approve`);
 4. сохраняет результат в `output/authoring_async_hitl_result.json`.
 
 ## 18. Расширенный demo: authoring + traceability

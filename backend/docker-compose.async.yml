@@ -24,7 +24,7 @@ services:
       APP_CELERY_BROKER_URL: redis://redis:6379/0
       APP_CELERY_RESULT_BACKEND: redis://redis:6379/0
       APP_CELERY_QUEUE: authoring
-      APP_DB_DSN: ${APP_DB_DSN:-postgresql://app:app@host.docker.internal:55432/langgraph}
+      APP_DB_DSN: ${APP_WORKER_DB_DSN:-postgresql://app:app@host.docker.internal:55432/langgraph}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

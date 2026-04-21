@@ -3,7 +3,8 @@ param(
     [string]$HostName = "127.0.0.1",
     [int]$Port = 8060,
     [ValidateSet("approve", "needs_changes", "reject")]
-    [string]$HitlDecision = "approve"
+    [string]$HitlDecision = "approve",
+    [string]$HitlDecisionSequence = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,6 +27,7 @@ $smokeOutput = powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $b
     -WorkflowMode "multi_step" `
     -DraftStrategy "deterministic" `
     -HitlDecision $HitlDecision `
+    -HitlDecisionSequence $HitlDecisionSequence `
     -HitlRequired
 
 Write-Host "[2/2] Сохраняем demo-результат..."

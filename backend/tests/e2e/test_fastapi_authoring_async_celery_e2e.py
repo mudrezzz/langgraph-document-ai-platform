@@ -116,7 +116,7 @@ def celery_async_server_base_url() -> str:
     # Поднимаем Redis + Celery worker.
     async_env = os.environ.copy()
     async_env["REDIS_PORT"] = str(redis_port)
-    async_env["APP_DB_DSN"] = f"postgresql://app:app@host.docker.internal:{postgres_port}/langgraph"
+    async_env["APP_WORKER_DB_DSN"] = f"postgresql://app:app@host.docker.internal:{postgres_port}/langgraph"
     subprocess.run(
         [
             "docker",
@@ -260,12 +260,24 @@ def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: 
             "decision": "approve",
             "comment": "async celery e2e approve",
             "metadata": {"source": "e2e-celery"},
+            "idempotency_key": "e2e-celery-approve-1",
+            "expected_iteration": 1,
         },
     )
     assert submit_code == 200
-    assert submit_payload["status"] == "completed"
+    assert submit_payload["status"] in {"queued", "running", "completed"}
+
+    final_payload: dict = submit_payload
+    for _ in range(120):
+        status_code, final_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.5)
+    assert final_payload["status"] == "completed"
 
     artifact_code, artifact_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/artifact")
     assert artifact_code == 200
     assert artifact_payload["metadata"]["hitl_decision"] == "approve"
+    assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3

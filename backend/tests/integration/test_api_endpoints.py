@@ -517,6 +517,8 @@ def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> No
     hitl_payload = hitl_status.json()
     assert hitl_payload["required"] is True
     assert hitl_payload["status"] == "waiting_human"
+    assert hitl_payload["current_iteration"] == 1
+    assert hitl_payload["max_iterations"] >= 1
 
     submit = client.post(
         f"/api/v1/tasks/{task_id}/hitl/submit",
@@ -524,18 +526,117 @@ def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> No
             "decision": "approve",
             "comment": "integration reviewer approved",
             "metadata": {"reviewer": "integration"},
+            "idempotency_key": "integration-approve-1",
+            "expected_iteration": 1,
         },
     )
     assert submit.status_code == 200
     submit_payload = submit.json()
-    assert submit_payload["status"] == "completed"
+    assert submit_payload["status"] in {"queued", "running", "completed"}
+
+    final_payload: dict = submit_payload
+    for _ in range(30):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        final_payload = response.json()
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert final_payload["status"] == "completed"
 
     artifact = client.get(f"/api/v1/tasks/{task_id}/artifact")
     assert artifact.status_code == 200
     artifact_payload = artifact.json()
     assert artifact_payload["metadata"]["hitl_decision"] == "approve"
     assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
+    assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+
+def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None:
+    task_id = _create_authoring_task_async(client, hitl_required=True)
+
+    first_wait_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        first_wait_payload = response.json()
+        if first_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert first_wait_payload["status"] == "waiting_human"
+
+    first_submit = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={
+            "decision": "needs_changes",
+            "comment": "дополни pending approvals",
+            "idempotency_key": "integration-needs-changes-1",
+            "expected_iteration": 1,
+        },
+    )
+    assert first_submit.status_code == 200
+
+    second_wait_payload: dict = {}
+    for _ in range(30):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        second_wait_payload = response.json()
+        if second_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert second_wait_payload["status"] == "waiting_human"
+    assert second_wait_payload["details"]["hitl_iteration"] == 2
+
+    replay = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={
+            "decision": "needs_changes",
+            "comment": "дополни pending approvals",
+            "idempotency_key": "integration-needs-changes-1",
+            "expected_iteration": 2,
+        },
+    )
+    assert replay.status_code == 200
+    replay_payload = replay.json()
+    assert replay_payload["status"] == "waiting_human"
+
+    invalid = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={
+            "decision": "needs_changes",
+            "comment": "еще правки",
+            "expected_iteration": 2,
+        },
+    )
+    assert invalid.status_code == 409
+
+    approve = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={
+            "decision": "approve",
+            "comment": "финально ок",
+            "idempotency_key": "integration-approve-2",
+            "expected_iteration": 2,
+        },
+    )
+    assert approve.status_code == 200
+
+    final_payload: dict = {}
+    for _ in range(30):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        final_payload = response.json()
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert final_payload["status"] == "completed"
+
+    hitl_status = client.get(f"/api/v1/tasks/{task_id}/hitl")
+    assert hitl_status.status_code == 200
+    hitl_payload = hitl_status.json()
+    assert hitl_payload["current_iteration"] == 2
+    assert len(hitl_payload["actions"]) == 2
 
 
 def test_authoring_async_endpoint_can_complete_without_hitl(client: TestClient) -> None:

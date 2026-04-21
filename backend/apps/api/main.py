@@ -221,7 +221,11 @@ def submit_task_hitl(
     """Принимает ручное решение reviewer и продолжает authoring flow."""
 
     try:
-        return container.authoring_service.submit_hitl(task_id, request)
+        return container.authoring_service.submit_hitl(
+            task_id,
+            request,
+            dispatcher=container.authoring_dispatcher,
+        )
     except TaskNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTaskStateError as exc:

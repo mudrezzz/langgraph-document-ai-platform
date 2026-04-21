@@ -65,6 +65,10 @@ class AuthoringTaskState(BaseModel):
     draft: str | None = None
     review_result: dict = Field(default_factory=dict)
     hitl_status: str | None = None
+    hitl_iteration: int = 1
+    hitl_max_iterations: int = 1
+    hitl_deadline_at: str | None = None
+    hitl_pending_action_id: str | None = None
     hitl_actions: list[dict] = Field(default_factory=list)
     section_traceability: list[dict] = Field(default_factory=list)
     draft_generation_mode: str = "deterministic"

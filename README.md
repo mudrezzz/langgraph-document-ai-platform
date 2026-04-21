@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 21`.
+Текущий инкремент: `Increment 22`.
 
 Сделано:
 
@@ -122,6 +122,11 @@
   - `GET /api/v1/tasks/{task_id}/hitl`;
   - `POST /api/v1/tasks/{task_id}/hitl/submit`;
   - статус задачи `waiting_human` и продолжение пайплайна после submit.
+- HITL расширен до итеративного цикла:
+  - policy `needs_changes -> rewrite -> reviewer_rerun -> waiting_human(iteration+1)`;
+  - защита submit: `idempotency_key` + `expected_iteration`;
+  - лимиты и SLA: `APP_HITL_MAX_ITERATIONS`, `APP_HITL_WAIT_TIMEOUT_SEC`;
+  - async continuation после submit через dispatcher plane (`inline|celery`) и worker task `run_authoring_hitl_action`.
 - добавлены async/HITL smoke и demo скрипты:
   - `smoke_authoring_async_api.sh/.ps1`;
   - `demo_release_authoring_async_hitl_case.sh/.ps1`;
@@ -351,7 +356,8 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery \
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
-bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision approve
+APP_HITL_MAX_ITERATIONS=2 \
+bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
 
 27. Demo Async Authoring + HITL (Linux):
@@ -361,7 +367,8 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery \
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
-bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision approve
+APP_HITL_MAX_ITERATIONS=2 \
+bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision-sequence needs_changes,approve
 ```
 
 28. Остановить Redis + Celery worker (Linux):
@@ -369,6 +376,8 @@ bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.
 ```bash
 bash ./backend/scripts/async_down.sh
 ```
+
+Примечание: если PostgreSQL на нестандартном порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
 
 ## Reference Case: Release Go/No-Go (File-Based)
 
@@ -466,7 +475,7 @@ bash ./backend/scripts/async_down.sh
 - multi-step authoring поддерживает шаги `research -> writer -> reviewer -> assembly` и сохраняет их в `steps_summary`.
 - traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
 - async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
-- HITL контур поддерживает паузу `waiting_human` и ручное решение через `hitl/submit`.
+- HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -533,9 +542,14 @@ bash ./backend/scripts/async_down.sh
 - `task_id`
 - `status`
 - `required`
+- `current_iteration`
+- `max_iterations`
+- `deadline_at`
+- `can_submit`
+- `pending_action_id`
 - `pending_reason`
 - `reviewer_notes`
-- `actions[]` (`decision`, `comment`, `metadata`, `created_at`)
+- `actions[]` (`action_id`, `iteration`, `decision`, `status`, `idempotency_key`, `comment`, `metadata`, `created_at`)
 
 ## Контракт POST /api/v1/tasks/{task_id}/hitl/submit
 
@@ -544,6 +558,8 @@ bash ./backend/scripts/async_down.sh
 - `decision` (`approve|needs_changes|reject`)
 - `comment`
 - `metadata`
+- `idempotency_key` (опционально, для dedup повторных submit)
+- `expected_iteration` (опционально, optimistic guard)
 
 Ответ:
 
@@ -621,7 +637,7 @@ bash ./backend/scripts/async_down.sh
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- развитие HITL до полноценной feedback-петли с несколькими итерациями reviewer/rewrite;
+- вынос reviewer actions в отдельный persistence/read-model слой (помимо checkpoint payload);
 - ingestion расширение на PDF/DOCX/OCR с quality gates;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 

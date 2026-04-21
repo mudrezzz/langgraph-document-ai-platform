@@ -10,7 +10,7 @@ from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
-from schemas.api.contracts import StartAuthoringTaskRequest
+from schemas.api.contracts import StartAuthoringTaskRequest, SubmitHitlReviewRequest
 from framework.models.interfaces import IChatModelGateway
 from infra.celery import CeleryAuthoringAsyncDispatcher
 from infra.openrouter import OpenRouterChatModelGateway
@@ -41,6 +41,18 @@ def _env_flag(name: str, default: bool = False) -> bool:
     if raw is None:
         return default
     return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _env_int(name: str, default: int) -> int:
+    """Читает int-переменную окружения с безопасным fallback."""
+
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        return default
 
 
 def _build_llm_runtime_config() -> LlmRuntimeConfig:
@@ -126,7 +138,12 @@ def _build_authoring_dispatcher(
             runner=lambda task_id, payload: authoring_service.run_existing_task(
                 task_id=task_id,
                 request=StartAuthoringTaskRequest.model_validate(payload),
-            )
+            ),
+            hitl_runner=lambda task_id, payload: authoring_service.process_hitl_action(
+                task_id=task_id,
+                request=SubmitHitlReviewRequest.model_validate(payload.get("request", {})),
+                action_id=str(payload.get("action_id", "")),
+            ),
         )
 
     raise ValueError(f"Неподдерживаемый APP_ASYNC_PROVIDER: {provider}")
@@ -177,6 +194,8 @@ class ApiContainer:
             llm_strict_mode=llm_runtime_config.strict,
             llm_provider=llm_runtime_config.provider,
             llm_model_name=llm_runtime_config.model_name,
+            hitl_max_iterations=_env_int("APP_HITL_MAX_ITERATIONS", 2),
+            hitl_wait_timeout_sec=_env_int("APP_HITL_WAIT_TIMEOUT_SEC", 1800),
         )
         self.authoring_dispatcher = _build_authoring_dispatcher(authoring_service=self.authoring_service)
 

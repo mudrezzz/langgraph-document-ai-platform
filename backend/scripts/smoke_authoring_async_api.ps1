@@ -13,6 +13,7 @@ param(
     [string]$WorkflowMode = "multi_step",
     [ValidateSet("approve", "needs_changes", "reject")]
     [string]$HitlDecision = "approve",
+    [string]$HitlDecisionSequence = "",
     [string]$CaseDatasetId = "saa_release_readiness",
     [string]$CaseDatasetPath = "",
     [string]$CaseDatasetDir = "",
@@ -69,6 +70,7 @@ try {
         "--draft-strategy", $DraftStrategy,
         "--workflow-mode", $WorkflowMode,
         "--hitl-decision", $HitlDecision,
+        "--hitl-decision-sequence", $HitlDecisionSequence,
         "--case-dataset-id", $CaseDatasetId,
         "--case-dataset-path", $CaseDatasetPath,
         "--case-dataset-dir", $CaseDatasetDir

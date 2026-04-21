@@ -78,6 +78,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--draft-strategy", default="deterministic", choices=["auto", "deterministic", "llm"])
     parser.add_argument("--workflow-mode", default="multi_step", choices=["single_pass", "multi_step"])
     parser.add_argument("--hitl-decision", default="approve", choices=["approve", "needs_changes", "reject"])
+    parser.add_argument(
+        "--hitl-decision-sequence",
+        default="",
+        help="CSV последовательность решений HITL (например: needs_changes,approve)",
+    )
     parser.add_argument("--case-dataset-id", default="saa_release_readiness")
     parser.add_argument("--case-dataset-path", default="")
     parser.add_argument("--case-dataset-dir", default="")
@@ -153,26 +158,58 @@ def main() -> None:
 
         task_status, task_payload = _wait_for_task_status(base_url, task_id, expected=expected_terminal)
 
+        sequence_raw = [item.strip() for item in args.hitl_decision_sequence.split(",") if item.strip()]
+        if sequence_raw:
+            invalid = [item for item in sequence_raw if item not in {"approve", "needs_changes", "reject"}]
+            if invalid:
+                raise RuntimeError(f"Некорректные HITL решения в sequence: {invalid}")
+            hitl_decisions = sequence_raw
+        else:
+            hitl_decisions = [args.hitl_decision]
+
         hitl_after_submit: dict | None = None
-        if task_status == "waiting_human":
+        hitl_submits: list[dict] = []
+        submit_index = 0
+        while task_payload.get("status") == "waiting_human":
+            if submit_index >= len(hitl_decisions):
+                raise RuntimeError(
+                    "Задача все еще waiting_human, но список HITL решений закончился. "
+                    "Добавьте --hitl-decision-sequence."
+                )
+
             hitl_code, hitl_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/hitl")
             if hitl_code != 200:
                 raise RuntimeError(f"HITL status failed: code={hitl_code}, payload={hitl_payload}")
+            iteration = int(hitl_payload.get("current_iteration", 1))
+            decision = hitl_decisions[submit_index]
+            submit_index += 1
 
             submit_code, submit_payload = _request(
                 "POST",
                 f"{base_url}/api/v1/tasks/{task_id}/hitl/submit",
                 payload={
-                    "decision": args.hitl_decision,
-                    "comment": "smoke async reviewer decision",
+                    "decision": decision,
+                    "comment": f"smoke async reviewer decision: {decision}",
                     "metadata": {"source": "smoke-authoring-async"},
+                    "idempotency_key": f"smoke-hitl-{task_id}-{iteration}-{submit_index}",
+                    "expected_iteration": iteration,
                 },
             )
             if submit_code != 200:
                 raise RuntimeError(f"HITL submit failed: code={submit_code}, payload={submit_payload}")
-
-            _, task_payload = _wait_for_task_status(base_url, task_id, expected={"completed", "failed"})
             hitl_after_submit = submit_payload
+            hitl_submits.append(
+                {
+                    "iteration": iteration,
+                    "decision": decision,
+                    "submit_status": submit_payload.get("status"),
+                }
+            )
+            _, task_payload = _wait_for_task_status(
+                base_url,
+                task_id,
+                expected={"waiting_human", "completed", "failed"},
+            )
 
         artifact_code, artifact_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/artifact")
         if task_payload.get("status") == "completed" and artifact_code != 200:
@@ -186,6 +223,8 @@ def main() -> None:
             "task_current_node": task_payload.get("current_node"),
             "hitl_required": args.hitl_required,
             "hitl_submit_status": hitl_after_submit.get("status") if hitl_after_submit else None,
+            "hitl_submit_count": len(hitl_submits),
+            "hitl_submits": hitl_submits,
             "artifact_id": artifact_payload.get("artifact_id") if artifact_code == 200 else None,
             "artifact_title": artifact_payload.get("title") if artifact_code == 200 else None,
             "workflow_mode": artifact_payload.get("metadata", {}).get("workflow_mode") if artifact_code == 200 else None,

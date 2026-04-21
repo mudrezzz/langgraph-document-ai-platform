@@ -4,6 +4,7 @@ set -euo pipefail
 HOST_NAME="127.0.0.1"
 PORT="8060"
 HITL_DECISION="approve"
+HITL_DECISION_SEQUENCE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -17,6 +18,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --hitl-decision)
             HITL_DECISION="$2"
+            shift 2
+            ;;
+        --hitl-decision-sequence)
+            HITL_DECISION_SEQUENCE="$2"
             shift 2
             ;;
         *)
@@ -34,6 +39,10 @@ OUTPUT_FILE="${BACKEND_ROOT}/examples/cases/release_go_no_go_case/output/authori
 mkdir -p "$(dirname "${OUTPUT_FILE}")"
 
 echo "[1/2] Smoke async authoring + HITL flow..."
+SMOKE_EXTRA_ARGS=()
+if [[ -n "${HITL_DECISION_SEQUENCE}" ]]; then
+    SMOKE_EXTRA_ARGS+=(--hitl-decision-sequence "${HITL_DECISION_SEQUENCE}")
+fi
 SMOKE_OUTPUT="$(
     bash "${BACKEND_ROOT}/scripts/smoke_authoring_async_api.sh" \
       --host "${HOST_NAME}" \
@@ -45,6 +54,7 @@ SMOKE_OUTPUT="$(
       --workflow-mode "multi_step" \
       --draft-strategy "deterministic" \
       --hitl-decision "${HITL_DECISION}" \
+      "${SMOKE_EXTRA_ARGS[@]}" \
       --hitl-required
 )"
 

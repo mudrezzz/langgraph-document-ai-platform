@@ -409,12 +409,24 @@ def test_e2e_authoring_async_hitl_flow(server_base_url: str) -> None:
             "decision": "approve",
             "comment": "e2e reviewer approved",
             "metadata": {"source": "e2e-authoring-async-test"},
+            "idempotency_key": "e2e-approve-1",
+            "expected_iteration": 1,
         },
     )
     assert submit_code == 200
-    assert submit_payload["status"] == "completed"
+    assert submit_payload["status"] in {"queued", "running", "completed"}
+
+    final_payload: dict = submit_payload
+    for _ in range(40):
+        status_code, final_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.1)
+    assert final_payload["status"] == "completed"
 
     artifact_code, artifact_payload = _request("GET", f"{server_base_url}/api/v1/tasks/{task_id}/artifact")
     assert artifact_code == 200
     assert artifact_payload["metadata"]["hitl_decision"] == "approve"
+    assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3
