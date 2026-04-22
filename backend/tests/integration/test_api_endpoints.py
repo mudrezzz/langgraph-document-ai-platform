@@ -552,6 +552,12 @@ def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> No
     assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3
 
+    actions_response = client.get(f"/api/v1/hitl/actions?task_id={task_id}&decision=approve")
+    assert actions_response.status_code == 200
+    actions_payload = actions_response.json()
+    assert actions_payload["total_returned"] >= 1
+    assert actions_payload["items"][0]["decision"] == "approve"
+
 
 def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None:
     task_id = _create_authoring_task_async(client, hitl_required=True)
@@ -571,6 +577,7 @@ def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None
         json={
             "decision": "needs_changes",
             "comment": "дополни pending approvals",
+            "metadata": {"reviewer": "integration"},
             "idempotency_key": "integration-needs-changes-1",
             "expected_iteration": 1,
         },
@@ -593,6 +600,7 @@ def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None
         json={
             "decision": "needs_changes",
             "comment": "дополни pending approvals",
+            "metadata": {"reviewer": "integration"},
             "idempotency_key": "integration-needs-changes-1",
             "expected_iteration": 2,
         },
@@ -616,6 +624,7 @@ def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None
         json={
             "decision": "approve",
             "comment": "финально ок",
+            "metadata": {"reviewer": "integration"},
             "idempotency_key": "integration-approve-2",
             "expected_iteration": 2,
         },
@@ -637,6 +646,20 @@ def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None
     hitl_payload = hitl_status.json()
     assert hitl_payload["current_iteration"] == 2
     assert len(hitl_payload["actions"]) == 2
+
+    actions_history = client.get(
+        f"/api/v1/hitl/actions?task_id={task_id}&reviewer=integration&limit=10"
+    )
+    assert actions_history.status_code == 200
+    history_payload = actions_history.json()
+    assert history_payload["total_returned"] == 2
+    decisions = {item["decision"] for item in history_payload["items"]}
+    assert decisions == {"needs_changes", "approve"}
+
+
+def test_hitl_actions_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:
+    response = client.get("/api/v1/hitl/actions?cursor=invalid_cursor_payload")
+    assert response.status_code == 400
 
 
 def test_authoring_async_endpoint_can_complete_without_hitl(client: TestClient) -> None:

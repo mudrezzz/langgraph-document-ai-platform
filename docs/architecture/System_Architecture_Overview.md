@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-21
-Статус: Increment 22
+Дата обновления: 2026-04-22
+Статус: Increment 23
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 22)
+## 2. Текущая реализация (Increment 23)
 
 Реализовано:
 
@@ -37,7 +37,8 @@
   - `backend/migrations/0004_langgraph_checkpoint_storage.sql`;
   - `backend/migrations/0005_task_events_status_filter_indexes.sql`;
   - `backend/migrations/0006_artifact_store.sql`;
-  - `backend/migrations/0007_task_artifacts.sql`.
+  - `backend/migrations/0007_task_artifacts.sql`;
+  - `backend/migrations/0008_hitl_actions.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -58,6 +59,7 @@
   - `GET /api/v1/tasks/{task_id}/artifact`;
   - `GET /api/v1/tasks/{task_id}/hitl`;
   - `POST /api/v1/tasks/{task_id}/hitl/submit`;
+  - `GET /api/v1/hitl/actions`;
   - traceability payload: `retrieval_task_id`, `source_refs`, `sections`;
   - `draft_strategy`: `auto|deterministic|llm`;
   - `workflow_mode`: `single_pass|multi_step`;
@@ -113,6 +115,10 @@
   - worker task `run_authoring_hitl_action` обрабатывает approve/reject/needs_changes;
   - `needs_changes` запускает rewrite + reviewer rerun и переводит задачу в новую итерацию `waiting_human`;
   - введены лимиты итераций и SLA-дедлайн (`APP_HITL_MAX_ITERATIONS`, `APP_HITL_WAIT_TIMEOUT_SEC`).
+- HITL persistence/read-model:
+  - отдельный adapter `PostgresHitlActionStore`;
+  - reviewer действия сохраняются в таблицу `app.hitl_actions`;
+  - history API `GET /api/v1/hitl/actions` поддерживает фильтры `task_id/decision/status/reviewer/from/to` и cursor pagination.
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -154,11 +160,12 @@
   - `docs/adr/0025-multistep-authoring-workflow-and-section-traceability.md`;
   - `docs/adr/0026-celery-redis-async-authoring-and-hitl-mvp.md`.
   - `docs/adr/0027-iterative-hitl-loop-and-async-submit-continuation.md`.
+  - `docs/adr/0028-hitl-actions-persistence-and-read-model-api.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
-- HITL now iterative, но нет отдельной reviewer UI/queue dashboard и расширенного SLA-monitoring read-model;
+- HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
@@ -169,13 +176,13 @@
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Дорастить async execution до общего execution-plane (не только authoring).
 3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
-4. Добавить отдельный persistence/read-model для reviewer действий (вынести из checkpoint payload).
+4. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Вынести reviewer actions в отдельную таблицу и read-model API (query по периодам/decision/reviewer).
-2. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
-3. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
-4. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
-5. Добавить интеграционные тесты для расширенного authoring read-model, async retries и audit метрик.
+1. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
+2. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
+3. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
+4. Добавить агрегаты по HITL reviewer actions (SLA, decision mix, load per reviewer).
+5. Добавить интеграционные тесты для расширенного authoring read-model, async retries и audit/HITL метрик.

@@ -68,7 +68,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 Что увидеть:
 
 - контейнер `langgraph-db` в состоянии `healthy`;
-- применены миграции `0001`..`0007`.
+- применены миграции `0001`..`0008`.
 
 ## 4. Базовый smoke retrieval
 
@@ -335,6 +335,7 @@ bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 -
 - `steps_total >= 4`;
 - `traceability_sections >= 3`;
 - `hitl_submit_count=2`.
+- `hitl_actions_total=2` (проверка нового read-model endpoint `/api/v1/hitl/actions`).
 
 Как интерпретировать:
 

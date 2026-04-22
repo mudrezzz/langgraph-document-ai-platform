@@ -281,3 +281,7 @@ def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: 
     assert artifact_payload["metadata"]["hitl_decision"] == "approve"
     assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+    actions_code, actions_payload = _request("GET", f"{base_url}/api/v1/hitl/actions?task_id={task_id}")
+    assert actions_code == 200
+    assert actions_payload["total_returned"] >= 1

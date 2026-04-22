@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 22`.
+Текущий инкремент: `Increment 23`.
 
 Сделано:
 
@@ -99,6 +99,10 @@
 - добавлена персистентная traceability-связь task -> artifact:
   - `PostgresTaskArtifactRegistry`;
   - таблица `app.task_artifacts` (`backend/migrations/0007_task_artifacts.sql`).
+- reviewer actions вынесены в отдельный persistence/read-model слой:
+  - `PostgresHitlActionStore`;
+  - таблица `app.hitl_actions` (`backend/migrations/0008_hitl_actions.sql`);
+  - endpoint истории `GET /api/v1/hitl/actions` с фильтрами и курсорами.
 - добавлены authoring smoke/demo скрипты:
   - `smoke_authoring_api.sh/.ps1`;
   - `demo_release_authoring_traceability_case.sh/.ps1`.
@@ -568,6 +572,26 @@ bash ./backend/scripts/async_down.sh
 - `current_node`
 - `details`
 
+## Контракт GET /api/v1/hitl/actions
+
+Параметры:
+
+- `limit` (1..200)
+- `cursor` (opaque cursor следующей страницы)
+- `task_id`
+- `decision`
+- `status`
+- `reviewer`
+- `from` / `to` (ISO datetime, фильтрация по `created_at`)
+
+Ответ:
+
+- `items[]` (`action_id`, `task_id`, `iteration`, `decision`, `status`, `comment`, `idempotency_key`, `metadata`, `created_at`)
+- `limit`
+- `total_returned`
+- `next_cursor`
+- `has_more`
+
 ## MCP Контракты (MVP)
 
 - Retrieval MCP:
@@ -637,7 +661,6 @@ bash ./backend/scripts/async_down.sh
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- вынос reviewer actions в отдельный persistence/read-model слой (помимо checkpoint payload);
 - ingestion расширение на PDF/DOCX/OCR с quality gates;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 

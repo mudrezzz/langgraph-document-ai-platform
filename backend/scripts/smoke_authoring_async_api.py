@@ -215,6 +215,15 @@ def main() -> None:
         if task_payload.get("status") == "completed" and artifact_code != 200:
             raise RuntimeError(f"Task artifact failed: status={artifact_code}, payload={artifact_payload}")
 
+        hitl_actions_code, hitl_actions_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/hitl/actions?task_id={urllib.parse.quote(task_id)}&limit=50",
+        )
+        if hitl_actions_code != 200:
+            raise RuntimeError(
+                f"HITL actions history failed: code={hitl_actions_code}, payload={hitl_actions_payload}"
+            )
+
         result = {
             "base_url": base_url,
             "task_id": task_id,
@@ -225,6 +234,8 @@ def main() -> None:
             "hitl_submit_status": hitl_after_submit.get("status") if hitl_after_submit else None,
             "hitl_submit_count": len(hitl_submits),
             "hitl_submits": hitl_submits,
+            "hitl_actions_total": hitl_actions_payload.get("total_returned", 0),
+            "hitl_actions_has_more": bool(hitl_actions_payload.get("has_more", False)),
             "artifact_id": artifact_payload.get("artifact_id") if artifact_code == 200 else None,
             "artifact_title": artifact_payload.get("title") if artifact_code == 200 else None,
             "workflow_mode": artifact_payload.get("metadata", {}).get("workflow_mode") if artifact_code == 200 else None,

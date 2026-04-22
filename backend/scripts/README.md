@@ -35,6 +35,7 @@
 - `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
 - `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact`.
   - поддерживает `--hitl-decision-sequence` (например `needs_changes,approve`) для проверки итеративного HITL loop.
+  - проверяет read-model endpoint `GET /api/v1/hitl/actions` для текущего task.
 - `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
 
 ### Пример полного цикла

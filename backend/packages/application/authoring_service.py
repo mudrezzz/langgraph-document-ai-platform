@@ -13,11 +13,13 @@ from application.errors import (
     TaskArtifactLinkNotFoundError,
     WorkflowExecutionError,
 )
+from application.hitl_action_store import HitlActionRecord, HitlActionStore, InMemoryHitlActionStore
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from framework.models.interfaces import IChatModelGateway
 from schemas.api.contracts import (
     HitlReviewActionResponse,
+    HitlActionsResponse,
     HitlReviewStatusResponse,
     SubmitHitlReviewRequest,
     StartAuthoringTaskRequest,
@@ -87,6 +89,7 @@ class AuthoringApplicationService:
         retrieval_service: RetrievalApplicationService,
         artifact_service: ArtifactApplicationService,
         task_artifact_registry: TaskArtifactRegistry,
+        hitl_action_store: HitlActionStore | None = None,
         chat_model_gateway: IChatModelGateway | None = None,
         llm_enabled: bool = False,
         llm_strict_mode: bool = False,
@@ -99,6 +102,7 @@ class AuthoringApplicationService:
         self._retrieval_service = retrieval_service
         self._artifact_service = artifact_service
         self._task_artifact_registry = task_artifact_registry
+        self._hitl_action_store = hitl_action_store or InMemoryHitlActionStore()
         self._chat_model_gateway = chat_model_gateway
         self._llm_enabled = llm_enabled
         self._llm_strict_mode = llm_strict_mode
@@ -312,20 +316,8 @@ class AuthoringApplicationService:
 
         state_payload = self._task_service.get_state_payload(task_id)
         state = AuthoringTaskState.model_validate(state_payload)
-        actions: list[HitlReviewActionResponse] = []
-        for item in state.hitl_actions:
-            actions.append(
-                HitlReviewActionResponse(
-                    action_id=str(item.get("action_id", "")) or None,
-                    iteration=int(item["iteration"]) if isinstance(item.get("iteration"), int) else None,
-                    decision=str(item.get("decision", "")),
-                    comment=item.get("comment"),
-                    status=str(item.get("status", "")) or None,
-                    idempotency_key=str(item.get("idempotency_key", "")) or None,
-                    metadata=dict(item.get("metadata") or {}),
-                    created_at=self._parse_datetime(item.get("created_at")),
-                )
-            )
+        actions_page = self._hitl_action_store.list_actions(task_id=task_id, limit=100)
+        actions = [self._to_hitl_action_response(item) for item in actions_page.items]
 
         deadline_at = self._parse_datetime(state.hitl_deadline_at)
         can_submit = (
@@ -345,6 +337,38 @@ class AuthoringApplicationService:
             pending_reason=task.details.get("pending_reason"),
             reviewer_notes=str(state.review_result.get("notes", "")) or None,
             actions=actions,
+        )
+
+    def list_hitl_actions(
+        self,
+        *,
+        limit: int = 50,
+        cursor: str | None = None,
+        task_id: str | None = None,
+        decision: str | None = None,
+        status: str | None = None,
+        reviewer: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> HitlActionsResponse:
+        """Возвращает read-model истории HITL действий с фильтрами."""
+
+        page = self._hitl_action_store.list_actions(
+            limit=limit,
+            cursor=cursor,
+            task_id=task_id,
+            decision=decision,
+            status=status,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return HitlActionsResponse(
+            items=[self._to_hitl_action_response(item) for item in page.items],
+            limit=page.limit,
+            total_returned=page.total_returned,
+            next_cursor=page.next_cursor,
+            has_more=page.has_more,
         )
 
     def submit_hitl(
@@ -414,6 +438,7 @@ class AuthoringApplicationService:
                 "hitl_actions": [*state.hitl_actions, action],
             }
         )
+        self._persist_hitl_action(task_id=task_id, action=action)
         self._task_service.save_checkpoint(task_id, queued_state.model_dump(mode="json"))
         self._task_service.update_task(
             task_id,
@@ -444,6 +469,9 @@ class AuthoringApplicationService:
                 action_id=action_id,
                 updates={"status": "dispatch_failed", "error": str(exc)},
             )
+            failed_action = self._find_hitl_action_by_id(failed_actions, action_id)
+            if failed_action is not None:
+                self._persist_hitl_action(task_id=task_id, action=failed_action)
             rollback_state = queued_state.model_copy(
                 update={
                     "hitl_status": "pending",
@@ -523,6 +551,9 @@ class AuthoringApplicationService:
             action_id=action_id,
             updates={"status": "processing", "started_at": datetime.now(timezone.utc).isoformat()},
         )
+        processing_action = self._find_hitl_action_by_id(processing_actions, action_id)
+        if processing_action is not None:
+            self._persist_hitl_action(task_id=task_id, action=processing_action)
         processing_state = state.model_copy(
             update={
                 "hitl_status": "processing",
@@ -551,6 +582,9 @@ class AuthoringApplicationService:
                 action_id=action_id,
                 updates={"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()},
             )
+            failed_action = self._find_hitl_action_by_id(failed_actions, action_id)
+            if failed_action is not None:
+                self._persist_hitl_action(task_id=task_id, action=failed_action)
             failed_state = processing_state.model_copy(
                 update={
                     "hitl_status": "rejected",
@@ -622,6 +656,9 @@ class AuthoringApplicationService:
                 action_id=action_id,
                 updates={"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()},
             )
+            completed_action = self._find_hitl_action_by_id(completed_actions, action_id)
+            if completed_action is not None:
+                self._persist_hitl_action(task_id=task_id, action=completed_action)
             waiting_state = processing_state.model_copy(
                 update={
                     "draft": updated_draft,
@@ -674,6 +711,9 @@ class AuthoringApplicationService:
             action_id=action_id,
             updates={"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()},
         )
+        completed_action = self._find_hitl_action_by_id(completed_actions, action_id)
+        if completed_action is not None:
+            self._persist_hitl_action(task_id=task_id, action=completed_action)
         return self._finalize_from_hitl(
             task_id=task_id,
             state=processing_state,
@@ -1024,6 +1064,45 @@ class AuthoringApplicationService:
             else:
                 updated.append(dict(action))
         return updated
+
+    def _persist_hitl_action(self, *, task_id: str, action: dict[str, Any]) -> None:
+        """Сохраняет HITL action в отдельный persistence/read-model слой."""
+
+        action_id = str(action.get("action_id", "")).strip()
+        if not action_id:
+            return
+        iteration = action.get("iteration")
+        if not isinstance(iteration, int) or iteration < 1:
+            iteration = 1
+        self._hitl_action_store.save_action(
+            HitlActionRecord(
+                action_id=action_id,
+                task_id=task_id,
+                iteration=iteration,
+                decision=str(action.get("decision", "")),
+                status=str(action.get("status", "")),
+                comment=action.get("comment"),
+                reviewer=str((action.get("metadata") or {}).get("reviewer", "")) or None,
+                idempotency_key=str(action.get("idempotency_key", "")) or None,
+                metadata=dict(action.get("metadata") or {}),
+                created_at=self._parse_datetime(action.get("created_at")),
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+
+    def _to_hitl_action_response(self, record: HitlActionRecord) -> HitlReviewActionResponse:
+        """Преобразует internal HITL action record в API response модель."""
+
+        return HitlReviewActionResponse(
+            action_id=record.action_id,
+            iteration=record.iteration,
+            decision=record.decision,
+            comment=record.comment,
+            status=record.status,
+            idempotency_key=record.idempotency_key,
+            metadata=record.metadata,
+            created_at=record.created_at,
+        )
 
     def _apply_human_feedback_to_draft(self, *, draft: str, comment: str, metadata: dict[str, Any]) -> str:
         """Добавляет ручной feedback в writer draft перед финальной сборкой."""

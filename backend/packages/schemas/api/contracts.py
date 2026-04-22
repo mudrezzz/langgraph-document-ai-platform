@@ -146,6 +146,16 @@ class HitlReviewActionResponse(BaseModel):
     created_at: datetime | None = None
 
 
+class HitlActionsResponse(BaseModel):
+    """История HITL действий с пагинацией."""
+
+    items: list[HitlReviewActionResponse] = Field(default_factory=list)
+    limit: int
+    total_returned: int
+    next_cursor: str | None = None
+    has_more: bool = False
+
+
 class HitlReviewStatusResponse(BaseModel):
     """Текущий статус HITL по задаче."""
 

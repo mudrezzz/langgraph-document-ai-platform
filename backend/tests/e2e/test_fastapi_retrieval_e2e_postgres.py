@@ -329,6 +329,19 @@ def _has_task_artifact_link(dsn: str, task_id: str) -> bool:
             return cur.fetchone() is not None
 
 
+def _count_hitl_actions(dsn: str, task_id: str) -> int:
+    import psycopg
+
+    with psycopg.connect(dsn, connect_timeout=5) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM app.hitl_actions WHERE task_id = %s",
+                (task_id,),
+            )
+            row = cur.fetchone()
+            return int(row[0]) if row is not None else 0
+
+
 def test_e2e_postgres_health_endpoint(postgres_backed_server_context: dict[str, str]) -> None:
     base_url = postgres_backed_server_context["base_url"]
     status, body = _request("GET", f"{base_url}/health")
@@ -496,3 +509,4 @@ def test_e2e_postgres_authoring_async_hitl_flow(postgres_backed_server_context: 
     assert len(artifact_payload["traceability"]["sections"]) >= 3
 
     assert _has_task_artifact_link(dsn=dsn, task_id=task_id) is True
+    assert _count_hitl_actions(dsn=dsn, task_id=task_id) >= 1

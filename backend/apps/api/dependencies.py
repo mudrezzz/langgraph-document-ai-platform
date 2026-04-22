@@ -17,6 +17,7 @@ from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.artifact_store import PostgresArtifactStore
+from infra.postgres.hitl_action_store import PostgresHitlActionStore
 from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
 from infra.postgres.task_registry import PostgresTaskRegistry
@@ -175,6 +176,10 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        hitl_action_store = PostgresHitlActionStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         llm_runtime_config = _build_llm_runtime_config()
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
         retrieval_service = RetrievalApplicationService(task_service=task_service)
@@ -189,6 +194,7 @@ class ApiContainer:
             retrieval_service=retrieval_service,
             artifact_service=self.artifact_service,
             task_artifact_registry=task_artifact_registry,
+            hitl_action_store=hitl_action_store,
             chat_model_gateway=llm_runtime_config.chat_gateway,
             llm_enabled=llm_runtime_config.enabled,
             llm_strict_mode=llm_runtime_config.strict,

@@ -14,6 +14,7 @@ from application.errors import (
 from apps.api.dependencies import ApiContainer, get_container
 from schemas.api.contracts import (
     EvidencePackResponse,
+    HitlActionsResponse,
     HitlReviewStatusResponse,
     ResumeTaskRequest,
     SubmitHitlReviewRequest,
@@ -210,6 +211,35 @@ def get_task_hitl_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTaskStateError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+
+@app.get("/api/v1/hitl/actions", response_model=HitlActionsResponse)
+def get_hitl_actions(
+    limit: int = Query(default=50, ge=1, le=200),
+    cursor: str | None = Query(default=None, min_length=8, max_length=512),
+    task_id: str | None = Query(default=None),
+    decision: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    reviewer: str | None = Query(default=None),
+    created_from: datetime | None = Query(default=None, alias="from"),
+    created_to: datetime | None = Query(default=None, alias="to"),
+    container: ApiContainer = Depends(get_container),
+) -> HitlActionsResponse:
+    """Возвращает историю reviewer действий HITL с фильтрами и курсорами."""
+
+    try:
+        return container.authoring_service.list_hitl_actions(
+            limit=limit,
+            cursor=cursor,
+            task_id=task_id,
+            decision=decision,
+            status=status_filter,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
+    except InvalidCursorError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
 @app.post("/api/v1/tasks/{task_id}/hitl/submit", response_model=TaskStatusResponse)
