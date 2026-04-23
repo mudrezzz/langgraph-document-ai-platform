@@ -29,6 +29,8 @@
 
 ## Increment 24: Framework Hardening
 
+Статус: Done.
+
 Цель: зафиксировать framework как устойчивую основу перед расширением ingestion, retrieval и authoring доменов.
 
 Scope:
@@ -54,6 +56,8 @@ Definition of Done:
 - demo-harness описан как обязательный acceptance слой.
 
 ## Increment 25: Knowledge Factory MVP
+
+Статус: In progress. Первый срез реализует canonical contracts, `domain_docs`, parser `.md/.txt/.json`, `KnowledgeIndexingWorkflow` и smoke на release go/no-go multifile input. Следующий срез должен добавить binary formats и отдельный persistence слой для canonical documents / knowledge blocks.
 
 Цель: закрыть разрыв между demo ingestion и целевой canonical document pipeline.
 
@@ -87,6 +91,12 @@ Definition of Done:
 - ingestion создает canonical representation;
 - indexing task сохраняется в task registry и task events;
 - retrieval может читать новые knowledge blocks через стандартный интерфейс.
+
+First slice done:
+
+- canonical representation создается для `.md/.txt/.json`;
+- canonical payload сохраняется через existing document repository boundary;
+- release go/no-go multifile input проверяется через `smoke_knowledge_indexing.sh/.ps1`.
 
 ## Increment 26: Production Retrieval Fabric
 

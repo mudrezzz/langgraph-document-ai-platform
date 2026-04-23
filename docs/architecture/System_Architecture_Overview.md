@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-23
-Статус: Increment 24
+Статус: Increment 25
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 24)
+## 2. Текущая реализация (Increment 25)
 
 Реализовано:
 
@@ -22,6 +22,12 @@
 - root roadmap `BACKLOG.md` для завершения backend/framework части;
 - framework extension guide `docs/framework_extension_guide.md`;
 - contract tests для базовых framework agents/tools/mcp/db/stores;
+- Knowledge Factory MVP first slice:
+  - canonical document contracts в `schemas.documents`;
+  - `domain_docs` package;
+  - `CanonicalDocumentParser` для `.md/.txt/.json`;
+  - `KnowledgeIndexingWorkflow`;
+  - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - API boundary + task lifecycle + interrupt/resume ветки;
 - persistence adapters:
@@ -165,12 +171,14 @@
   - `docs/adr/0027-iterative-hitl-loop-and-async-submit-continuation.md`.
   - `docs/adr/0028-hitl-actions-persistence-and-read-model-api.md`.
   - `docs/adr/0029-framework-hardening-and-extension-guide.md`.
+  - `docs/adr/0030-canonical-document-parsing-and-indexing-mvp.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
+- `domain_docs` начат как canonical text-like ingestion MVP, но PDF/DOCX/OCR и отдельный knowledge block persistence еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
@@ -185,8 +193,8 @@
 
 ## 5. План следующего инкремента
 
-1. Начать `Increment 25: Knowledge Factory MVP`.
-2. Добавить `domain_docs` и canonical document schemas.
-3. Добавить ingestion для `.md/.txt/.json/.docx/.pdf` источников с quality flags.
-4. Добавить `KnowledgeIndexingWorkflow` и persistence для canonical documents / knowledge blocks.
+1. Расширить Knowledge Factory до `.docx` и `.pdf` parser adapters.
+2. Добавить отдельные persistence модели для canonical documents / knowledge blocks.
+3. Подключить canonical indexing output к retrieval bootstrap path.
+4. Добавить quality gates для пустых/слабо структурированных документов.
 5. Расширить release go/no-go demo входами через canonical ingestion.

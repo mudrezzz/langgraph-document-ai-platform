@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from schemas.documents.contracts import CanonicalDocument
 from schemas.rag.contracts import EvidencePack, RetrievalFilter, RerankedBlock, RetrievedBlock
 
 
@@ -43,6 +44,17 @@ class AssemblyWorkflowState(BaseModel):
     consistency_report: dict | None = None
     final_document: dict | None = None
     export_result: dict | None = None
+
+
+class KnowledgeIndexingState(BaseModel):
+    """Состояние workflow canonical ingestion/indexing."""
+
+    task_context: dict = Field(default_factory=dict)
+    source_paths: list[str] = Field(default_factory=list)
+    documents: list[CanonicalDocument] = Field(default_factory=list)
+    indexed_doc_ids: list[str] = Field(default_factory=list)
+    quality_flags: list[str] = Field(default_factory=list)
+    error_message: str | None = None
 
 
 class AuthoringTaskState(BaseModel):

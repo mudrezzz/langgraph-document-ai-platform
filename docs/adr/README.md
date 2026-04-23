@@ -39,3 +39,4 @@
 - `0027-iterative-hitl-loop-and-async-submit-continuation.md`
 - `0028-hitl-actions-persistence-and-read-model-api.md`
 - `0029-framework-hardening-and-extension-guide.md`
+- `0030-canonical-document-parsing-and-indexing-mvp.md`

@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 24`.
+Текущий инкремент: `Increment 25`.
 
 Сделано:
 
@@ -140,6 +140,12 @@
   - guide расширения framework `docs/framework_extension_guide.md`;
   - ADR `docs/adr/0029-framework-hardening-and-extension-guide.md`;
   - unit contract tests для agents/tools/mcp/db/stores.
+- добавлен первый срез Knowledge Factory MVP:
+  - типизированные canonical document contracts;
+  - пакет `domain_docs`;
+  - parser `.md/.txt/.json` в `CanonicalDocumentParser`;
+  - `KnowledgeIndexingWorkflow` поверх `BaseWorkflow`;
+  - smoke `smoke_knowledge_indexing.sh/.ps1` для release go/no-go multifile input.
 
 ## Структура
 
@@ -158,6 +164,7 @@ backend/
     framework/
     schemas/
     infra/
+    domain_docs/
     domain_rag/
     application/
   scripts/
@@ -386,6 +393,18 @@ bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.
 bash ./backend/scripts/async_down.sh
 ```
 
+29. Smoke Knowledge Indexing (Linux):
+
+```bash
+bash ./backend/scripts/smoke_knowledge_indexing.sh
+```
+
+30. Smoke Knowledge Indexing (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1
+```
+
 Примечание: если PostgreSQL на нестандартном порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
 
 ## Reference Case: Release Go/No-Go (File-Based)
@@ -487,6 +506,8 @@ bash ./backend/scripts/async_down.sh
 - HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
+- `domain_docs` умеет строить canonical document payload для `.md/.txt/.json`.
+- `KnowledgeIndexingWorkflow` сохраняет canonical documents через существующий document repository boundary.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -610,6 +631,33 @@ bash ./backend/scripts/async_down.sh
 - Artifact Writer MCP:
   - tools `write_artifact`, `get_artifact`, `list_artifacts`;
   - схемы `backend/packages/schemas/mcp/artifact_writer.py`.
+
+## Knowledge Factory MVP
+
+Первый срез canonical ingestion работает без отдельной SQL-миграции:
+
+- parser: `domain_docs.parsing.CanonicalDocumentParser`;
+- workflow: `domain_docs.indexing.KnowledgeIndexingWorkflow`;
+- application boundary: `KnowledgeIndexingApplicationService`;
+- storage MVP: `DocumentApplicationService` + существующая таблица `app.documents`.
+
+Поддерживаемые форматы текущего среза:
+
+- `.md`;
+- `.txt`;
+- `.json`.
+
+Smoke текущего demo input:
+
+```bash
+bash ./backend/scripts/smoke_knowledge_indexing.sh
+```
+
+Ожидаемый результат:
+
+- `documents_total=4`;
+- `content_blocks_total > 0`;
+- `file_types` содержит `md`, `txt`, `json`.
 
 ## Контракт GET /api/v1/tasks
 

@@ -1,6 +1,49 @@
 ﻿from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
+
+
+class CanonicalStructureNode(BaseModel):
+    """Узел структурного дерева документа."""
+
+    node_id: str
+    title: str
+    level: int = 0
+    block_ids: list[str] = Field(default_factory=list)
+    children: list["CanonicalStructureNode"] = Field(default_factory=list)
+
+
+class CanonicalContentBlock(BaseModel):
+    """Нормализованный semantic block исходного документа."""
+
+    block_id: str
+    block_type: str = "paragraph"
+    text: str
+    heading_path: list[str] = Field(default_factory=list)
+    page_number: int | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CanonicalTable(BaseModel):
+    """Нормализованная табличная структура документа."""
+
+    table_id: str
+    title: str | None = None
+    columns: list[str] = Field(default_factory=list)
+    rows: list[dict[str, Any]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CanonicalSectionSummary(BaseModel):
+    """Краткое описание секции canonical document."""
+
+    section_id: str
+    title: str
+    summary: str
+    source_block_ids: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class CanonicalDocument(BaseModel):
@@ -10,11 +53,11 @@ class CanonicalDocument(BaseModel):
     source_path: str
     version: str
     file_type: str
-    metadata_profile: dict = Field(default_factory=dict)
-    structure_tree: dict = Field(default_factory=dict)
-    content_blocks: list[dict] = Field(default_factory=list)
-    extracted_tables: list[dict] = Field(default_factory=list)
-    section_summaries: list[dict] = Field(default_factory=list)
+    metadata_profile: dict[str, Any] = Field(default_factory=dict)
+    structure_tree: CanonicalStructureNode | dict[str, Any] = Field(default_factory=dict)
+    content_blocks: list[CanonicalContentBlock] = Field(default_factory=list)
+    extracted_tables: list[CanonicalTable] = Field(default_factory=list)
+    section_summaries: list[CanonicalSectionSummary] = Field(default_factory=list)
     quality_flags: list[str] = Field(default_factory=list)
 
 
@@ -23,8 +66,8 @@ class TemplateSpec(BaseModel):
 
     template_id: str
     version: str
-    sections: list[dict] = Field(default_factory=list)
-    validation_rules: list[dict] = Field(default_factory=list)
+    sections: list[dict[str, Any]] = Field(default_factory=list)
+    validation_rules: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SectionDigest(BaseModel):
@@ -36,4 +79,4 @@ class SectionDigest(BaseModel):
     constraints: list[str] = Field(default_factory=list)
     covered_requirements: list[str] = Field(default_factory=list)
     open_questions: list[str] = Field(default_factory=list)
-    source_refs: list[dict] = Field(default_factory=list)
+    source_refs: list[dict[str, Any]] = Field(default_factory=list)
