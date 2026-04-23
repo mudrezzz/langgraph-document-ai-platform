@@ -410,25 +410,25 @@ bash ./backend/scripts/async_down.sh
 29. Smoke Knowledge Indexing (Linux):
 
 ```bash
-bash ./backend/scripts/smoke_knowledge_indexing.sh
+bash ./backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 ```
 
 30. Smoke Knowledge Indexing (Windows):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1 -BuildBinaryDemoDocs
 ```
 
 31. Smoke Canonical Retrieval (Linux):
 
 ```bash
-bash ./backend/scripts/smoke_canonical_retrieval.sh
+bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
 32. Smoke Canonical Retrieval (Windows):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1 -BuildBinaryDemoDocs
 ```
 
 Примечание: если PostgreSQL на нестандартном порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
@@ -677,27 +677,27 @@ Canonical ingestion работает через отдельный persistence/r
 
 - `.md`;
 - `.txt`;
-- `.json`.
+- `.json`;
 - `.docx` через `python-docx`;
 - `.pdf` через `PyMuPDF`.
 
 Smoke текущего demo input:
 
 ```bash
-bash ./backend/scripts/smoke_knowledge_indexing.sh
-bash ./backend/scripts/smoke_canonical_retrieval.sh
+bash ./backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
+bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
 Ожидаемый результат:
 
-- `documents_total=4`;
+- `documents_total=6`;
 - `content_blocks_total > 0`;
 - `stored_blocks_total > 0`;
 - `embeddings_indexed > 0`;
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;
 - `evidence_blocks > 0`;
-- `file_types` содержит `md`, `txt`, `json`.
+- `file_types` содержит `md`, `txt`, `json`, `docx`, `pdf`.
 
 ## Контракт GET /api/v1/tasks
 

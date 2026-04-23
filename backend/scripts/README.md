@@ -19,6 +19,7 @@
 - `async_up.sh` — поднять Redis + Celery worker через docker compose.
 - `async_down.sh` — остановить Redis + Celery worker (опционально удалить volume).
 - `apply_migrations.sh` — применить миграции при уже заданной `APP_DB_DSN`.
+- `build_binary_demo_documents.sh` — сгенерировать `.docx/.pdf` входы для release go/no-go multifile demo.
 - `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
@@ -28,8 +29,10 @@
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
   - проверяет запись canonical documents и derived knowledge blocks в canonical store.
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
   - проверяет embedding indexing и vector-backed detail retrieval (`retrieval_backend=pgvector`).
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
 - `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.
@@ -63,10 +66,10 @@ kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_80
 bash backend/scripts/smoke_repository_mcp.sh
 
 # Knowledge Factory canonical indexing smoke:
-bash backend/scripts/smoke_knowledge_indexing.sh
+bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 
 # Canonical retrieval smoke:
-bash backend/scripts/smoke_canonical_retrieval.sh
+bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 # Запуск MCP runtime (до Ctrl+C), выполняйте по одному:
 bash backend/scripts/run_repository_mcp.sh
@@ -110,6 +113,7 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `async_up.ps1`
 - `async_down.ps1`
 - `apply_migrations.ps1`
+- `build_binary_demo_documents.ps1`
 - `smoke_retrieval_api.ps1`
 - `demo_saa_release_readiness_case.ps1`
 - `run_retrieval_mcp.ps1`

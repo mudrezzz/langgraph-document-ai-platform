@@ -43,3 +43,4 @@
 - `0031-canonical-document-store-and-binary-parser-adapters.md`
 - `0032-canonical-knowledge-retrieval-source.md`
 - `0033-knowledge-block-embedding-index-and-vector-retrieval.md`
+- `0034-binary-demo-documents-for-knowledge-factory-acceptance.md`

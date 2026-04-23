@@ -30,6 +30,7 @@
   - `CanonicalDocumentApplicationService`;
   - `PostgresCanonicalDocumentStore`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
+  - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;

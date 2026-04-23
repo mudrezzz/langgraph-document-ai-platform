@@ -6,6 +6,7 @@ from pathlib import Path
 
 from apps.api.dependencies import ApiContainer
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
+from scripts.build_binary_demo_documents import build_binary_demo_documents
 from schemas.api.contracts import StartRetrievalTaskRequest
 from schemas.rag.contracts import RetrievalFilter
 
@@ -22,11 +23,19 @@ def parse_args() -> argparse.Namespace:
         default="что блокирует релиз и какие approvals pending",
         help="Retrieval query",
     )
+    parser.add_argument(
+        "--build-binary-demo-docs",
+        action="store_true",
+        help="Перед smoke сгенерировать DOCX/PDF demo input files",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.build_binary_demo_docs:
+        _build_binary_demo_docs(Path(args.input_path))
+
     container = ApiContainer()
 
     indexing_service = KnowledgeIndexingApplicationService(
@@ -69,6 +78,14 @@ def main() -> None:
         "top_sources": [source.model_dump(mode="json") for source in evidence.evidence_pack.selected_sources[:5]],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=4))
+
+
+def _build_binary_demo_docs(input_path: Path) -> None:
+    if input_path.is_file():
+        input_dir = input_path.parent
+    else:
+        input_dir = input_path
+    build_binary_demo_documents(output_dir=input_dir)
 
 
 if __name__ == "__main__":

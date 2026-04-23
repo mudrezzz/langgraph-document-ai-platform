@@ -8,7 +8,7 @@
 cd /root/langgraph-document-ai-platform
 python3 -m venv .venv
 source .venv/bin/activate
-pip install fastapi pydantic langgraph "psycopg[binary]" uvicorn pytest
+pip install -e ./backend uvicorn pytest
 chmod +x backend/scripts/*.sh
 ```
 
@@ -16,6 +16,7 @@ chmod +x backend/scripts/*.sh
 
 - команды завершаются без ошибок;
 - в проекте есть `./.venv` (smoke/demo теперь автоматически предпочитает этот python).
+- backend editable install подтягивает зависимости parser boundary, включая `python-docx` и `PyMuPDF`.
 
 Опционально для MCP:
 
@@ -262,25 +263,48 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_artifact_writer_mcp.sh
 
 ## 13.1. Smoke Knowledge Indexing
 
+Этот smoke проверяет реальный вход demo-кейса:
+
+- `backend/examples/cases/release_go_no_go_multifile_case/input/01_scope_and_decision.md`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/02_security_findings.md`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/03_ops_readiness.txt`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/04_approvals.json`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/05_release_notes.docx`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/06_audit_summary.pdf`
+
+Если нужно явно пересобрать `.docx/.pdf` входы:
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/build_binary_demo_documents.sh --overwrite
+```
+
+Обычный smoke можно запускать с флагом `--build-binary-demo-docs`: тогда `.docx/.pdf` будут созданы перед индексированием, если их нет.
+
 ```bash
 APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_knowledge_indexing.sh
+bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 ```
 
 Что увидеть в JSON:
 
-- `documents_total=4`;
-- `content_blocks_total > 0`;
-- `stored_blocks_total > 0`;
-- `embeddings_indexed > 0`;
-- `file_types` содержит `md`, `txt`, `json`.
+- `documents_total=6`;
+- `indexed_doc_ids` содержит `01SCOPEA-*`, `02SECURI-*`, `03OPSREA-*`, `04APPROV-*`, `05RELEAS-*`, `06AUDITS-*`;
+- `content_blocks_total` около `37` или больше при изменении fixture;
+- `stored_blocks_total` около `37` или больше;
+- `embeddings_indexed` около `37` или больше;
+- `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
+- `quality_flags` может содержать `06AUDITS-*:low_text_density` для текущего PDF fixture.
 
 Как интерпретировать:
 
-- это подтверждает, что Knowledge Factory MVP строит canonical documents и пишет derived content blocks в canonical store/read-model.
+- это подтверждает, что Knowledge Factory строит canonical documents из text, markdown, JSON, DOCX и PDF;
+- canonical documents сохраняются в `app.canonical_documents`;
+- derived content blocks сохраняются в `app.knowledge_blocks`;
+- embedding vectors для content blocks пишутся в `app.embeddings`.
 
 ## 13.2. Smoke Canonical Retrieval
 
@@ -289,21 +313,69 @@ APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_canonical_retrieval.sh
+bash backend/scripts/smoke_canonical_retrieval.sh \
+  --build-binary-demo-docs \
+  --query "release notes audit summary security sign-off customer notification"
 ```
 
 Что увидеть в JSON:
 
-- `stored_blocks_total > 0`;
-- `embeddings_indexed > 0`;
+- `indexed_doc_ids` содержит те же 6 canonical documents;
+- `stored_blocks_total` около `37` или больше;
+- `embeddings_indexed` около `37` или больше;
 - `knowledge_source=canonical`;
 - `retrieval_backend=pgvector`;
-- `evidence_blocks > 0`;
+- `evidence_blocks > 0` (на текущем fixture обычно десятки blocks);
+- `top_sources` содержит `05RELEAS-*` и `06AUDITS-*` для этого binary-focused запроса;
 - `task_status=completed`.
 
 Как интерпретировать:
 
 - это подтверждает путь `canonical documents -> knowledge_blocks -> retrieval evidence pack`.
+- detail retrieval идет через pgvector-backed `CanonicalVectorRetriever`, а не через старый demo dataset loader.
+
+## 13.3. Ручной API-прогон canonical retrieval после indexing
+
+Если хочется проверить не только smoke script, а руками дернуть API, сначала выполните indexing smoke из раздела 13.1. Затем поднимите API:
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+uvicorn apps.api.main:app --app-dir backend --host 127.0.0.1 --port 8070
+```
+
+В другом терминале отправьте retrieval task поверх canonical source:
+
+```bash
+curl -sS -X POST "http://127.0.0.1:8070/api/v1/tasks/retrieval/start" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "что блокирует релиз payments v2 и какие approvals pending",
+    "filters": {
+      "project_id": "p1",
+      "document_types": ["requirements", "methodology", "security", "operations", "governance"]
+    },
+    "task_context": {
+      "requester": "manual-canonical-demo",
+      "knowledge_source": "canonical"
+    }
+  }'
+```
+
+Из ответа возьмите `task_id`, затем:
+
+```bash
+TASK_ID="<task_id_из_start_json>"
+curl -sS "http://127.0.0.1:8070/api/v1/tasks/$TASK_ID"
+curl -sS "http://127.0.0.1:8070/api/v1/tasks/$TASK_ID/evidence"
+```
+
+Что увидеть:
+
+- status содержит `knowledge_source=canonical`, `retrieval_backend=pgvector`, `status=completed`;
+- evidence pack содержит источники из разных файлов demo input, включая `05_release_notes.docx` и/или `06_audit_summary.pdf`, если они попали в top evidence для запроса.
 
 ## 14. Smoke Authoring API (retrieval -> artifact + traceability)
 

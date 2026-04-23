@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$InputPath = "backend/examples/cases/release_go_no_go_multifile_case/input"
+    [string]$InputPath = "backend/examples/cases/release_go_no_go_multifile_case/input",
+    [switch]$BuildBinaryDemoDocs
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,7 +40,11 @@ $env:PYTHONPATH = "$backendRoot;$backendRoot\packages"
 
 try {
     Push-Location $repoRoot
-    & $pythonExe "$backendRoot\scripts\smoke_knowledge_indexing.py" --input-path $InputPath
+    $scriptArgs = @("$backendRoot\scripts\smoke_knowledge_indexing.py", "--input-path", $InputPath)
+    if ($BuildBinaryDemoDocs) {
+        $scriptArgs += "--build-binary-demo-docs"
+    }
+    & $pythonExe @scriptArgs
 }
 finally {
     Pop-Location

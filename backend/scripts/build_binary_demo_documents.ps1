@@ -1,8 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$InputPath = "backend/examples/cases/release_go_no_go_multifile_case/input",
-    [string]$Query = "что блокирует релиз и какие approvals pending",
-    [switch]$BuildBinaryDemoDocs
+    [string]$OutputDir = "backend/examples/cases/release_go_no_go_multifile_case/input",
+    [switch]$Overwrite
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,9 +40,9 @@ $env:PYTHONPATH = "$backendRoot;$backendRoot\packages"
 
 try {
     Push-Location $repoRoot
-    $scriptArgs = @("$backendRoot\scripts\smoke_canonical_retrieval.py", "--input-path", $InputPath, "--query", $Query)
-    if ($BuildBinaryDemoDocs) {
-        $scriptArgs += "--build-binary-demo-docs"
+    $scriptArgs = @("$backendRoot\scripts\build_binary_demo_documents.py", "--output-dir", $OutputDir)
+    if ($Overwrite) {
+        $scriptArgs += "--overwrite"
     }
     & $pythonExe @scriptArgs
 }

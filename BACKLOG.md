@@ -57,7 +57,7 @@ Definition of Done:
 
 ## Increment 25: Knowledge Factory MVP
 
-Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source, embedding/pgvector detail retrieval и smoke на release go/no-go multifile input. Следующий срез должен добавить quality gates и расширить demo artifact под canonical source.
+Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source, embedding/pgvector detail retrieval, binary demo input `.docx/.pdf` и smoke на release go/no-go multifile input. Следующий срез должен добавить quality gates и расширить demo artifact под canonical source.
 
 Цель: закрыть разрыв между demo ingestion и целевой canonical document pipeline.
 
@@ -117,6 +117,13 @@ Fourth slice done:
 - vector metadata связывает embedding с `knowledge_blocks.block_ref`;
 - canonical detail retrieval использует `CanonicalVectorRetriever`;
 - smoke показывает `embeddings_indexed > 0` и `retrieval_backend=pgvector`.
+
+Fifth slice done:
+
+- release go/no-go multifile input расширен файлами `05_release_notes.docx` и `06_audit_summary.pdf`;
+- добавлен генератор `build_binary_demo_documents.sh/.ps1/.py`;
+- canonical indexing/retrieval smoke поддерживает `--build-binary-demo-docs`;
+- manual PostgreSQL runbook описывает ручной прогон `.md/.txt/.json/.docx/.pdf`.
 
 ## Increment 26: Production Retrieval Fabric
 

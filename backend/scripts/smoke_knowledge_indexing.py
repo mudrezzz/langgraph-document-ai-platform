@@ -6,6 +6,7 @@ from pathlib import Path
 
 from apps.api.dependencies import ApiContainer
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
+from scripts.build_binary_demo_documents import build_binary_demo_documents
 
 
 def parse_args() -> argparse.Namespace:
@@ -15,11 +16,19 @@ def parse_args() -> argparse.Namespace:
         default="backend/examples/cases/release_go_no_go_multifile_case/input",
         help="Файл или директория документов для canonical indexing",
     )
+    parser.add_argument(
+        "--build-binary-demo-docs",
+        action="store_true",
+        help="Перед smoke сгенерировать DOCX/PDF demo input files",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.build_binary_demo_docs:
+        _build_binary_demo_docs(Path(args.input_path))
+
     container = ApiContainer()
     service = KnowledgeIndexingApplicationService(
         canonical_document_service=container.canonical_document_service,
@@ -42,6 +51,14 @@ def main() -> None:
         "embeddings_indexed": result.embeddings_indexed,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=4))
+
+
+def _build_binary_demo_docs(input_path: Path) -> None:
+    if input_path.is_file():
+        input_dir = input_path.parent
+    else:
+        input_dir = input_path
+    build_binary_demo_documents(output_dir=input_dir)
 
 
 if __name__ == "__main__":

@@ -48,8 +48,8 @@ def test_canonical_parser_parses_release_demo_directory() -> None:
 
     documents = CanonicalDocumentParser().parse_dir(dataset_dir)
 
-    assert len(documents) == 4
-    assert {document.file_type for document in documents} == {"json", "md", "txt"}
+    assert len(documents) == 6
+    assert {document.file_type for document in documents} == {"docx", "json", "md", "pdf", "txt"}
     assert sum(len(document.content_blocks) for document in documents) >= 8
 
 
