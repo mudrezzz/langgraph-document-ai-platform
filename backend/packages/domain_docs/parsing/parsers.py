@@ -65,7 +65,9 @@ class CanonicalDocumentParser:
             metadata_profile={
                 "file_name": path.name,
                 "file_size_bytes": path.stat().st_size,
+                "project_id": "p1",
                 "document_type": _infer_document_type(path),
+                "tags": _build_tags(path),
                 "parser": self.__class__.__name__,
                 "supported_mime_family": "text",
             },
@@ -362,6 +364,15 @@ def _infer_document_type(path: Path) -> str:
     if any(token in lowered for token in ("decision", "method", "strategy", "scope")):
         return "methodology"
     return "requirements"
+
+
+def _build_tags(path: Path) -> list[str]:
+    tags = []
+    for token in re.split(r"[^a-z0-9]+", path.stem.lower()):
+        normalized = token.strip()
+        if normalized and normalized not in tags:
+            tags.append(normalized)
+    return tags
 
 
 def _normalize_text(value: str) -> str:

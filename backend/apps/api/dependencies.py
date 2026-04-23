@@ -188,12 +188,16 @@ class ApiContainer:
         )
         llm_runtime_config = _build_llm_runtime_config()
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
-        retrieval_service = RetrievalApplicationService(task_service=task_service)
+        canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
+        retrieval_service = RetrievalApplicationService(
+            task_service=task_service,
+            canonical_document_service=canonical_document_service,
+        )
 
         self.settings = settings
         self.task_service = task_service
         self.document_service = DocumentApplicationService(repository=document_repository)
-        self.canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
+        self.canonical_document_service = canonical_document_service
         self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)
         self.retrieval_service = retrieval_service
         self.authoring_service = AuthoringApplicationService(

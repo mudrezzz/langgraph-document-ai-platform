@@ -16,6 +16,7 @@
 3. Генерацию итогового отчета `output/release_readiness_report.md`.
 4. Canonical document indexing smoke через Knowledge Factory MVP.
 5. Запись derived content blocks в `knowledge_blocks` read-model.
+6. Retrieval поверх canonical `knowledge_blocks`.
 
 ## Скрипты
 
@@ -23,3 +24,5 @@
 - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`
 - Canonical indexing smoke Linux: `backend/scripts/smoke_knowledge_indexing.sh`
 - Canonical indexing smoke Windows: `backend/scripts/smoke_knowledge_indexing.ps1`
+- Canonical retrieval smoke Linux: `backend/scripts/smoke_canonical_retrieval.sh`
+- Canonical retrieval smoke Windows: `backend/scripts/smoke_canonical_retrieval.ps1`

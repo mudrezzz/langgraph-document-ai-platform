@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
 from domain_rag.retrieval import RetrievalPackWorkflow, build_retrieval_workflow
@@ -24,8 +25,13 @@ from schemas.workflow.states import RetrievalWorkflowState
 class RetrievalApplicationService:
     """Application service для retrieval task lifecycle."""
 
-    def __init__(self, task_service: TaskApplicationService) -> None:
+    def __init__(
+        self,
+        task_service: TaskApplicationService,
+        canonical_document_service: CanonicalDocumentApplicationService | None = None,
+    ) -> None:
         self._task_service = task_service
+        self._canonical_document_service = canonical_document_service
 
     def _build_workflow(
         self,
@@ -33,11 +39,16 @@ class RetrievalApplicationService:
         case_dataset_id: str | None = None,
         case_dataset_path: str | None = None,
         case_dataset_dir: str | None = None,
+        knowledge_source: str | None = None,
+        canonical_doc_ids: list[str] | None = None,
     ) -> RetrievalPackWorkflow:
         return build_retrieval_workflow(
             case_dataset_id=case_dataset_id,
             case_dataset_path=case_dataset_path,
             case_dataset_dir=case_dataset_dir,
+            knowledge_source=knowledge_source,
+            canonical_document_service=self._canonical_document_service,
+            canonical_doc_ids=canonical_doc_ids,
             checkpointer=self._task_service.get_langgraph_checkpointer(),
         )
 
@@ -48,10 +59,14 @@ class RetrievalApplicationService:
         case_dataset_id = task_context.get("case_dataset_id")
         case_dataset_path = task_context.get("case_dataset_path")
         case_dataset_dir = task_context.get("case_dataset_dir")
+        knowledge_source = task_context.get("knowledge_source")
+        canonical_doc_ids = _normalize_doc_ids(task_context.get("canonical_doc_ids"))
         workflow = self._build_workflow(
             case_dataset_id=case_dataset_id,
             case_dataset_path=case_dataset_path,
             case_dataset_dir=case_dataset_dir,
+            knowledge_source=knowledge_source,
+            canonical_doc_ids=canonical_doc_ids,
         )
 
         initial_state = RetrievalWorkflowState(
@@ -86,6 +101,7 @@ class RetrievalApplicationService:
             "selected_summary_count": len(result_state.selected_summaries),
             "selected_block_count": len(result_state.selected_blocks),
             "reranked_count": len(result_state.reranked_blocks),
+            "knowledge_source": knowledge_source or "case_dataset",
         }
 
         self._task_service.complete_task(
@@ -237,10 +253,14 @@ class RetrievalApplicationService:
         case_dataset_id = state.task_context.get("case_dataset_id")
         case_dataset_path = state.task_context.get("case_dataset_path")
         case_dataset_dir = state.task_context.get("case_dataset_dir")
+        knowledge_source = state.task_context.get("knowledge_source")
+        canonical_doc_ids = _normalize_doc_ids(state.task_context.get("canonical_doc_ids"))
         workflow = self._build_workflow(
             case_dataset_id=case_dataset_id,
             case_dataset_path=case_dataset_path,
             case_dataset_dir=case_dataset_dir,
+            knowledge_source=knowledge_source,
+            canonical_doc_ids=canonical_doc_ids,
         )
 
         decision = request.decision.lower()
@@ -255,6 +275,7 @@ class RetrievalApplicationService:
                 "selected_block_count": len(result.selected_blocks),
                 "reranked_count": len(result.reranked_blocks),
                 "resume_decision": request.decision,
+                "knowledge_source": knowledge_source or "case_dataset",
             }
             self._task_service.complete_task(
                 task_id=task_id,
@@ -274,3 +295,15 @@ class RetrievalApplicationService:
             )
 
         return self.status(task_id)
+
+
+def _normalize_doc_ids(value: object) -> list[str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        return [stripped] if stripped else None
+    if isinstance(value, list):
+        normalized = [str(item).strip() for item in value if str(item).strip()]
+        return normalized or None
+    return None

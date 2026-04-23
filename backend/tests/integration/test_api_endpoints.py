@@ -8,6 +8,7 @@ from urllib.parse import quote
 import pytest
 from fastapi.testclient import TestClient
 
+from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from apps.api.dependencies import get_container
 from apps.api.main import app
 
@@ -202,6 +203,42 @@ def test_start_endpoint_supports_case_dataset_dir(client: TestClient) -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "completed"
+
+
+def test_start_endpoint_supports_canonical_knowledge_source(client: TestClient) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+    container = get_container()
+    indexing_result = KnowledgeIndexingApplicationService(
+        canonical_document_service=container.canonical_document_service
+    ).index_paths([dataset_dir])
+
+    response = client.post(
+        "/api/v1/tasks/retrieval/start",
+        json={
+            "query": "что блокирует релиз и какие approvals pending",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "knowledge_source": "canonical",
+                "canonical_doc_ids": indexing_result.indexed_doc_ids,
+                "requester": "integration-canonical-knowledge-test",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+
+    task_status = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
+    assert task_status["details"]["knowledge_source"] == "canonical"
 
 
 def test_status_endpoint_returns_task_state(client: TestClient) -> None:

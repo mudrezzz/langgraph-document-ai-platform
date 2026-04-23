@@ -151,6 +151,10 @@
   - `CanonicalDocumentApplicationService`;
   - таблицы `app.canonical_documents` и `app.knowledge_blocks`;
   - миграция `backend/migrations/0009_canonical_knowledge_store.sql`.
+- retrieval подключен к canonical Knowledge Factory output:
+  - `task_context.knowledge_source=canonical`;
+  - `task_context.canonical_doc_ids`;
+  - smoke `smoke_canonical_retrieval.sh/.ps1`.
 
 ## Структура
 
@@ -410,6 +414,18 @@ bash ./backend/scripts/smoke_knowledge_indexing.sh
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1
 ```
 
+31. Smoke Canonical Retrieval (Linux):
+
+```bash
+bash ./backend/scripts/smoke_canonical_retrieval.sh
+```
+
+32. Smoke Canonical Retrieval (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1
+```
+
 Примечание: если PostgreSQL на нестандартном порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
 
 ## Reference Case: Release Go/No-Go (File-Based)
@@ -513,6 +529,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
 - `KnowledgeIndexingWorkflow` сохраняет canonical documents и derived knowledge blocks через отдельный canonical store boundary.
+- retrieval start поддерживает canonical knowledge source через `task_context.knowledge_source=canonical`.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -521,8 +538,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `case_dataset_id` — загрузка встроенного demo-датасета по id;
 - `case_dataset_path` — загрузка датасета из JSON-файла на диске (file-based режим).
 - `case_dataset_dir` — загрузка датасета из директории файлов (`.md/.txt/.json`).
+- `knowledge_source=canonical` — загрузка retrieval blocks из canonical store (`app.canonical_documents` + `app.knowledge_blocks`).
+- `canonical_doc_ids` — опциональное ограничение canonical retrieval конкретными `doc_id`.
 
-Приоритет источников: `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
+Приоритет источников: `knowledge_source=canonical` -> `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
 
 ## Контракт POST /api/v1/tasks/authoring/start
 
@@ -660,6 +679,7 @@ Smoke текущего demo input:
 
 ```bash
 bash ./backend/scripts/smoke_knowledge_indexing.sh
+bash ./backend/scripts/smoke_canonical_retrieval.sh
 ```
 
 Ожидаемый результат:
@@ -667,6 +687,8 @@ bash ./backend/scripts/smoke_knowledge_indexing.sh
 - `documents_total=4`;
 - `content_blocks_total > 0`;
 - `stored_blocks_total > 0`;
+- `knowledge_source=canonical` в canonical retrieval smoke;
+- `evidence_blocks > 0`;
 - `file_types` содержит `md`, `txt`, `json`.
 
 ## Контракт GET /api/v1/tasks

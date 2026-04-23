@@ -57,7 +57,7 @@ Definition of Done:
 
 ## Increment 25: Knowledge Factory MVP
 
-Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой и smoke на release go/no-go multifile input. Следующий срез должен подключить output Knowledge Factory к retrieval bootstrap/indexing path.
+Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source и smoke на release go/no-go multifile input. Следующий срез должен добавить embedding/pgvector write path для `knowledge_blocks`.
 
 Цель: закрыть разрыв между demo ingestion и целевой canonical document pipeline.
 
@@ -104,6 +104,12 @@ Second slice done:
 - canonical documents сохраняются в отдельный `PostgresCanonicalDocumentStore`;
 - derived content blocks пишутся в read-model `knowledge_blocks`;
 - smoke показывает `stored_blocks_total > 0`.
+
+Third slice done:
+
+- retrieval поддерживает `task_context.knowledge_source=canonical`;
+- canonical retrieval строит summary/detail blocks из `canonical_documents` и `knowledge_blocks`;
+- smoke `smoke_canonical_retrieval.sh/.ps1` проверяет path `canonical indexing -> retrieval -> evidence`.
 
 ## Increment 26: Production Retrieval Fabric
 

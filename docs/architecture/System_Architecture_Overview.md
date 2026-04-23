@@ -30,6 +30,11 @@
   - `CanonicalDocumentApplicationService`;
   - `PostgresCanonicalDocumentStore`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
+- canonical retrieval source:
+  - `task_context.knowledge_source=canonical`;
+  - `task_context.canonical_doc_ids`;
+  - loader `load_canonical_knowledge_dataset`;
+  - smoke `backend/scripts/smoke_canonical_retrieval.sh/.ps1`.
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - API boundary + task lifecycle + interrupt/resume ветки;
 - persistence adapters:
@@ -176,6 +181,7 @@
   - `docs/adr/0029-framework-hardening-and-extension-guide.md`.
   - `docs/adr/0030-canonical-document-parsing-and-indexing-mvp.md`.
   - `docs/adr/0031-canonical-document-store-and-binary-parser-adapters.md`.
+  - `docs/adr/0032-canonical-knowledge-retrieval-source.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -197,8 +203,8 @@
 
 ## 5. План следующего инкремента
 
-1. Подключить canonical indexing output к retrieval bootstrap path.
-2. Добавить pgvector/embedding write path для `app.knowledge_blocks`.
-3. Добавить quality gates для пустых/слабо структурированных документов.
-4. Расширить release go/no-go demo входами через canonical ingestion.
-5. Добавить OCR/table/rich layout extraction как отдельный parser sub-slice.
+1. Добавить pgvector/embedding write path для `app.knowledge_blocks`.
+2. Добавить quality gates для пустых/слабо структурированных документов.
+3. Расширить release go/no-go demo входами через canonical ingestion.
+4. Добавить OCR/table/rich layout extraction как отдельный parser sub-slice.
+5. Подготовить Retrieval MCP tools для canonical source lookup.

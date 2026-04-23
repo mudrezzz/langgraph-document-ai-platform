@@ -281,6 +281,27 @@ bash backend/scripts/smoke_knowledge_indexing.sh
 
 - это подтверждает, что Knowledge Factory MVP строит canonical documents и пишет derived content blocks в canonical store/read-model.
 
+## 13.2. Smoke Canonical Retrieval
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_canonical_retrieval.sh
+```
+
+Что увидеть в JSON:
+
+- `stored_blocks_total > 0`;
+- `knowledge_source=canonical`;
+- `evidence_blocks > 0`;
+- `task_status=completed`.
+
+Как интерпретировать:
+
+- это подтверждает путь `canonical documents -> knowledge_blocks -> retrieval evidence pack`.
+
 ## 14. Smoke Authoring API (retrieval -> artifact + traceability)
 
 ```bash
