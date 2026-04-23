@@ -24,6 +24,9 @@
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
 - `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
+- `demo_release_go_no_go_multifile_case.sh` — canonical release go/no-go demo.
+  - запускает `knowledge-indexing/start`, затем canonical retrieval по `canonical_doc_ids`;
+  - обновляет markdown report с quality summary и source mapping.
 - `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack`).
 - `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.

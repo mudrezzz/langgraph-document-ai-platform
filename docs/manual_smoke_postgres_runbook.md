@@ -159,22 +159,28 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 
 Что делает скрипт:
 
-1. берет директорию `input/` с несколькими файлами (`.md`, `.txt`, `.json`);
-2. запускает retrieval через `task_context.case_dataset_dir`;
-3. формирует отчет `output/release_readiness_report.md`.
+1. гарантирует наличие `.docx/.pdf` demo input files;
+2. запускает Knowledge Indexing API для директории `input/` (`.md`, `.txt`, `.json`, `.docx`, `.pdf`);
+3. берет `indexed_doc_ids` из indexing task details;
+4. запускает retrieval через `task_context.knowledge_source=canonical` и `canonical_doc_ids`;
+5. формирует отчет `output/release_readiness_report.md`.
 
 Что увидеть:
 
+- `indexing_status=completed`;
+- `quality_gate_status=warning` для текущего PDF fixture;
+- `knowledge_source=canonical`;
+- `retrieval_backend=pgvector`;
 - `evidence_blocks > 0`;
-- `top_sources` содержит документы из нескольких файлов;
-- отчет формируется без промежуточной ручной сборки dataset JSON.
+- `top_sources` содержит документы из нескольких файлов, включая `.docx`/`.pdf` при релевантном запросе;
+- отчет содержит `Canonical Quality Summary` и `Canonical Source Mapping`.
 
 ## 8. Готово / Не реализовано в demo-контуре
 
 Готово:
 
 - file-based вход (`markdown -> dataset -> retrieval task`);
-- multi-file вход (`directory -> retrieval task`) через `case_dataset_dir`;
+- multi-file canonical вход (`directory -> canonical indexing -> retrieval task`) через `canonical_doc_ids`;
 - аудит статусов и summary API в том же прогоне;
 - multi-step authoring цикл (`research -> writer -> reviewer -> assembly`);
 - HITL-петля с итерациями (`needs_changes -> rewrite -> re-review -> waiting_human(iteration+1)`);
@@ -182,7 +188,7 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 
 Еще не реализовано:
 
-- универсальный ingestion для бинарных форматов (`.pdf/.docx`) и OCR;
+- OCR/rich layout extraction для scanned PDF;
 - отдельный reviewer UI/dashboard для мониторинга очереди HITL решений;
 - отдельный production dashboard по агрегатам task events за периоды.
 

@@ -32,7 +32,8 @@
   - API endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
   - API task smoke `backend/scripts/smoke_knowledge_indexing_api.sh/.ps1`;
-  - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`.
+  - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`;
+  - canonical release go/no-go report with quality/source mapping.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;

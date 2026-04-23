@@ -76,6 +76,7 @@
 - добавлен новый multi-file demo-кейс `release_go_no_go_multifile_case`:
   - Linux: `backend/scripts/demo_release_go_no_go_multifile_case.sh`;
   - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`.
+  - текущий вариант demo запускает canonical indexing API, retrieval по `canonical_doc_ids` и пишет report с quality/source mapping.
 - smoke-скрипты расширены параметром директории датасета:
   - `--case-dataset-dir` (Linux);
   - `-CaseDatasetDir` (Windows).
@@ -464,24 +465,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - сохранение task lifecycle и audit events в том же контуре API;
 - интерпретируемый результат для релизного решения (GO/NO-GO, blockers, approvals).
 
-## Reference Case: Release Go/No-Go (Multi-File)
+## Reference Case: Release Go/No-Go (Multi-File Canonical)
 
-Сценарий показывает ingestion директории с несколькими документами:
+Сценарий показывает canonical ingestion директории с несколькими документами:
 
 1. Входная папка:
    - `backend/examples/cases/release_go_no_go_multifile_case/input`
-2. Запуск retrieval с `task_context.case_dataset_dir`.
-3. Итоговый отчет:
+2. Запуск Knowledge Indexing API с `.md/.txt/.json/.docx/.pdf`.
+3. Запуск retrieval с `task_context.knowledge_source=canonical` и `canonical_doc_ids`.
+4. Итоговый отчет:
    - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`
 
-Этот кейс удобен для демонстрации реального потока, где данные приходят не из одного файла, а из набора артефактов релизного пакета.
+Этот кейс удобен для демонстрации реального потока, где данные приходят не из одного файла, а из набора артефактов релизного пакета, проходят canonical parsing/indexing и затем попадают в retrieval evidence pack через pgvector-backed canonical retrieval.
 
 ### Как интерпретировать результат demo/smoke
 
 Скрипт возвращает JSON со следующими полями:
 
-- `start_status`: результат старта задачи (`completed` или `interrupted`);
-- `task_status`: финальный статус после вызовов `start/status`;
+- `indexing_status`: финальный статус Knowledge Indexing task;
+- `quality_gate_status`: `passed|warning|failed` по canonical quality summary;
+- `retrieval_status`: финальный статус retrieval task;
+- `knowledge_source`: ожидаемо `canonical`;
+- `retrieval_backend`: ожидаемо `pgvector`;
 - `evidence_blocks`: сколько блоков попало в evidence pack;
 - `top_sources`: первые источники из evidence pack (быстрая sanity-проверка релевантности);
 - `resume_status`: статус после `resume`;

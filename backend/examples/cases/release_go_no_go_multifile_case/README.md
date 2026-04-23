@@ -13,12 +13,13 @@
 
 ## Что демонстрирует
 
-1. `task_context.case_dataset_dir` в API `start`.
-2. Multi-file ingestion (`.md/.txt/.json/.docx/.pdf`) без ручной сборки dataset JSON.
+1. Knowledge Indexing API task для директории `input/`.
+2. Multi-file canonical ingestion (`.md/.txt/.json/.docx/.pdf`) без ручной сборки dataset JSON.
 3. Генерацию итогового отчета `output/release_readiness_report.md`.
 4. Canonical document indexing smoke через Knowledge Factory MVP.
 5. Запись derived content blocks в `knowledge_blocks` read-model.
 6. Retrieval поверх canonical `knowledge_blocks`.
+7. Итоговый markdown report с canonical quality summary и source mapping.
 
 ## Скрипты
 
@@ -40,3 +41,5 @@ bash backend/scripts/build_binary_demo_documents.sh --overwrite
 ```
 
 Smoke scripts также поддерживают флаг `--build-binary-demo-docs`, чтобы перед прогоном гарантировать наличие binary input files.
+
+Основной demo-скрипт `demo_release_go_no_go_multifile_case.sh/.ps1` запускает canonical indexing API, затем retrieval с `knowledge_source=canonical` и `canonical_doc_ids`, после чего обновляет `output/release_readiness_report.md`.

@@ -3,6 +3,7 @@ set -euo pipefail
 
 HOST_NAME="127.0.0.1"
 PORT="8022"
+BUILD_BINARY_DEMO_DOCS="true"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -14,6 +15,10 @@ while [[ $# -gt 0 ]]; do
             PORT="$2"
             shift 2
             ;;
+        --no-build-binary-demo-docs)
+            BUILD_BINARY_DEMO_DOCS="false"
+            shift
+            ;;
         *)
             echo "Неизвестный аргумент: $1" >&2
             exit 1
@@ -24,16 +29,8 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 BACKEND_ROOT="${REPO_ROOT}/backend"
-CASE_ROOT="${BACKEND_ROOT}/examples/cases/release_go_no_go_multifile_case"
-CASE_INPUT_DIR="${CASE_ROOT}/input"
-REPORT_MARKDOWN="${CASE_ROOT}/output/release_readiness_report.md"
-PID_FILE="${BACKEND_ROOT}/.demo_release_go_no_go_multifile_uvicorn_${PORT}.pid"
-
-SMOKE_PATH="${SCRIPT_DIR}/smoke_retrieval_api.sh"
-BUILD_REPORT_PATH="${SCRIPT_DIR}/build_release_readiness_report.py"
 
 if [[ -x "${REPO_ROOT}/.venv/bin/python" ]]; then
-    # Предпочитаем локальное venv-окружение проекта для стабильного demo-прогона.
     PYTHON_BIN="${REPO_ROOT}/.venv/bin/python"
 elif command -v python >/dev/null 2>&1; then
     PYTHON_BIN="python"
@@ -44,67 +41,17 @@ else
     exit 1
 fi
 
-PREV_PYTHONPATH="${PYTHONPATH-}"
-SMOKE_JSON_FILE="$(mktemp)"
-STATUS_FILE="$(mktemp)"
-EVIDENCE_FILE="$(mktemp)"
-EVENTS_SUMMARY_FILE="$(mktemp)"
-
-cleanup() {
-    if [[ -f "${PID_FILE}" ]]; then
-        pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
-        if [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null; then
-            kill "${pid}" 2>/dev/null || true
-            wait "${pid}" 2>/dev/null || true
-        fi
-        rm -f "${PID_FILE}"
-    fi
-
-    rm -f "${SMOKE_JSON_FILE}" "${STATUS_FILE}" "${EVIDENCE_FILE}" "${EVENTS_SUMMARY_FILE}"
-    if [[ -z "${PREV_PYTHONPATH}" ]]; then
-        unset PYTHONPATH
-    else
-        export PYTHONPATH="${PREV_PYTHONPATH}"
-    fi
-}
-
-trap cleanup EXIT
-
 export PYTHONPATH="${BACKEND_ROOT}:${BACKEND_ROOT}/packages${PYTHONPATH:+:${PYTHONPATH}}"
 
-QUERY="Что блокирует релиз Payments v2 и какие approvals еще не закрыты?"
+ARGS=(
+    "${BACKEND_ROOT}/scripts/demo_release_go_no_go_multifile_case.py"
+    --host "${HOST_NAME}"
+    --port "${PORT}"
+)
+if [[ "${BUILD_BINARY_DEMO_DOCS}" == "true" ]]; then
+    ARGS+=(--build-binary-demo-docs)
+else
+    ARGS+=(--no-build-binary-demo-docs)
+fi
 
-echo "[1/3] Smoke прогон API с multi-file dataset directory (сервер остается поднятым)..."
-"${SMOKE_PATH}" \
-    --host "${HOST_NAME}" \
-    --port "${PORT}" \
-    --query "${QUERY}" \
-    --case-dataset-id "release_go_no_go_multifile" \
-    --case-dataset-dir "${CASE_INPUT_DIR}" \
-    --keep-server \
-    --server-pid-file "${PID_FILE}" >"${SMOKE_JSON_FILE}"
-
-BASE_URL="$("${PYTHON_BIN}" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["base_url"])' "${SMOKE_JSON_FILE}")"
-TASK_ID="$("${PYTHON_BIN}" -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["task_id"])' "${SMOKE_JSON_FILE}")"
-
-echo "[2/3] Сбор evidence и audit summary по задаче ${TASK_ID}..."
-curl -fsS "${BASE_URL}/api/v1/tasks/${TASK_ID}" >"${STATUS_FILE}"
-curl -fsS "${BASE_URL}/api/v1/tasks/${TASK_ID}/evidence" >"${EVIDENCE_FILE}"
-curl -fsS "${BASE_URL}/api/v1/tasks/events/summary?task_id=${TASK_ID}&task_type=retrieval_pack" >"${EVENTS_SUMMARY_FILE}"
-
-echo "[3/3] Генерация release readiness отчета..."
-"${PYTHON_BIN}" "${BUILD_REPORT_PATH}" \
-    --task-id "${TASK_ID}" \
-    --query "${QUERY}" \
-    --status-file "${STATUS_FILE}" \
-    --evidence-file "${EVIDENCE_FILE}" \
-    --events-summary-file "${EVENTS_SUMMARY_FILE}" \
-    --output-file "${REPORT_MARKDOWN}"
-
-echo "=== DEMO: Release Go/No-Go Multi-File Case ==="
-echo "Input dir: ${CASE_INPUT_DIR}"
-echo "Task ID: ${TASK_ID}"
-echo "Report: ${REPORT_MARKDOWN}"
-echo ""
-echo "Краткий smoke result:"
-cat "${SMOKE_JSON_FILE}"
+exec "${PYTHON_BIN}" "${ARGS[@]}"

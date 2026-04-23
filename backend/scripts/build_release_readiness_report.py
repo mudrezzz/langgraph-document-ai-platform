@@ -24,6 +24,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--evidence-file", required=True)
     parser.add_argument("--status-file", required=True)
     parser.add_argument("--events-summary-file", required=True)
+    parser.add_argument("--indexing-status-file", default="")
     parser.add_argument("--output-file", required=True)
     return parser.parse_args()
 
@@ -34,12 +35,38 @@ def main() -> None:
     evidence_payload = _read_json(args.evidence_file)
     status_payload = _read_json(args.status_file)
     events_summary_payload = _read_json(args.events_summary_file)
+    indexing_status_payload = _read_json(args.indexing_status_file) if args.indexing_status_file else None
 
+    report = build_report_from_payloads(
+        task_id=args.task_id,
+        query=args.query,
+        evidence_payload=evidence_payload,
+        status_payload=status_payload,
+        events_summary_payload=events_summary_payload,
+        indexing_status_payload=indexing_status_payload,
+    )
+
+    output_path = Path(args.output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(report, encoding="utf-8")
+    print(f"report_written: {output_path}")
+
+
+def build_report_from_payloads(
+    *,
+    task_id: str,
+    query: str,
+    evidence_payload: dict,
+    status_payload: dict,
+    events_summary_payload: dict,
+    indexing_status_payload: dict | None = None,
+) -> str:
     selected_blocks = evidence_payload.get("evidence_pack", {}).get("selected_blocks", [])
     selected_sources = evidence_payload.get("evidence_pack", {}).get("selected_sources", [])
 
     blockers = _detect_blockers(selected_blocks)
     pending_approvals = _detect_pending_approvals(selected_blocks)
+    source_mappings = _build_source_mappings(selected_blocks=selected_blocks, selected_sources=selected_sources)
 
     decision = "NO-GO" if blockers or pending_approvals else "GO"
     rationale: list[str] = []
@@ -50,24 +77,22 @@ def main() -> None:
     if not rationale:
         rationale.append("критичных блокеров по evidence не выявлено")
 
-    report = _build_report(
-        task_id=args.task_id,
-        query=args.query,
+    return _build_report(
+        task_id=task_id,
+        query=query,
         task_status=status_payload.get("status", "unknown"),
+        task_details=status_payload.get("details", {}),
         decision=decision,
         rationale=rationale,
         blockers=blockers,
         pending_approvals=pending_approvals,
         selected_sources=selected_sources,
+        source_mappings=source_mappings,
+        indexing_details=(indexing_status_payload or {}).get("details", {}),
         transitions=events_summary_payload.get("transitions", []),
         total_events=events_summary_payload.get("total_events", 0),
         unique_tasks=events_summary_payload.get("unique_tasks", 0),
     )
-
-    output_path = Path(args.output_file)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(report, encoding="utf-8")
-    print(f"report_written: {output_path}")
 
 
 def _read_json(path: str) -> dict:
@@ -104,11 +129,14 @@ def _build_report(
     task_id: str,
     query: str,
     task_status: str,
+    task_details: dict,
     decision: str,
     rationale: list[str],
     blockers: list[str],
     pending_approvals: list[str],
     selected_sources: list[dict],
+    source_mappings: list[dict],
+    indexing_details: dict,
     transitions: list[dict],
     total_events: int,
     unique_tasks: int,
@@ -122,6 +150,9 @@ def _build_report(
     lines.append(f"- Task ID: `{task_id}`")
     lines.append(f"- Task status: `{task_status}`")
     lines.append(f"- Query: `{query}`")
+    if task_details:
+        lines.append(f"- Knowledge source: `{task_details.get('knowledge_source', 'case_dataset')}`")
+        lines.append(f"- Retrieval backend: `{task_details.get('retrieval_backend', 'in_memory')}`")
     lines.append("")
     lines.append("## Decision")
     lines.append("")
@@ -150,6 +181,24 @@ def _build_report(
     else:
         lines.append("- Не обнаружены")
 
+    if indexing_details:
+        lines.append("")
+        lines.append("## Canonical Quality Summary")
+        lines.append("")
+        quality_summary = indexing_details.get("quality_summary", {})
+        lines.append(f"- quality_gate_status: `{indexing_details.get('quality_gate_status', quality_summary.get('gate_status', 'unknown'))}`")
+        lines.append(f"- documents_total: `{indexing_details.get('documents_total', quality_summary.get('documents_total', 0))}`")
+        lines.append(f"- file_types: `{', '.join(indexing_details.get('file_types', []))}`")
+        lines.append(f"- embeddings_indexed: `{indexing_details.get('embeddings_indexed', 0)}`")
+        lines.append(f"- quality_flags_total: `{quality_summary.get('quality_flags_total', len(indexing_details.get('quality_flags', [])))}`")
+        flags = indexing_details.get("quality_flags", []) or quality_summary.get("warning_flags", []) or []
+        if flags:
+            lines.append("")
+            lines.append("### Quality Flags")
+            lines.append("")
+            for flag in flags:
+                lines.append(f"- `{flag}`")
+
     lines.append("")
     lines.append("## Evidence Sources")
     lines.append("")
@@ -160,6 +209,23 @@ def _build_report(
             )
     else:
         lines.append("- Нет источников")
+
+    lines.append("")
+    lines.append("## Canonical Source Mapping")
+    lines.append("")
+    if source_mappings:
+        for item in source_mappings[:15]:
+            quality = ", ".join(item.get("quality_flags", [])) or "none"
+            lines.append(
+                "- "
+                f"doc_id=`{item.get('doc_id')}`, "
+                f"file_type=`{item.get('file_type')}`, "
+                f"source_path=`{item.get('source_path')}`, "
+                f"evidence_blocks=`{item.get('evidence_blocks')}`, "
+                f"quality_flags=`{quality}`"
+            )
+    else:
+        lines.append("- Нет canonical source mapping")
 
     lines.append("")
     lines.append("## Task Events Summary")
@@ -202,6 +268,68 @@ def _unique(values: list[str]) -> list[str]:
             continue
         seen.add(item)
         result.append(item)
+    return result
+
+
+def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: list[dict]) -> list[dict]:
+    by_doc: dict[str, dict] = {}
+
+    for source in selected_sources:
+        doc_id = str(source.get("doc_id", "")).strip()
+        if not doc_id:
+            continue
+        item = by_doc.setdefault(
+            doc_id,
+            {
+                "doc_id": doc_id,
+                "version": source.get("version"),
+                "block_ids": set(),
+                "evidence_blocks": 0,
+                "quality_flags": [],
+            },
+        )
+        block_id = source.get("block_id")
+        if block_id:
+            item["block_ids"].add(block_id)
+
+    for block in selected_blocks:
+        source = block.get("source", {}) or {}
+        metadata = block.get("metadata", {}) or {}
+        doc_id = str(source.get("doc_id", "")).strip()
+        if not doc_id:
+            continue
+        item = by_doc.setdefault(
+            doc_id,
+            {
+                "doc_id": doc_id,
+                "version": source.get("version"),
+                "block_ids": set(),
+                "evidence_blocks": 0,
+                "quality_flags": [],
+            },
+        )
+        item["evidence_blocks"] += 1
+        block_id = source.get("block_id")
+        if block_id:
+            item["block_ids"].add(block_id)
+        for key in ("source_path", "file_type", "document_type", "doc_title"):
+            if metadata.get(key) and not item.get(key):
+                item[key] = metadata.get(key)
+        for flag in metadata.get("quality_flags", []) or []:
+            if flag not in item["quality_flags"]:
+                item["quality_flags"].append(flag)
+
+    result: list[dict] = []
+    for item in by_doc.values():
+        normalized = dict(item)
+        normalized["block_ids"] = sorted(str(block_id) for block_id in item.get("block_ids", set()))
+        normalized.setdefault("source_path", "")
+        normalized.setdefault("file_type", "")
+        normalized.setdefault("document_type", "")
+        normalized.setdefault("doc_title", "")
+        result.append(normalized)
+
+    result.sort(key=lambda item: (-int(item.get("evidence_blocks", 0)), item.get("doc_id", "")))
     return result
 
 

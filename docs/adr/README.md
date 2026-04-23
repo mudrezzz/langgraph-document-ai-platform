@@ -45,3 +45,4 @@
 - `0033-knowledge-block-embedding-index-and-vector-retrieval.md`
 - `0034-binary-demo-documents-for-knowledge-factory-acceptance.md`
 - `0035-knowledge-indexing-task-lifecycle-api.md`
+- `0036-canonical-release-go-no-go-demo-report.md`
