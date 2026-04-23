@@ -145,7 +145,8 @@
   - пакет `domain_docs`;
   - parser `.md/.txt/.json/.docx/.pdf` в `CanonicalDocumentParser`;
   - `KnowledgeIndexingWorkflow` поверх `BaseWorkflow`;
-  - smoke `smoke_knowledge_indexing.sh/.ps1` для release go/no-go multifile input.
+  - API endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
+  - smoke `smoke_knowledge_indexing.sh/.ps1` и `smoke_knowledge_indexing_api.sh/.ps1` для release go/no-go multifile input.
 - добавлен отдельный canonical persistence/read-model слой:
   - `PostgresCanonicalDocumentStore`;
   - `CanonicalDocumentApplicationService`;
@@ -431,6 +432,18 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1 -BuildBinaryDemoDocs
 ```
 
+33. Smoke Knowledge Indexing API task lifecycle (Linux):
+
+```bash
+bash ./backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
+```
+
+34. Smoke Knowledge Indexing API task lifecycle (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing_api.ps1 -BuildBinaryDemoDocs
+```
+
 Примечание: если PostgreSQL на нестандартном порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
 
 ## Reference Case: Release Go/No-Go (File-Based)
@@ -669,6 +682,7 @@ Canonical ingestion работает через отдельный persistence/r
 - parser: `domain_docs.parsing.CanonicalDocumentParser`;
 - workflow: `domain_docs.indexing.KnowledgeIndexingWorkflow`;
 - application boundary: `KnowledgeIndexingApplicationService`;
+- API endpoint: `POST /api/v1/tasks/knowledge-indexing/start`;
 - canonical boundary: `CanonicalDocumentApplicationService`;
 - storage: `PostgresCanonicalDocumentStore`;
 - SQL tables: `app.canonical_documents`, `app.knowledge_blocks`.
@@ -685,6 +699,7 @@ Smoke текущего demo input:
 
 ```bash
 bash ./backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
+bash ./backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
@@ -692,8 +707,11 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 - `documents_total=6`;
 - `content_blocks_total > 0`;
-- `stored_blocks_total > 0`;
+- `stored_blocks_for_indexed_docs_total > 0` в direct/canonical retrieval smoke;
+- `stored_blocks_total > 0` в API smoke details;
 - `embeddings_indexed > 0`;
+- `quality_gate_status=passed|warning`;
+- `events_summary_has_running_to_completed=true` в Knowledge Indexing API smoke;
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;
 - `evidence_blocks > 0`;

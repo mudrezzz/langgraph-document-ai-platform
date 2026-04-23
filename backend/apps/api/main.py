@@ -19,6 +19,7 @@ from schemas.api.contracts import (
     ResumeTaskRequest,
     SubmitHitlReviewRequest,
     StartAuthoringTaskRequest,
+    StartKnowledgeIndexingTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
     TaskArtifactResponse,
@@ -47,6 +48,22 @@ def start_retrieval_task(
 
     try:
         return container.retrieval_service.start(request)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/tasks/knowledge-indexing/start", response_model=StartTaskResponse)
+def start_knowledge_indexing_task(
+    request: StartKnowledgeIndexingTaskRequest,
+    container: ApiContainer = Depends(get_container),
+) -> StartTaskResponse:
+    """Запускает canonical Knowledge Factory indexing как task lifecycle."""
+
+    try:
+        return container.knowledge_indexing_service.start_task(
+            request.source_paths,
+            task_context=request.task_context,
+        )
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 

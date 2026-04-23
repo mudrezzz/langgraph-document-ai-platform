@@ -294,7 +294,8 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - `documents_total=6`;
 - `indexed_doc_ids` содержит `01SCOPEA-*`, `02SECURI-*`, `03OPSREA-*`, `04APPROV-*`, `05RELEAS-*`, `06AUDITS-*`;
 - `content_blocks_total` около `37` или больше при изменении fixture;
-- `stored_blocks_total` около `37` или больше;
+- `stored_blocks_for_indexed_docs_total` около `37` или больше;
+- `stored_blocks_total` может быть больше, если в той же БД уже были прошлые indexing smoke;
 - `embeddings_indexed` около `37` или больше;
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
 - `quality_flags` может содержать `06AUDITS-*:low_text_density` для текущего PDF fixture.
@@ -306,7 +307,37 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - derived content blocks сохраняются в `app.knowledge_blocks`;
 - embedding vectors для content blocks пишутся в `app.embeddings`.
 
-## 13.2. Smoke Canonical Retrieval
+## 13.2. Smoke Knowledge Indexing API Task Lifecycle
+
+Этот smoke проверяет тот же indexing путь через FastAPI task endpoint:
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
+```
+
+Что увидеть в JSON:
+
+- `start_status=completed`;
+- `task_status=completed`;
+- `documents_total=6`;
+- `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
+- `stored_blocks_total` около `37` или больше;
+- `embeddings_indexed` около `37` или больше;
+- `quality_gate_status=passed|warning`;
+- `events_summary_has_running_to_completed=true`.
+
+Как интерпретировать:
+
+- это подтверждает, что Knowledge Indexing работает как полноценная task lifecycle операция;
+- `app.tasks` содержит задачу `task_type=knowledge_indexing`;
+- `app.task_events` содержит переход `running -> completed`;
+- checkpoint payload содержит canonical documents, indexed ids и quality summary.
+
+## 13.3. Smoke Canonical Retrieval
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -321,7 +352,8 @@ bash backend/scripts/smoke_canonical_retrieval.sh \
 Что увидеть в JSON:
 
 - `indexed_doc_ids` содержит те же 6 canonical documents;
-- `stored_blocks_total` около `37` или больше;
+- `stored_blocks_for_indexed_docs_total` около `37` или больше;
+- `stored_blocks_total` может быть больше из-за прошлых indexing-прогонов в той же БД;
 - `embeddings_indexed` около `37` или больше;
 - `knowledge_source=canonical`;
 - `retrieval_backend=pgvector`;
@@ -334,9 +366,9 @@ bash backend/scripts/smoke_canonical_retrieval.sh \
 - это подтверждает путь `canonical documents -> knowledge_blocks -> retrieval evidence pack`.
 - detail retrieval идет через pgvector-backed `CanonicalVectorRetriever`, а не через старый demo dataset loader.
 
-## 13.3. Ручной API-прогон canonical retrieval после indexing
+## 13.4. Ручной API-прогон canonical retrieval после indexing
 
-Если хочется проверить не только smoke script, а руками дернуть API, сначала выполните indexing smoke из раздела 13.1. Затем поднимите API:
+Если хочется проверить не только smoke script, а руками дернуть API, сначала выполните indexing smoke из раздела 13.1 и возьмите из его JSON массив `indexed_doc_ids`. Затем поднимите API:
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -359,12 +391,20 @@ curl -sS -X POST "http://127.0.0.1:8070/api/v1/tasks/retrieval/start" \
     },
     "task_context": {
       "requester": "manual-canonical-demo",
-      "knowledge_source": "canonical"
+      "knowledge_source": "canonical",
+      "canonical_doc_ids": [
+        "01SCOPEA-9912",
+        "02SECURI-8031",
+        "03OPSREA-1824",
+        "04APPROV-5796",
+        "05RELEAS-3554",
+        "06AUDITS-1436"
+      ]
     }
   }'
 ```
 
-Из ответа возьмите `task_id`, затем:
+Замените значения `canonical_doc_ids` на актуальные IDs из вашего indexing smoke, если они отличаются. Из ответа возьмите `task_id`, затем:
 
 ```bash
 TASK_ID="<task_id_из_start_json>"

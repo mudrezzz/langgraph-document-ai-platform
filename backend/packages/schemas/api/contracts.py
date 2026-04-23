@@ -101,6 +101,13 @@ class StartRetrievalTaskRequest(BaseModel):
     task_context: dict = Field(default_factory=dict)
 
 
+class StartKnowledgeIndexingTaskRequest(BaseModel):
+    """Типизированный запрос на запуск canonical knowledge indexing."""
+
+    source_paths: list[str] = Field(min_length=1)
+    task_context: dict = Field(default_factory=dict)
+
+
 class StartAuthoringTaskRequest(BaseModel):
     """Типизированный запрос на запуск authoring workflow."""
 

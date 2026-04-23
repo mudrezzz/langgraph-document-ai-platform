@@ -68,6 +68,10 @@ def main() -> None:
     payload = {
         "indexed_doc_ids": indexing_result.indexed_doc_ids,
         "stored_blocks_total": container.canonical_document_service.list_blocks(limit=500).total_returned,
+        "stored_blocks_for_indexed_docs_total": sum(
+            container.canonical_document_service.list_blocks(limit=500, doc_id=doc_id).total_returned
+            for doc_id in indexing_result.indexed_doc_ids
+        ),
         "embeddings_indexed": indexing_result.embeddings_indexed,
         "task_id": start_response.task_id,
         "start_status": start_response.status,

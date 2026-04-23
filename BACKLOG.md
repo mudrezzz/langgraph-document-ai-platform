@@ -57,7 +57,7 @@ Definition of Done:
 
 ## Increment 25: Knowledge Factory MVP
 
-Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source, embedding/pgvector detail retrieval, binary demo input `.docx/.pdf` и smoke на release go/no-go multifile input. Следующий срез должен добавить quality gates и расширить demo artifact под canonical source.
+Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source, embedding/pgvector detail retrieval, binary demo input `.docx/.pdf`, task lifecycle API для indexing и smoke на release go/no-go multifile input. Следующий срез должен расширить demo artifact под canonical source.
 
 Цель: закрыть разрыв между demo ingestion и целевой canonical document pipeline.
 
@@ -124,6 +124,13 @@ Fifth slice done:
 - добавлен генератор `build_binary_demo_documents.sh/.ps1/.py`;
 - canonical indexing/retrieval smoke поддерживает `--build-binary-demo-docs`;
 - manual PostgreSQL runbook описывает ручной прогон `.md/.txt/.json/.docx/.pdf`.
+
+Sixth slice done:
+
+- добавлен endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
+- Knowledge Indexing пишет task lifecycle в `app.tasks`, checkpoint payload и `app.task_events`;
+- task details содержат counts, file types, `quality_summary` и `quality_gate_status`;
+- добавлен smoke `smoke_knowledge_indexing_api.sh/.ps1`.
 
 ## Increment 26: Production Retrieval Fabric
 

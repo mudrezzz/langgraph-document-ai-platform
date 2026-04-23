@@ -44,6 +44,8 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     result = service.index_paths([dataset_dir])
 
     assert len(result.indexed_doc_ids) == 6
+    assert result.quality_summary["gate_status"] in {"passed", "warning"}
+    assert result.quality_summary["documents_total"] == 6
     loaded = canonical_document_service.get_document(result.indexed_doc_ids[0])
     assert loaded.doc_id == result.indexed_doc_ids[0]
     assert loaded.content_blocks

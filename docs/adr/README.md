@@ -44,3 +44,4 @@
 - `0032-canonical-knowledge-retrieval-source.md`
 - `0033-knowledge-block-embedding-index-and-vector-retrieval.md`
 - `0034-binary-demo-documents-for-knowledge-factory-acceptance.md`
+- `0035-knowledge-indexing-task-lifecycle-api.md`

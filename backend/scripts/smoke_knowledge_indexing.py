@@ -48,6 +48,10 @@ def main() -> None:
         "section_summaries_total": sum(len(document.section_summaries) for document in result.documents),
         "file_types": sorted({document.file_type for document in result.documents}),
         "stored_blocks_total": container.canonical_document_service.list_blocks(limit=200).total_returned,
+        "stored_blocks_for_indexed_docs_total": sum(
+            container.canonical_document_service.list_blocks(limit=500, doc_id=doc_id).total_returned
+            for doc_id in result.indexed_doc_ids
+        ),
         "embeddings_indexed": result.embeddings_indexed,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=4))

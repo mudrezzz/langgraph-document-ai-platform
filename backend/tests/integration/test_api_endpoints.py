@@ -241,6 +241,49 @@ def test_start_endpoint_supports_canonical_knowledge_source(client: TestClient) 
     assert task_status["details"]["knowledge_source"] == "canonical"
 
 
+def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+
+    response = client.post(
+        "/api/v1/tasks/knowledge-indexing/start",
+        json={
+            "source_paths": [str(dataset_dir)],
+            "task_context": {"requester": "integration-knowledge-indexing-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "completed"
+
+    task_status = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
+    details = task_status["details"]
+    assert task_status["status"] == "completed"
+    assert details["documents_total"] == 6
+    assert details["file_types"] == ["docx", "json", "md", "pdf", "txt"]
+    assert details["stored_blocks_total"] >= 8
+    assert details["quality_gate_status"] in {"passed", "warning"}
+    assert details["quality_summary"]["quality_flags_total"] >= 0
+
+    summary_response = client.get(
+        f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"
+    )
+    assert summary_response.status_code == 200
+    transitions = summary_response.json()["transitions"]
+    assert any(
+        item["from_status"] == "running" and item["to_status"] == "completed"
+        for item in transitions
+    )
+
+
 def test_status_endpoint_returns_task_state(client: TestClient) -> None:
     task_id = _create_task(client)
 

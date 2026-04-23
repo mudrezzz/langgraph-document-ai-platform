@@ -42,6 +42,24 @@ def test_canonical_parser_extracts_json_values(tmp_path: Path) -> None:
     assert document.quality_flags == []
 
 
+def test_canonical_parser_doc_id_is_stable_for_relative_and_absolute_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_dir = tmp_path / "docs"
+    source_dir.mkdir()
+    source = source_dir / "release_decision.md"
+    source.write_text("# Release\n\nGO is blocked by pending approval.", encoding="utf-8")
+
+    parser = CanonicalDocumentParser()
+    monkeypatch.chdir(tmp_path)
+
+    relative_document = parser.parse_path(Path("docs") / "release_decision.md")
+    absolute_document = parser.parse_path(source.resolve())
+
+    assert relative_document.doc_id == absolute_document.doc_id
+
+
 def test_canonical_parser_parses_release_demo_directory() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"

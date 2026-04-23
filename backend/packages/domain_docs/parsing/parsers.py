@@ -341,7 +341,8 @@ def _build_section_summaries(
 
 def _build_doc_id(path: Path) -> str:
     stem = path.stem
-    fingerprint = sum((index + 1) * ord(char) for index, char in enumerate(str(path)))
+    stable_name = path.name
+    fingerprint = sum((index + 1) * ord(char) for index, char in enumerate(stable_name))
     prefix = re.sub(r"[^A-Za-z0-9]+", "", stem.upper())[:8] or "DOC"
     return f"{prefix}-{fingerprint % 10000:04d}"
 

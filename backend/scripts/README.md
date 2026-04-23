@@ -30,6 +30,9 @@
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
   - проверяет запись canonical documents и derived knowledge blocks в canonical store.
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
+- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary`.
+  - проверяет task registry/checkpoint/task events для canonical indexing.
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
   - проверяет embedding indexing и vector-backed detail retrieval (`retrieval_backend=pgvector`).
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
@@ -67,6 +70,9 @@ bash backend/scripts/smoke_repository_mcp.sh
 
 # Knowledge Factory canonical indexing smoke:
 bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
+
+# Knowledge Factory API task lifecycle smoke:
+bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 
 # Canonical retrieval smoke:
 bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
@@ -120,6 +126,7 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `run_repository_mcp.ps1`
 - `smoke_repository_mcp.ps1`
 - `smoke_knowledge_indexing.ps1`
+- `smoke_knowledge_indexing_api.ps1`
 - `smoke_canonical_retrieval.ps1`
 - `run_artifact_writer_mcp.ps1`
 - `smoke_artifact_writer_mcp.ps1`

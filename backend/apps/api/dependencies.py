@@ -9,6 +9,7 @@ from application.authoring_service import AuthoringApplicationService
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
+from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from schemas.api.contracts import StartAuthoringTaskRequest, SubmitHitlReviewRequest
@@ -209,6 +210,12 @@ class ApiContainer:
         self.canonical_document_service = canonical_document_service
         self.embedding_gateway = embedding_gateway
         self.vector_store = vector_store
+        self.knowledge_indexing_service = KnowledgeIndexingApplicationService(
+            canonical_document_service=canonical_document_service,
+            embedding_gateway=embedding_gateway,
+            vector_store=vector_store,
+            task_service=task_service,
+        )
         self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)
         self.retrieval_service = retrieval_service
         self.authoring_service = AuthoringApplicationService(

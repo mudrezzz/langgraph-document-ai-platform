@@ -39,6 +39,7 @@ def build_retrieval_workflow(
             CanonicalVectorRetriever(
                 embedding_gateway=embedding_gateway,
                 vector_store=vector_store,
+                doc_ids=canonical_doc_ids,
             )
             if embedding_gateway is not None and vector_store is not None
             else InMemoryRetriever(detail_blocks)

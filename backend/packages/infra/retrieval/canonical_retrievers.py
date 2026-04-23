@@ -14,19 +14,33 @@ class CanonicalVectorRetriever(IRetriever):
         *,
         embedding_gateway: IEmbeddingGateway,
         vector_store: PgVectorStoreAdapter,
+        doc_ids: list[str] | None = None,
         search_limit: int = 200,
     ) -> None:
         self._embedding_gateway = embedding_gateway
         self._vector_store = vector_store
+        self._doc_ids = list(dict.fromkeys(doc_ids or []))
         self._search_limit = search_limit
 
     def retrieve(self, query: str, filters: RetrievalFilter) -> list[RetrievedBlock]:
         query_vector = self._embedding_gateway.embed(query)
-        results = self._vector_store.query_similar(
-            query_vector,
-            limit=self._search_limit,
-            metadata_filter={"kind": "knowledge_block_embedding"},
-        )
+        if self._doc_ids:
+            results = []
+            for doc_id in self._doc_ids:
+                results.extend(
+                    self._vector_store.query_similar(
+                        query_vector,
+                        limit=self._search_limit,
+                        metadata_filter={"kind": "knowledge_block_embedding", "doc_id": doc_id},
+                    )
+                )
+            results = sorted(results, key=lambda item: item.score, reverse=True)[: self._search_limit]
+        else:
+            results = self._vector_store.query_similar(
+                query_vector,
+                limit=self._search_limit,
+                metadata_filter={"kind": "knowledge_block_embedding"},
+            )
         blocks = [_result_to_retrieved_block(result.metadata, score=result.score) for result in results]
         return [block for block in blocks if _matches_filter(block, filters)]
 

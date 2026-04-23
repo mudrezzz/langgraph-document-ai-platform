@@ -29,7 +29,9 @@
   - `KnowledgeIndexingWorkflow`;
   - `CanonicalDocumentApplicationService`;
   - `PostgresCanonicalDocumentStore`;
+  - API endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
+  - API task smoke `backend/scripts/smoke_knowledge_indexing_api.sh/.ps1`;
   - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
@@ -201,14 +203,14 @@
 
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Дорастить async execution до общего execution-plane (не только authoring).
-3. Дорастить ingestion до OCR/rich layout/table extraction и quality gates.
+3. Дорастить ingestion до OCR/rich layout/table extraction и более строгих quality gates.
 4. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Добавить quality gates для пустых/слабо структурированных документов.
-2. Расширить release go/no-go demo входами через canonical ingestion.
+1. Расширить release go/no-go demo artifact под canonical source mapping и quality flags.
+2. Дорастить quality gates до policy-конфигурации и отдельных acceptance thresholds.
 3. Добавить OCR/table/rich layout extraction как отдельный parser sub-slice.
 4. Подготовить Retrieval MCP tools для canonical source lookup.
 5. Заменить deterministic embedding stub на real TEI HTTP client.

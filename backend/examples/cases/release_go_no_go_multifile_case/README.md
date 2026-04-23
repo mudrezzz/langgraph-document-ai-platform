@@ -26,6 +26,8 @@
 - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`
 - Canonical indexing smoke Linux: `backend/scripts/smoke_knowledge_indexing.sh`
 - Canonical indexing smoke Windows: `backend/scripts/smoke_knowledge_indexing.ps1`
+- Canonical indexing API task smoke Linux: `backend/scripts/smoke_knowledge_indexing_api.sh`
+- Canonical indexing API task smoke Windows: `backend/scripts/smoke_knowledge_indexing_api.ps1`
 - Canonical retrieval smoke Linux: `backend/scripts/smoke_canonical_retrieval.sh`
 - Canonical retrieval smoke Windows: `backend/scripts/smoke_canonical_retrieval.ps1`
 - Binary input generator Linux: `backend/scripts/build_binary_demo_documents.sh`
