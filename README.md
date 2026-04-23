@@ -155,6 +155,11 @@
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
   - smoke `smoke_canonical_retrieval.sh/.ps1`.
+- canonical detail retrieval подключен к embedding/pgvector path:
+  - `KnowledgeIndexingApplicationService` индексирует embeddings для `knowledge_blocks`;
+  - `PgVectorStoreAdapter.query_similar(...)`;
+  - `CanonicalVectorRetriever`;
+  - smoke показывает `retrieval_backend=pgvector`.
 
 ## Структура
 
@@ -530,6 +535,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_cano
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
 - `KnowledgeIndexingWorkflow` сохраняет canonical documents и derived knowledge blocks через отдельный canonical store boundary.
 - retrieval start поддерживает canonical knowledge source через `task_context.knowledge_source=canonical`.
+- canonical detail retrieval использует vector index для `knowledge_blocks`, если доступен embedding gateway + vector store.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -687,7 +693,9 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh
 - `documents_total=4`;
 - `content_blocks_total > 0`;
 - `stored_blocks_total > 0`;
+- `embeddings_indexed > 0`;
 - `knowledge_source=canonical` в canonical retrieval smoke;
+- `retrieval_backend=pgvector` в canonical retrieval smoke;
 - `evidence_blocks > 0`;
 - `file_types` содержит `md`, `txt`, `json`.
 

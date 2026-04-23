@@ -6,6 +6,8 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
 from domain_rag.retrieval import RetrievalPackWorkflow, build_retrieval_workflow
+from framework.models.interfaces import IEmbeddingGateway
+from infra.pgvector.vector_store import PgVectorStoreAdapter
 from schemas.api.contracts import (
     EvidencePackResponse,
     ResumeTaskRequest,
@@ -29,9 +31,13 @@ class RetrievalApplicationService:
         self,
         task_service: TaskApplicationService,
         canonical_document_service: CanonicalDocumentApplicationService | None = None,
+        embedding_gateway: IEmbeddingGateway | None = None,
+        vector_store: PgVectorStoreAdapter | None = None,
     ) -> None:
         self._task_service = task_service
         self._canonical_document_service = canonical_document_service
+        self._embedding_gateway = embedding_gateway
+        self._vector_store = vector_store
 
     def _build_workflow(
         self,
@@ -49,6 +55,8 @@ class RetrievalApplicationService:
             knowledge_source=knowledge_source,
             canonical_document_service=self._canonical_document_service,
             canonical_doc_ids=canonical_doc_ids,
+            embedding_gateway=self._embedding_gateway,
+            vector_store=self._vector_store,
             checkpointer=self._task_service.get_langgraph_checkpointer(),
         )
 
@@ -102,6 +110,7 @@ class RetrievalApplicationService:
             "selected_block_count": len(result_state.selected_blocks),
             "reranked_count": len(result_state.reranked_blocks),
             "knowledge_source": knowledge_source or "case_dataset",
+            "retrieval_backend": "pgvector" if knowledge_source == "canonical" and self._vector_store else "in_memory",
         }
 
         self._task_service.complete_task(

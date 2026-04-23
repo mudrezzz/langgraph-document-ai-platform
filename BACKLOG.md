@@ -57,7 +57,7 @@ Definition of Done:
 
 ## Increment 25: Knowledge Factory MVP
 
-Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source и smoke на release go/no-go multifile input. Следующий срез должен добавить embedding/pgvector write path для `knowledge_blocks`.
+Статус: In progress. Реализованы canonical contracts, `domain_docs`, parser `.md/.txt/.json/.docx/.pdf`, `KnowledgeIndexingWorkflow`, canonical persistence/read-model слой, canonical retrieval source, embedding/pgvector detail retrieval и smoke на release go/no-go multifile input. Следующий срез должен добавить quality gates и расширить demo artifact под canonical source.
 
 Цель: закрыть разрыв между demo ingestion и целевой canonical document pipeline.
 
@@ -110,6 +110,13 @@ Third slice done:
 - retrieval поддерживает `task_context.knowledge_source=canonical`;
 - canonical retrieval строит summary/detail blocks из `canonical_documents` и `knowledge_blocks`;
 - smoke `smoke_canonical_retrieval.sh/.ps1` проверяет path `canonical indexing -> retrieval -> evidence`.
+
+Fourth slice done:
+
+- indexing пишет embeddings для canonical content blocks;
+- vector metadata связывает embedding с `knowledge_blocks.block_ref`;
+- canonical detail retrieval использует `CanonicalVectorRetriever`;
+- smoke показывает `embeddings_indexed > 0` и `retrieval_backend=pgvector`.
 
 ## Increment 26: Production Retrieval Fabric
 

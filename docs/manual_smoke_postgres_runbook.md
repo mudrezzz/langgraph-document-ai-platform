@@ -275,6 +275,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh
 - `documents_total=4`;
 - `content_blocks_total > 0`;
 - `stored_blocks_total > 0`;
+- `embeddings_indexed > 0`;
 - `file_types` содержит `md`, `txt`, `json`.
 
 Как интерпретировать:
@@ -294,7 +295,9 @@ bash backend/scripts/smoke_canonical_retrieval.sh
 Что увидеть в JSON:
 
 - `stored_blocks_total > 0`;
+- `embeddings_indexed > 0`;
 - `knowledge_source=canonical`;
+- `retrieval_backend=pgvector`;
 - `evidence_blocks > 0`;
 - `task_status=completed`.
 

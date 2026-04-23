@@ -54,6 +54,22 @@ def test_pgvector_adapter_fallback_roundtrip() -> None:
     assert metadata["source"] == "test"
 
 
+def test_pgvector_adapter_fallback_query_similar() -> None:
+    adapter = PgVectorStoreAdapter(dsn=None, use_fallback_if_unset=True)
+    adapter.upsert_vector("k-1", [1.0, 0.0], {"kind": "knowledge_block_embedding", "doc_id": "d-1"})
+    adapter.upsert_vector("k-2", [0.0, 1.0], {"kind": "knowledge_block_embedding", "doc_id": "d-2"})
+    adapter.upsert_vector("k-3", [1.0, 0.0], {"kind": "other", "doc_id": "d-3"})
+
+    results = adapter.query_similar(
+        [1.0, 0.0],
+        limit=5,
+        metadata_filter={"kind": "knowledge_block_embedding"},
+    )
+
+    assert [item.key for item in results] == ["k-1", "k-2"]
+    assert results[0].score > results[1].score
+
+
 def test_artifact_store_fallback_roundtrip() -> None:
     store = PostgresArtifactStore(dsn=None, use_fallback_if_unset=True)
 

@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import json
+import math
+from dataclasses import dataclass
 from typing import Any
 
 from framework.stores.interfaces import IVectorStore
 from infra.postgres.config import PostgresSettings, validate_identifier
+
+
+@dataclass(slots=True)
+class VectorSearchResult:
+    """Search result returned by vector store."""
+
+    key: str
+    score: float
+    metadata: dict[str, Any]
 
 
 class PgVectorStoreAdapter(IVectorStore):
@@ -82,6 +93,59 @@ class PgVectorStoreAdapter(IVectorStore):
         metadata = json.loads(metadata_raw) if isinstance(metadata_raw, str) else metadata_raw
         return vector, metadata
 
+    def query_similar(
+        self,
+        vector: list[float],
+        *,
+        limit: int = 20,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> list[VectorSearchResult]:
+        """Returns nearest vectors ordered by cosine similarity."""
+
+        if limit < 1:
+            raise ValueError("limit должен быть >= 1")
+
+        if self._use_fallback:
+            candidates: list[VectorSearchResult] = []
+            for key, (stored_vector, metadata) in self._storage.items():
+                if metadata_filter and not _metadata_matches(metadata, metadata_filter):
+                    continue
+                candidates.append(
+                    VectorSearchResult(
+                        key=key,
+                        score=_cosine_similarity(vector, stored_vector),
+                        metadata=dict(metadata),
+                    )
+                )
+            return sorted(candidates, key=lambda item: item.score, reverse=True)[:limit]
+
+        psycopg, dict_row = _import_psycopg()
+        vector_literal = _vector_to_literal(vector)
+        metadata_json = json.dumps(metadata_filter or {}, ensure_ascii=False)
+
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT vector_key, 1.0 / (1.0 + (embedding <=> %s::vector)) AS score, metadata
+                    FROM {self._schema}.embeddings
+                    WHERE metadata @> %s::jsonb
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s
+                    """,
+                    (vector_literal, metadata_json, vector_literal, limit),
+                )
+                rows = cur.fetchall()
+
+        return [
+            VectorSearchResult(
+                key=row["vector_key"],
+                score=float(row["score"]),
+                metadata=json.loads(row["metadata"]) if isinstance(row["metadata"], str) else row["metadata"],
+            )
+            for row in rows
+        ]
+
 
 def _vector_to_literal(vector: list[float]) -> str:
     """Формирует pgvector-совместимый литерал вида `[1,2,3]`."""
@@ -99,6 +163,24 @@ def _parse_vector_text(raw: str) -> list[float]:
         return []
 
     return [float(part.strip()) for part in body.split(",")]
+
+
+def _cosine_similarity(left: list[float], right: list[float]) -> float:
+    if not left or not right or len(left) != len(right):
+        return 0.0
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(value * value for value in left))
+    right_norm = math.sqrt(sum(value * value for value in right))
+    if left_norm <= 0 or right_norm <= 0:
+        return 0.0
+    return dot / (left_norm * right_norm)
+
+
+def _metadata_matches(metadata: dict[str, Any], expected: dict[str, Any]) -> bool:
+    for key, value in expected.items():
+        if metadata.get(key) != value:
+            return False
+    return True
 
 
 def _import_psycopg():

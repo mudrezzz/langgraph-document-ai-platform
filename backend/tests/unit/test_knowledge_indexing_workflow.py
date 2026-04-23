@@ -6,7 +6,9 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from domain_docs.parsing import CanonicalDocumentParser
+from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
+from infra.tei.embedding_gateway import TeiEmbeddingGateway
 from schemas.workflow.states import KnowledgeIndexingState
 
 
@@ -46,3 +48,28 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     assert loaded.doc_id == result.indexed_doc_ids[0]
     assert loaded.content_blocks
     assert canonical_document_service.list_blocks(limit=100).total_returned >= 8
+
+
+def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Path) -> None:
+    source = tmp_path / "security_findings.md"
+    source.write_text("## Security\n\n- Critical vulnerability is fixed\n- Approval is pending", encoding="utf-8")
+    canonical_document_service = CanonicalDocumentApplicationService(
+        store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+    )
+    vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=canonical_document_service,
+        embedding_gateway=TeiEmbeddingGateway(vector_dim=8),
+        vector_store=vector_store,
+    )
+
+    result = service.index_paths([source])
+    block = canonical_document_service.list_blocks(limit=1).items[0]
+    stored = vector_store.get_vector(f"knowledge_block:{block.block_ref}")
+
+    assert result.embeddings_indexed == 2
+    assert stored is not None
+    vector, metadata = stored
+    assert len(vector) == 8
+    assert metadata["kind"] == "knowledge_block_embedding"
+    assert metadata["block_ref"] == block.block_ref

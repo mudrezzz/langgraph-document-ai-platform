@@ -24,6 +24,8 @@ from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
 from infra.postgres.task_registry import PostgresTaskRegistry
 from infra.vllm.chat_gateway import VllmChatModelGateway
+from infra.pgvector.vector_store import PgVectorStoreAdapter
+from infra.tei.embedding_gateway import TeiEmbeddingGateway
 
 
 @dataclass(slots=True)
@@ -186,18 +188,27 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        vector_store = PgVectorStoreAdapter.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
+        embedding_gateway = TeiEmbeddingGateway(vector_dim=settings.vector_dim)
         llm_runtime_config = _build_llm_runtime_config()
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
         canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
         retrieval_service = RetrievalApplicationService(
             task_service=task_service,
             canonical_document_service=canonical_document_service,
+            embedding_gateway=embedding_gateway,
+            vector_store=vector_store,
         )
 
         self.settings = settings
         self.task_service = task_service
         self.document_service = DocumentApplicationService(repository=document_repository)
         self.canonical_document_service = canonical_document_service
+        self.embedding_gateway = embedding_gateway
+        self.vector_store = vector_store
         self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)
         self.retrieval_service = retrieval_service
         self.authoring_service = AuthoringApplicationService(
