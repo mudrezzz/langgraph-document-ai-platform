@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from application.document_service import DocumentApplicationService
+from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from domain_docs.parsing import CanonicalDocumentParser
-from infra.postgres.document_repository import PostgresDocumentRepository
+from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
 from schemas.workflow.states import KnowledgeIndexingState
 
 
@@ -35,13 +35,14 @@ def test_knowledge_indexing_workflow_persists_documents(tmp_path: Path) -> None:
 def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
-    repository = PostgresDocumentRepository(use_fallback_if_unset=True)
-    document_service = DocumentApplicationService(repository=repository)
+    store = PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+    canonical_document_service = CanonicalDocumentApplicationService(store=store)
 
-    service = KnowledgeIndexingApplicationService(document_service=document_service)
+    service = KnowledgeIndexingApplicationService(canonical_document_service=canonical_document_service)
     result = service.index_paths([dataset_dir])
 
     assert len(result.indexed_doc_ids) == 4
-    loaded = document_service.get_document(result.indexed_doc_ids[0])
-    assert loaded.payload["doc_id"] == result.indexed_doc_ids[0]
-    assert loaded.payload["content_blocks"]
+    loaded = canonical_document_service.get_document(result.indexed_doc_ids[0])
+    assert loaded.doc_id == result.indexed_doc_ids[0]
+    assert loaded.content_blocks
+    assert canonical_document_service.list_blocks(limit=100).total_returned >= 8

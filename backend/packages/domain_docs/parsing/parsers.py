@@ -12,7 +12,7 @@ from schemas.documents.contracts import (
     CanonicalStructureNode,
 )
 
-_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json"}
+_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf"}
 _HEADING_RE = re.compile(r"^\s*(#{1,6})\s+(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+(.+?)\s*$")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -35,13 +35,20 @@ class CanonicalDocumentParser:
         if extension not in _SUPPORTED_EXTENSIONS:
             raise ValueError(f"Неподдерживаемый формат документа: {extension}")
 
-        raw_text = path.read_text(encoding="utf-8")
         doc_id = _build_doc_id(path)
         quality_flags: list[str] = []
 
         if extension == ".json":
+            raw_text = path.read_text(encoding="utf-8")
             blocks, structure = self._parse_json(raw_text, quality_flags=quality_flags)
+        elif extension == ".docx":
+            blocks, structure = self._parse_docx(path, quality_flags=quality_flags)
+            raw_text = "\n".join(block.text for block in blocks)
+        elif extension == ".pdf":
+            blocks, structure = self._parse_pdf(path, quality_flags=quality_flags)
+            raw_text = "\n".join(block.text for block in blocks)
         else:
+            raw_text = path.read_text(encoding="utf-8")
             blocks, structure = self._parse_text(raw_text, markdown=extension == ".md", quality_flags=quality_flags)
 
         if not raw_text.strip():
@@ -182,6 +189,91 @@ class CanonicalDocumentParser:
             root.block_ids.append(block.block_id)
         return blocks, root
 
+    def _parse_docx(
+        self,
+        path: Path,
+        *,
+        quality_flags: list[str],
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
+        try:
+            from docx import Document
+        except Exception as exc:  # pragma: no cover - depends on optional runtime package
+            raise RuntimeError("Для DOCX parsing требуется зависимость python-docx") from exc
+
+        document = Document(str(path))
+        blocks: list[CanonicalContentBlock] = []
+        root = CanonicalStructureNode(node_id="root", title="DOCX Document", level=0)
+        current_node = root
+        current_heading_path: list[str] = []
+
+        for paragraph in document.paragraphs:
+            text = _normalize_text(paragraph.text)
+            if not text:
+                continue
+
+            style_name = getattr(paragraph.style, "name", "") or ""
+            if style_name.lower().startswith("heading"):
+                current_heading_path = [text]
+                current_node = CanonicalStructureNode(
+                    node_id=f"section-{len(root.children) + 1}",
+                    title=text,
+                    level=_parse_heading_level(style_name),
+                )
+                root.children.append(current_node)
+                continue
+
+            block = _build_block(
+                text=text,
+                block_type="paragraph",
+                index=len(blocks) + 1,
+                heading_path=current_heading_path,
+                metadata={"style": style_name} if style_name else None,
+            )
+            blocks.append(block)
+            current_node.block_ids.append(block.block_id)
+
+        if not root.children:
+            quality_flags.append("no_structural_headings")
+            root.block_ids = [block.block_id for block in blocks]
+        return blocks, root
+
+    def _parse_pdf(
+        self,
+        path: Path,
+        *,
+        quality_flags: list[str],
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
+        try:
+            import fitz
+        except Exception as exc:  # pragma: no cover - depends on optional runtime package
+            raise RuntimeError("Для PDF parsing требуется зависимость PyMuPDF") from exc
+
+        root = CanonicalStructureNode(node_id="root", title="PDF Document", level=0)
+        blocks: list[CanonicalContentBlock] = []
+        with fitz.open(str(path)) as pdf_document:
+            for page_index, page in enumerate(pdf_document, start=1):
+                page_text = page.get_text("text")
+                for paragraph in re.split(r"\n\s*\n+", page_text):
+                    text = _normalize_text(paragraph)
+                    if not text:
+                        continue
+                    block = _build_block(
+                        text=text,
+                        block_type="paragraph",
+                        index=len(blocks) + 1,
+                        heading_path=[f"Page {page_index}"],
+                        metadata={"page_number": page_index},
+                    )
+                    block.page_number = page_index
+                    blocks.append(block)
+                    root.block_ids.append(block.block_id)
+
+        if not blocks:
+            quality_flags.append("pdf_no_extractable_text")
+        if blocks and len(blocks) < 2:
+            quality_flags.append("low_text_density")
+        return blocks, root
+
 
 def _build_block(
     *,
@@ -250,6 +342,13 @@ def _build_doc_id(path: Path) -> str:
     fingerprint = sum((index + 1) * ord(char) for index, char in enumerate(str(path)))
     prefix = re.sub(r"[^A-Za-z0-9]+", "", stem.upper())[:8] or "DOC"
     return f"{prefix}-{fingerprint % 10000:04d}"
+
+
+def _parse_heading_level(style_name: str) -> int:
+    match = re.search(r"(\d+)", style_name)
+    if not match:
+        return 1
+    return int(match.group(1))
 
 
 def _infer_document_type(path: Path) -> str:

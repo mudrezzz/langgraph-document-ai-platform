@@ -22,11 +22,13 @@
 - root roadmap `BACKLOG.md` для завершения backend/framework части;
 - framework extension guide `docs/framework_extension_guide.md`;
 - contract tests для базовых framework agents/tools/mcp/db/stores;
-- Knowledge Factory MVP first slice:
+- Knowledge Factory MVP:
   - canonical document contracts в `schemas.documents`;
   - `domain_docs` package;
-  - `CanonicalDocumentParser` для `.md/.txt/.json`;
+  - `CanonicalDocumentParser` для `.md/.txt/.json/.docx/.pdf`;
   - `KnowledgeIndexingWorkflow`;
+  - `CanonicalDocumentApplicationService`;
+  - `PostgresCanonicalDocumentStore`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - API boundary + task lifecycle + interrupt/resume ветки;
@@ -47,7 +49,8 @@
   - `backend/migrations/0005_task_events_status_filter_indexes.sql`;
   - `backend/migrations/0006_artifact_store.sql`;
   - `backend/migrations/0007_task_artifacts.sql`;
-  - `backend/migrations/0008_hitl_actions.sql`.
+  - `backend/migrations/0008_hitl_actions.sql`;
+  - `backend/migrations/0009_canonical_knowledge_store.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -172,13 +175,14 @@
   - `docs/adr/0028-hitl-actions-persistence-and-read-model-api.md`.
   - `docs/adr/0029-framework-hardening-and-extension-guide.md`.
   - `docs/adr/0030-canonical-document-parsing-and-indexing-mvp.md`.
+  - `docs/adr/0031-canonical-document-store-and-binary-parser-adapters.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
-- отсутствуют полноценные `domain_docs` / `domain_authoring` workflows;
-- `domain_docs` начат как canonical text-like ingestion MVP, но PDF/DOCX/OCR и отдельный knowledge block persistence еще не реализованы;
+- отсутствуют полноценные `domain_authoring` workflows;
+- `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
@@ -187,14 +191,14 @@
 
 1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 2. Дорастить async execution до общего execution-plane (не только authoring).
-3. Развить ingestion за пределы `.md/.txt/.json` (PDF/DOCX/OCR), добавить quality gates.
+3. Дорастить ingestion до OCR/rich layout/table extraction и quality gates.
 4. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
 5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Расширить Knowledge Factory до `.docx` и `.pdf` parser adapters.
-2. Добавить отдельные persistence модели для canonical documents / knowledge blocks.
-3. Подключить canonical indexing output к retrieval bootstrap path.
-4. Добавить quality gates для пустых/слабо структурированных документов.
-5. Расширить release go/no-go demo входами через canonical ingestion.
+1. Подключить canonical indexing output к retrieval bootstrap path.
+2. Добавить pgvector/embedding write path для `app.knowledge_blocks`.
+3. Добавить quality gates для пустых/слабо структурированных документов.
+4. Расширить release go/no-go demo входами через canonical ingestion.
+5. Добавить OCR/table/rich layout extraction как отдельный parser sub-slice.

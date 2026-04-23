@@ -68,7 +68,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/postgres_migrate.sh
 Что увидеть:
 
 - контейнер `langgraph-db` в состоянии `healthy`;
-- применены миграции `0001`..`0008`.
+- применены миграции `0001`..`0009`.
 
 ## 4. Базовый smoke retrieval
 
@@ -259,6 +259,27 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_artifact_writer_mcp.sh
 
 - MCP-сервис `artifact-writer-mcp` стартует без ошибки импорта;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+## 13.1. Smoke Knowledge Indexing
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_knowledge_indexing.sh
+```
+
+Что увидеть в JSON:
+
+- `documents_total=4`;
+- `content_blocks_total > 0`;
+- `stored_blocks_total > 0`;
+- `file_types` содержит `md`, `txt`, `json`.
+
+Как интерпретировать:
+
+- это подтверждает, что Knowledge Factory MVP строит canonical documents и пишет derived content blocks в canonical store/read-model.
 
 ## 14. Smoke Authoring API (retrieval -> artifact + traceability)
 

@@ -6,6 +6,7 @@ from functools import lru_cache
 
 from application.async_dispatcher import AuthoringAsyncDispatcher, InlineAuthoringAsyncDispatcher
 from application.authoring_service import AuthoringApplicationService
+from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.retrieval_service import RetrievalApplicationService
@@ -17,6 +18,7 @@ from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.artifact_store import PostgresArtifactStore
+from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
 from infra.postgres.hitl_action_store import PostgresHitlActionStore
 from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
@@ -172,6 +174,10 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        canonical_document_store = PostgresCanonicalDocumentStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         task_artifact_registry = PostgresTaskArtifactRegistry.from_settings(
             settings,
             use_fallback_if_unset=use_fallback,
@@ -187,6 +193,7 @@ class ApiContainer:
         self.settings = settings
         self.task_service = task_service
         self.document_service = DocumentApplicationService(repository=document_repository)
+        self.canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
         self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)
         self.retrieval_service = retrieval_service
         self.authoring_service = AuthoringApplicationService(

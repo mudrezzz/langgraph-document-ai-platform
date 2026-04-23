@@ -40,3 +40,4 @@
 - `0028-hitl-actions-persistence-and-read-model-api.md`
 - `0029-framework-hardening-and-extension-guide.md`
 - `0030-canonical-document-parsing-and-indexing-mvp.md`
+- `0031-canonical-document-store-and-binary-parser-adapters.md`

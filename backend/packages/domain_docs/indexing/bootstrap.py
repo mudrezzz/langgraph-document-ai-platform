@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from application.document_service import DocumentApplicationService
+from application.canonical_document_service import CanonicalDocumentApplicationService
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from schemas.documents.contracts import CanonicalDocument
 
@@ -8,23 +8,19 @@ from schemas.documents.contracts import CanonicalDocument
 class DocumentApplicationCanonicalStore:
     """Adapter from canonical indexing workflow to document application service."""
 
-    def __init__(self, document_service: DocumentApplicationService) -> None:
-        self._document_service = document_service
+    def __init__(self, canonical_document_service: CanonicalDocumentApplicationService) -> None:
+        self._canonical_document_service = canonical_document_service
 
     def save_document(self, document: CanonicalDocument) -> str:
-        record = self._document_service.upsert_document(
-            doc_id=document.doc_id,
-            payload=document.model_dump(mode="json"),
-        )
-        return record.doc_id
+        return self._canonical_document_service.save_document(document)
 
 
 def build_knowledge_indexing_workflow(
     *,
-    document_service: DocumentApplicationService,
+    canonical_document_service: CanonicalDocumentApplicationService,
     checkpointer: object | None = None,
 ) -> KnowledgeIndexingWorkflow:
     return KnowledgeIndexingWorkflow(
-        store=DocumentApplicationCanonicalStore(document_service),
+        store=DocumentApplicationCanonicalStore(canonical_document_service),
         checkpointer=checkpointer,
     )

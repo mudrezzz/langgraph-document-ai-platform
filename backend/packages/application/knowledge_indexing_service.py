@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from application.document_service import DocumentApplicationService
+from application.canonical_document_service import CanonicalDocumentApplicationService
 from domain_docs.indexing.bootstrap import build_knowledge_indexing_workflow
 from domain_docs.parsing import CanonicalDocumentParser
 from schemas.documents.contracts import CanonicalDocument
@@ -30,10 +30,10 @@ class KnowledgeIndexingApplicationService:
     def __init__(
         self,
         *,
-        document_service: DocumentApplicationService,
+        canonical_document_service: CanonicalDocumentApplicationService,
         parser: CanonicalDocumentParser | None = None,
     ) -> None:
-        self._document_service = document_service
+        self._canonical_document_service = canonical_document_service
         self._parser = parser or CanonicalDocumentParser()
 
     def index_paths(self, paths: list[str | Path], *, task_context: dict | None = None) -> KnowledgeIndexingResult:
@@ -45,7 +45,7 @@ class KnowledgeIndexingApplicationService:
             else:
                 documents.append(self._parser.parse_path(source_path))
 
-        workflow = build_knowledge_indexing_workflow(document_service=self._document_service)
+        workflow = build_knowledge_indexing_workflow(canonical_document_service=self._canonical_document_service)
         result_state = workflow.invoke(
             KnowledgeIndexingState(
                 task_context=task_context or {},

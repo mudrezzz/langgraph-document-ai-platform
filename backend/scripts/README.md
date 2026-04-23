@@ -27,6 +27,7 @@
 - `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
+  - проверяет запись canonical documents и derived knowledge blocks в canonical store.
 - `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
 - `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.

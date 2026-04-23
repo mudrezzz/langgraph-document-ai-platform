@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 from pathlib import Path
+
+import pytest
 
 from domain_docs.parsing import CanonicalDocumentParser
 
@@ -48,3 +51,23 @@ def test_canonical_parser_parses_release_demo_directory() -> None:
     assert len(documents) == 4
     assert {document.file_type for document in documents} == {"json", "md", "txt"}
     assert sum(len(document.content_blocks) for document in documents) >= 8
+
+
+def test_canonical_parser_reports_missing_docx_dependency_when_needed(tmp_path: Path) -> None:
+    if importlib.util.find_spec("docx"):
+        pytest.skip("python-docx installed; missing dependency branch is not active")
+    source = tmp_path / "sample.docx"
+    source.write_bytes(b"not-a-real-docx")
+
+    with pytest.raises(RuntimeError, match="python-docx"):
+        CanonicalDocumentParser().parse_path(source)
+
+
+def test_canonical_parser_reports_missing_pdf_dependency_when_needed(tmp_path: Path) -> None:
+    if importlib.util.find_spec("fitz"):
+        pytest.skip("PyMuPDF installed; missing dependency branch is not active")
+    source = tmp_path / "sample.pdf"
+    source.write_bytes(b"%PDF-1.4")
+
+    with pytest.raises(RuntimeError, match="PyMuPDF"):
+        CanonicalDocumentParser().parse_path(source)

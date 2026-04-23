@@ -15,6 +15,7 @@
 2. Multi-file ingestion (`.md/.txt/.json`) без ручной сборки dataset JSON.
 3. Генерацию итогового отчета `output/release_readiness_report.md`.
 4. Canonical document indexing smoke через Knowledge Factory MVP.
+5. Запись derived content blocks в `knowledge_blocks` read-model.
 
 ## Скрипты
 

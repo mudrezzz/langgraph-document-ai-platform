@@ -140,12 +140,17 @@
   - guide расширения framework `docs/framework_extension_guide.md`;
   - ADR `docs/adr/0029-framework-hardening-and-extension-guide.md`;
   - unit contract tests для agents/tools/mcp/db/stores.
-- добавлен первый срез Knowledge Factory MVP:
+- добавлен Knowledge Factory MVP:
   - типизированные canonical document contracts;
   - пакет `domain_docs`;
-  - parser `.md/.txt/.json` в `CanonicalDocumentParser`;
+  - parser `.md/.txt/.json/.docx/.pdf` в `CanonicalDocumentParser`;
   - `KnowledgeIndexingWorkflow` поверх `BaseWorkflow`;
   - smoke `smoke_knowledge_indexing.sh/.ps1` для release go/no-go multifile input.
+- добавлен отдельный canonical persistence/read-model слой:
+  - `PostgresCanonicalDocumentStore`;
+  - `CanonicalDocumentApplicationService`;
+  - таблицы `app.canonical_documents` и `app.knowledge_blocks`;
+  - миграция `backend/migrations/0009_canonical_knowledge_store.sql`.
 
 ## Структура
 
@@ -506,8 +511,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
-- `domain_docs` умеет строить canonical document payload для `.md/.txt/.json`.
-- `KnowledgeIndexingWorkflow` сохраняет canonical documents через существующий document repository boundary.
+- `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
+- `KnowledgeIndexingWorkflow` сохраняет canonical documents и derived knowledge blocks через отдельный canonical store boundary.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -634,18 +639,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 
 ## Knowledge Factory MVP
 
-Первый срез canonical ingestion работает без отдельной SQL-миграции:
+Canonical ingestion работает через отдельный persistence/read-model слой:
 
 - parser: `domain_docs.parsing.CanonicalDocumentParser`;
 - workflow: `domain_docs.indexing.KnowledgeIndexingWorkflow`;
 - application boundary: `KnowledgeIndexingApplicationService`;
-- storage MVP: `DocumentApplicationService` + существующая таблица `app.documents`.
+- canonical boundary: `CanonicalDocumentApplicationService`;
+- storage: `PostgresCanonicalDocumentStore`;
+- SQL tables: `app.canonical_documents`, `app.knowledge_blocks`.
 
 Поддерживаемые форматы текущего среза:
 
 - `.md`;
 - `.txt`;
 - `.json`.
+- `.docx` через `python-docx`;
+- `.pdf` через `PyMuPDF`.
 
 Smoke текущего demo input:
 
@@ -657,6 +666,7 @@ bash ./backend/scripts/smoke_knowledge_indexing.sh
 
 - `documents_total=4`;
 - `content_blocks_total > 0`;
+- `stored_blocks_total > 0`;
 - `file_types` содержит `md`, `txt`, `json`.
 
 ## Контракт GET /api/v1/tasks
