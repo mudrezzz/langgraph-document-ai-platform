@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-22
-Статус: Increment 23
+Дата обновления: 2026-04-23
+Статус: Increment 24
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,11 +14,14 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 23)
+## 2. Текущая реализация (Increment 24)
 
 Реализовано:
 
 - framework и schemas layer;
+- root roadmap `BACKLOG.md` для завершения backend/framework части;
+- framework extension guide `docs/framework_extension_guide.md`;
+- contract tests для базовых framework agents/tools/mcp/db/stores;
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - API boundary + task lifecycle + interrupt/resume ветки;
 - persistence adapters:
@@ -161,6 +164,7 @@
   - `docs/adr/0026-celery-redis-async-authoring-and-hitl-mvp.md`.
   - `docs/adr/0027-iterative-hitl-loop-and-async-submit-continuation.md`.
   - `docs/adr/0028-hitl-actions-persistence-and-read-model-api.md`.
+  - `docs/adr/0029-framework-hardening-and-extension-guide.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -181,8 +185,8 @@
 
 ## 5. План следующего инкремента
 
-1. Добавить ingestion для PDF/DOCX источников с валидацией качества распознавания.
-2. Расширить reference-case до полного traceability отчета (artifact + sources + approvals + reviewer actions).
-3. Добавить периодические агрегаты аудита (`day/week`) и API чтения этих метрик.
-4. Добавить агрегаты по HITL reviewer actions (SLA, decision mix, load per reviewer).
-5. Добавить интеграционные тесты для расширенного authoring read-model, async retries и audit/HITL метрик.
+1. Начать `Increment 25: Knowledge Factory MVP`.
+2. Добавить `domain_docs` и canonical document schemas.
+3. Добавить ingestion для `.md/.txt/.json/.docx/.pdf` источников с quality flags.
+4. Добавить `KnowledgeIndexingWorkflow` и persistence для canonical documents / knowledge blocks.
+5. Расширить release go/no-go demo входами через canonical ingestion.

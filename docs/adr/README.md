@@ -38,3 +38,4 @@
 - `0026-celery-redis-async-authoring-and-hitl-mvp.md`
 - `0027-iterative-hitl-loop-and-async-submit-continuation.md`
 - `0028-hitl-actions-persistence-and-read-model-api.md`
+- `0029-framework-hardening-and-extension-guide.md`

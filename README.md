@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 23`.
+Текущий инкремент: `Increment 24`.
 
 Сделано:
 
@@ -135,6 +135,11 @@
   - `smoke_authoring_async_api.sh/.ps1`;
   - `demo_release_authoring_async_hitl_case.sh/.ps1`;
   - `async_up/down.sh` и `async_up/down.ps1`.
+- добавлен framework hardening слой:
+  - root roadmap `BACKLOG.md`;
+  - guide расширения framework `docs/framework_extension_guide.md`;
+  - ADR `docs/adr/0029-framework-hardening-and-extension-guide.md`;
+  - unit contract tests для agents/tools/mcp/db/stores.
 
 ## Структура
 
@@ -480,6 +485,8 @@ bash ./backend/scripts/async_down.sh
 - traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
 - async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
 - HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
+- framework extension path зафиксирован в `docs/framework_extension_guide.md`.
+- `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -776,8 +783,10 @@ APP_DB_DSN=postgresql://user:password@localhost:5432/langgraph \
 
 ## Обязательные документы сопровождения
 
-После каждого инкремента обновляются три документа:
+После каждого инкремента обновляются документы сопровождения:
 
 1. `README.md` — текущее состояние, структура, правила работы.
 2. `docs/adr/*.md` — принятые архитектурные решения.
 3. `docs/architecture/System_Architecture_Overview.md` — актуальный снимок архитектуры и GAP к целевой модели.
+4. `BACKLOG.md` — roadmap и статус следующих инкрементов, если меняется план.
+5. `docs/framework_extension_guide.md` — правила расширения framework, если меняются extension patterns.
