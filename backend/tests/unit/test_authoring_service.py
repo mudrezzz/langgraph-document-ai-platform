@@ -273,6 +273,7 @@ def test_authoring_service_accepts_template_context_for_custom_sections() -> Non
     artifact = service.artifact(response.task_id)
     assert artifact.metadata["template_spec"]["template_id"] == "decision_memo"
     assert artifact.metadata["template_spec"]["version"] == "2"
+    assert artifact.metadata["template_spec"]["assembly_rules"]
     assert artifact.metadata["section_contracts"][0]["section_id"] == "executive_summary"
     assert artifact.metadata["section_artifacts"][0]["section_id"] == "executive_summary"
     assert "# Decision Memo" in artifact.content

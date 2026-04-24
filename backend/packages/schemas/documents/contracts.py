@@ -68,6 +68,7 @@ class TemplateSpec(BaseModel):
     version: str
     sections: list[dict[str, Any]] = Field(default_factory=list)
     validation_rules: list[dict[str, Any]] = Field(default_factory=list)
+    assembly_rules: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class SectionDigest(BaseModel):

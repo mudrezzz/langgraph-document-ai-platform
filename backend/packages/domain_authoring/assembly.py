@@ -83,6 +83,7 @@ class DocumentAssembler:
         section_traceability: list[dict[str, Any]],
     ) -> str:
         artifact_by_id = {item.section_id: item for item in section_artifacts}
+        section_order = self._resolve_section_order(template_spec)
         lines = [
             f"# {self._title_from_template(template_spec)}",
             "",
@@ -93,8 +94,14 @@ class DocumentAssembler:
             research_summary,
         ]
 
-        for section in template_spec.sections:
-            section_id = str(section.get("section_id", "")).strip()
+        sections_by_id = {
+            str(section.get("section_id", "")).strip(): section
+            for section in template_spec.sections
+            if str(section.get("section_id", "")).strip()
+        }
+
+        for section_id in section_order:
+            section = sections_by_id.get(section_id, {"section_id": section_id, "title": section_id.replace("_", " ").title()})
             title = str(section.get("title", section_id)).strip()
             artifact = artifact_by_id.get(section_id)
             lines.extend(["", f"## {title}"])
@@ -145,3 +152,12 @@ class DocumentAssembler:
         if template_spec.template_id == "release_readiness":
             return "Release Readiness Report"
         return template_spec.template_id.replace("_", " ").title()
+
+    def _resolve_section_order(self, template_spec: TemplateSpec) -> list[str]:
+        for rule in template_spec.assembly_rules:
+            if str(rule.get("mode", "")) != "section_order":
+                continue
+            section_order = [str(item).strip() for item in rule.get("section_order", []) if str(item).strip()]
+            if section_order:
+                return section_order
+        return [str(section.get("section_id", "")).strip() for section in template_spec.sections if str(section.get("section_id", "")).strip()]

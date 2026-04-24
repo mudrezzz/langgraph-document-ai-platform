@@ -426,6 +426,16 @@ Seventh slice done:
 - старый fallback path сохранен для обратной совместимости;
 - добавлен ADR-0051 и расширены unit tests.
 
+Eighth slice done:
+
+- добавлены baseline `TemplateCatalog` и `InMemoryTemplateCatalog`;
+- `TemplateSpec` расширен полем `assembly_rules`;
+- `TemplateCompiler` компилирует и нормализует assembly rules;
+- `DocumentAssembler` использует assembly rules для section order;
+- добавлен ADR-0052 и unit tests;
+- targeted template authoring tests: `24 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `181 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

@@ -13,15 +13,19 @@ class TemplateCompiler:
         version = str(payload.get("version", "1"))
         sections = self._normalize_sections(payload.get("sections"), template_id=template_id)
         validation_rules = self._normalize_validation_rules(payload.get("validation_rules"))
+        assembly_rules = self._normalize_assembly_rules(payload.get("assembly_rules"))
 
         if not sections:
             sections = self._default_sections(template_id=template_id)
+        if not assembly_rules:
+            assembly_rules = self._default_assembly_rules(template_id=template_id, sections=sections)
 
         return TemplateSpec(
             template_id=template_id,
             version=version,
             sections=sections,
             validation_rules=validation_rules,
+            assembly_rules=assembly_rules,
         )
 
     def _normalize_sections(self, raw_sections: Any, *, template_id: str) -> list[dict[str, Any]]:
@@ -77,6 +81,28 @@ class TemplateCompiler:
             )
         return normalized
 
+    def _normalize_assembly_rules(self, raw_rules: Any) -> list[dict[str, Any]]:
+        if not isinstance(raw_rules, list):
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        for index, item in enumerate(raw_rules, start=1):
+            if not isinstance(item, dict):
+                continue
+            rule_id = str(item.get("rule_id") or item.get("id") or f"assembly_rule_{index}").strip() or f"assembly_rule_{index}"
+            section_order = [str(value).strip() for value in item.get("section_order", []) if str(value).strip()]
+            normalized.append(
+                {
+                    "rule_id": rule_id,
+                    "mode": str(item.get("mode") or "section_order"),
+                    "section_order": section_order,
+                    "include_writer_draft": bool(item.get("include_writer_draft", True)),
+                    "include_traceability": bool(item.get("include_traceability", True)),
+                    "metadata": dict(item.get("metadata") or {}),
+                }
+            )
+        return normalized
+
     def _default_sections(self, *, template_id: str) -> list[dict[str, Any]]:
         if template_id == "release_readiness":
             return [
@@ -121,6 +147,18 @@ class TemplateCompiler:
                 "objective": f"Provide a concise overview for template {template_id}.",
                 "required_keywords": [],
                 "source_hints": [],
+                "metadata": {},
+            }
+        ]
+
+    def _default_assembly_rules(self, *, template_id: str, sections: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "rule_id": f"{template_id}_default_assembly",
+                "mode": "section_order",
+                "section_order": [str(item.get("section_id", "")).strip() for item in sections if str(item.get("section_id", "")).strip()],
+                "include_writer_draft": True,
+                "include_traceability": True,
                 "metadata": {},
             }
         ]

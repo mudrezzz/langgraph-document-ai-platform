@@ -177,6 +177,30 @@ def test_section_contract_builder_builds_contracts_from_custom_template() -> Non
     assert contracts[1].preferred_source_refs
 
 
+def test_template_compiler_and_catalog_support_assembly_rules() -> None:
+    compiler = TemplateCompiler()
+    template_spec = compiler.compile(
+        template_id="board_memo",
+        template_payload={
+            "sections": [
+                {"section_id": "decision", "title": "Decision"},
+                {"section_id": "risks", "title": "Risks"},
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "board_order",
+                    "mode": "section_order",
+                    "section_order": ["risks", "decision"],
+                    "include_writer_draft": False,
+                }
+            ],
+        },
+    )
+
+    assert template_spec.assembly_rules[0]["section_order"] == ["risks", "decision"]
+    assert template_spec.assembly_rules[0]["include_writer_draft"] is False
+
+
 def test_document_assembler_builds_multistep_report() -> None:
     assembler = DocumentAssembler()
 

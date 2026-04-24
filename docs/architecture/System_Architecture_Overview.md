@@ -156,6 +156,7 @@
   - добавлен `SectionAuthoringService`, который строит section-level deterministic artifacts/digests;
   - template-aware contracts поддерживаются через `domain_docs.TemplateCompiler` и `task_context.template_id/template_payload`;
   - final assembly теперь умеет использовать `TemplateSpec` + `section_artifacts` для template-driven documents;
+  - baseline `TemplateCatalog` и `TemplateSpec.assembly_rules` подготовлены для reusable template library path;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
   - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);
@@ -239,7 +240,7 @@
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - отсутствуют полноценные `domain_authoring` workflows;
-- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly, но полноценные section workflows/template catalog/assembly rules пока не завершены;
+- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` также добавлены baseline template catalog и assembly rules, но полноценные persisted template library и rich assembly policies пока не завершены;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;

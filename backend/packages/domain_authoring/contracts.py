@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from domain_docs import TemplateCompiler
+from domain_docs import InMemoryTemplateCatalog, TemplateCatalog, TemplateCompiler
 from schemas.authoring.contracts import SectionContract
 from schemas.documents.contracts import TemplateSpec
 from schemas.rag.contracts import EvidencePack
@@ -9,8 +9,13 @@ from schemas.rag.contracts import EvidencePack
 class SectionContractBuilder:
     """Builds typed section contracts from evidence and review context."""
 
-    def __init__(self, template_compiler: TemplateCompiler | None = None) -> None:
+    def __init__(
+        self,
+        template_compiler: TemplateCompiler | None = None,
+        template_catalog: TemplateCatalog | None = None,
+    ) -> None:
         self._template_compiler = template_compiler or TemplateCompiler()
+        self._template_catalog = template_catalog or InMemoryTemplateCatalog(compiler=self._template_compiler)
 
     def build_contracts_from_template(
         self,
@@ -20,15 +25,15 @@ class SectionContractBuilder:
         review_status: str,
         template_payload: dict | None = None,
     ) -> tuple[TemplateSpec, list[SectionContract]]:
-        template_spec = self._template_compiler.compile(
-            template_id=template_id,
-            template_payload=template_payload,
-        )
+        template_spec = self._resolve_template_spec(template_id=template_id, template_payload=template_payload)
         return template_spec, self._contracts_from_spec(
             template_spec=template_spec,
             evidence_pack=evidence_pack,
             review_status=review_status,
         )
+
+    def get_template_spec(self, *, template_id: str, template_payload: dict | None = None) -> TemplateSpec:
+        return self._resolve_template_spec(template_id=template_id, template_payload=template_payload)
 
     def build_release_readiness_contracts(
         self,
@@ -80,6 +85,19 @@ class SectionContractBuilder:
                 )
             )
         return contracts
+
+    def _resolve_template_spec(self, *, template_id: str, template_payload: dict | None = None) -> TemplateSpec:
+        if template_payload is not None:
+            return self._template_compiler.compile(
+                template_id=template_id,
+                template_payload=template_payload,
+            )
+
+        catalog_spec = self._template_catalog.get_template_spec(template_id)
+        if catalog_spec is not None:
+            return catalog_spec
+
+        return self._template_compiler.compile(template_id=template_id, template_payload=None)
 
     def _dedup_source_refs(self, evidence_pack: EvidencePack) -> list[dict[str, str]]:
         deduped: list[dict[str, str]] = []
