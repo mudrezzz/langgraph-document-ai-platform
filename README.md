@@ -593,6 +593,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - traceability/source-ref mapping и HITL human feedback formatting тоже перенесены в `domain_authoring`.
   - введены typed `SectionContract` и `SectionPacket`, а section contracts сохраняются в authoring state и artifact metadata.
   - добавлен `SectionAuthoringService`, который строит deterministic `section_artifacts` и `SectionDigest` из section packets.
+  - добавлен `TemplateCompiler`, а authoring поддерживает template-aware section contracts через `task_context.template_id/template_payload`.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
@@ -624,6 +625,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `query`
 - `filters`
 - `task_context`
+  - поддерживает `template_id` и `template_payload` для template-aware authoring section contracts.
 - `artifact_type` (по умолчанию `release_report`)
 - `artifact_title` (опционально)
 - `artifact_format` (по умолчанию `markdown`)

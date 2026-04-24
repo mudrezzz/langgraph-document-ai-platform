@@ -59,3 +59,4 @@
 - `0047-domain-authoring-traceability-and-hitl-feedback-helpers.md`
 - `0048-domain-authoring-section-contracts-and-packets.md`
 - `0049-domain-authoring-section-authoring-service-baseline.md`
+- `0050-template-compiler-and-template-aware-section-contracts.md`

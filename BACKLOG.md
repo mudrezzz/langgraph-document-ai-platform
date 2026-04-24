@@ -411,6 +411,14 @@ Fifth slice done:
 - финальный внешний API и assembled document пока сохранены без изменения;
 - добавлен ADR-0049 и расширены unit tests.
 
+Sixth slice done:
+
+- добавлен `domain_docs.TemplateCompiler`;
+- `SectionContractBuilder` теперь умеет строить contracts из `TemplateSpec`;
+- `AuthoringApplicationService` поддерживает template-aware authoring через `task_context.template_id` и `task_context.template_payload`;
+- дефолтный путь `release_readiness` сохранен для обратной совместимости;
+- добавлен ADR-0050 и unit tests для custom templates.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

@@ -139,6 +139,43 @@ def test_section_authoring_service_builds_section_artifacts_and_digests() -> Non
     assert artifacts[0].metadata["project_context_keys"] == ["project_id"]
 
 
+def test_section_contract_builder_builds_contracts_from_custom_template() -> None:
+    builder = SectionContractBuilder()
+
+    template_spec, contracts = builder.build_contracts_from_template(
+        template_id="decision_memo",
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+        template_payload={
+            "version": "2",
+            "sections": [
+                {
+                    "section_id": "executive_summary",
+                    "title": "Executive Summary",
+                    "objective": "Summarize the key decision for executives.",
+                    "required_keywords": ["approval", "decision"],
+                    "source_hints": ["approval", "decision"],
+                },
+                {
+                    "section_id": "risks",
+                    "title": "Risks",
+                    "objective": "List risks and constraints.",
+                    "required_keywords": ["risk", "pending"],
+                },
+            ],
+            "validation_rules": [{"rule_id": "non_empty", "description": "Sections must not be empty."}],
+        },
+    )
+
+    assert template_spec.template_id == "decision_memo"
+    assert template_spec.version == "2"
+    assert len(template_spec.sections) == 2
+    assert len(contracts) == 2
+    assert contracts[0].section_id == "executive_summary"
+    assert contracts[0].metadata["template_id"] == "decision_memo"
+    assert contracts[1].preferred_source_refs
+
+
 def test_document_assembler_builds_multistep_report() -> None:
     assembler = DocumentAssembler()
 

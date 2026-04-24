@@ -40,6 +40,7 @@ from schemas.api.contracts import (
     TaskArtifactTraceabilityResponse,
 )
 from schemas.authoring.contracts import SectionArtifact, SectionContract
+from schemas.documents.contracts import TemplateSpec
 from schemas.rag.contracts import EvidencePack, SourceRef
 from schemas.workflow.states import AuthoringTaskState
 
@@ -283,7 +284,8 @@ class AuthoringApplicationService:
                 evidence_pack=evidence_pack,
                 review_result=review_result,
             )
-            section_contracts = self._build_section_contracts(
+            template_spec, section_contracts = self._build_section_contracts(
+                task_context=task_context,
                 evidence_pack=evidence_pack,
                 review_result=review_result,
             )
@@ -309,6 +311,7 @@ class AuthoringApplicationService:
                         "research_summary": research_summary,
                         "draft": draft_result.content,
                         "review_result": review_result,
+                        "template_spec": template_spec.model_dump(mode="json"),
                         "section_contracts": section_contracts,
                         "section_artifacts": section_artifacts,
                         "section_traceability": section_traceability,
@@ -331,6 +334,7 @@ class AuthoringApplicationService:
                 research_summary=research_summary,
                 writer_draft=draft_result.content,
                 review_result=review_result,
+                template_spec=template_spec,
                 section_contracts=section_contracts,
                 section_artifacts=section_artifacts,
                 section_traceability=section_traceability,
@@ -648,6 +652,12 @@ class AuthoringApplicationService:
         steps = [AuthoringStepResult.model_validate(item) for item in processing_state.steps_summary]
         updated_draft = processing_state.draft or ""
         updated_review_result = dict(processing_state.review_result)
+        template_spec = TemplateSpec.model_validate(processing_state.task_context.get("template_spec") or {
+            "template_id": processing_state.task_context.get("template_id") or "release_readiness",
+            "version": "1",
+            "sections": [],
+            "validation_rules": [],
+        })
         section_contracts = [SectionContract.model_validate(item) for item in processing_state.section_contracts]
         section_artifacts = [SectionArtifact.model_validate(item) for item in processing_state.section_artifacts]
         section_traceability = list(processing_state.section_traceability)
@@ -692,7 +702,8 @@ class AuthoringApplicationService:
                 evidence_pack=evidence_pack,
                 review_result=updated_review_result,
             )
-            section_contracts = self._build_section_contracts(
+            template_spec, section_contracts = self._build_section_contracts(
+                task_context=processing_state.task_context,
                 evidence_pack=evidence_pack,
                 review_result=updated_review_result,
             )
@@ -717,6 +728,7 @@ class AuthoringApplicationService:
                 update={
                     "draft": updated_draft,
                     "review_result": updated_review_result,
+                    "template_spec": template_spec.model_dump(mode="json"),
                     "section_contracts": section_contracts,
                     "section_artifacts": section_artifacts,
                     "section_traceability": section_traceability,
@@ -776,6 +788,7 @@ class AuthoringApplicationService:
             final_content=final_content,
             updated_draft=updated_draft,
             review_result=updated_review_result,
+            template_spec=template_spec,
             section_contracts=section_contracts,
             section_artifacts=section_artifacts,
             section_traceability=section_traceability,
@@ -836,6 +849,7 @@ class AuthoringApplicationService:
         research_summary: str,
         writer_draft: str,
         review_result: dict[str, Any],
+        template_spec: TemplateSpec,
         section_contracts: list[SectionContract],
         section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
@@ -868,6 +882,7 @@ class AuthoringApplicationService:
             "draft_generation_mode": draft_result.mode,
             "draft_generation_requested_strategy": request.draft_strategy,
             "workflow_mode": request.workflow_mode,
+            "template_spec": template_spec.model_dump(mode="json"),
             "section_contracts": [item.model_dump(mode="json") if hasattr(item, "model_dump") else item for item in section_contracts],
             "section_artifacts": [item.model_dump(mode="json") for item in section_artifacts],
             "review_status": review_result.get("status"),
@@ -912,6 +927,11 @@ class AuthoringApplicationService:
                 "research_summary": research_summary,
                 "draft": writer_draft,
                 "review_result": review_result,
+                "task_context": {
+                    **initial_state.task_context,
+                    "template_id": template_spec.template_id,
+                    "template_spec": template_spec.model_dump(mode="json"),
+                },
                 "section_contracts": section_contracts,
                 "section_artifacts": section_artifacts,
                 "section_traceability": section_traceability,
@@ -950,6 +970,7 @@ class AuthoringApplicationService:
         final_content: str,
         updated_draft: str,
         review_result: dict[str, Any],
+        template_spec: TemplateSpec,
         section_contracts: list[SectionContract],
         section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
@@ -965,6 +986,7 @@ class AuthoringApplicationService:
             "workflow_mode": state.workflow_mode,
             "hitl_iteration": state.hitl_iteration,
             "hitl_max_iterations": state.hitl_max_iterations,
+            "template_spec": template_spec.model_dump(mode="json"),
             "section_contracts": [item.model_dump(mode="json") if hasattr(item, "model_dump") else item for item in section_contracts],
             "section_artifacts": [item.model_dump(mode="json") for item in section_artifacts],
             "review_status": review_result.get("status"),
@@ -1006,6 +1028,11 @@ class AuthoringApplicationService:
                 "artifact_id": artifact.artifact_id,
                 "draft": updated_draft,
                 "review_result": review_result,
+                "task_context": {
+                    **state.task_context,
+                    "template_id": template_spec.template_id,
+                    "template_spec": template_spec.model_dump(mode="json"),
+                },
                 "section_contracts": section_contracts,
                 "section_artifacts": section_artifacts,
                 "section_traceability": section_traceability,
@@ -1306,12 +1333,17 @@ class AuthoringApplicationService:
     def _build_section_contracts(
         self,
         *,
+        task_context: dict[str, Any],
         evidence_pack: EvidencePack,
         review_result: dict[str, Any],
-    ) -> list[SectionContract]:
-        return self._section_contract_builder.build_release_readiness_contracts(
+    ) -> tuple[TemplateSpec, list[SectionContract]]:
+        template_id = str(task_context.get("template_id") or "release_readiness").strip() or "release_readiness"
+        template_payload = task_context.get("template_payload")
+        return self._section_contract_builder.build_contracts_from_template(
+            template_id=template_id,
             evidence_pack=evidence_pack,
             review_status=str(review_result.get("status", "not_reviewed")),
+            template_payload=template_payload if isinstance(template_payload, dict) else None,
         )
 
     def _build_section_artifacts(
