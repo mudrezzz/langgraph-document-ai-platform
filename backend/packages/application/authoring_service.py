@@ -15,6 +15,7 @@ from domain_authoring import (
     ResearchSummaryBuilder,
     SectionContractBuilder,
     SectionAuthoringService,
+    SectionAuthoringWorkflow,
     SectionReviewService,
     WriterDraftService,
 )
@@ -45,7 +46,7 @@ from schemas.api.contracts import (
 from schemas.authoring.contracts import SectionArtifact, SectionContract
 from schemas.documents.contracts import TemplateSpec
 from schemas.rag.contracts import EvidencePack, SourceRef
-from schemas.workflow.states import AuthoringTaskState
+from schemas.workflow.states import AuthoringTaskState, SectionAuthoringState
 
 
 class TaskArtifactLinkRecord(BaseModel):
@@ -119,6 +120,7 @@ class AuthoringApplicationService:
         writer_draft_service: WriterDraftService | None = None,
         section_contract_builder: SectionContractBuilder | None = None,
         section_authoring_service: SectionAuthoringService | None = None,
+        section_authoring_workflow: SectionAuthoringWorkflow | None = None,
     ) -> None:
         self._task_service = task_service
         self._retrieval_service = retrieval_service
@@ -140,6 +142,10 @@ class AuthoringApplicationService:
         self._writer_draft_service = writer_draft_service or WriterDraftService()
         self._section_contract_builder = section_contract_builder or SectionContractBuilder()
         self._section_authoring_service = section_authoring_service or SectionAuthoringService()
+        self._section_authoring_workflow = section_authoring_workflow or SectionAuthoringWorkflow(
+            section_authoring_service=self._section_authoring_service,
+            section_review_service=self._section_review_service,
+        )
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
@@ -1464,14 +1470,28 @@ class AuthoringApplicationService:
         research_summary: str,
         review_result: dict[str, Any],
     ) -> list[SectionArtifact]:
-        return self._section_authoring_service.author_sections(
-            contracts=section_contracts,
-            query=query,
-            project_context=task_context,
-            evidence_pack=evidence_pack,
-            research_summary=research_summary,
-            relevant_state={"review_status": review_result.get("status")},
-        )
+        artifacts: list[SectionArtifact] = []
+        for contract in section_contracts:
+            workflow_state = SectionAuthoringState(
+                task_context={
+                    "task_id": str(task_context.get("task_id", "")).strip(),
+                    "correlation_id": str(task_context.get("correlation_id", "")).strip(),
+                    "section_id": contract.section_id,
+                },
+                query=query,
+                section_contract=contract,
+                project_context=task_context,
+                evidence_pack=evidence_pack,
+                research_summary=research_summary,
+                review_result={"parent_review_status": review_result.get("status")},
+            )
+            result = SectionAuthoringState.model_validate(self._section_authoring_workflow.invoke(workflow_state))
+            if result.final_section_artifact is None:
+                raise WorkflowExecutionError(
+                    f"SectionAuthoringWorkflow не вернул артефакт для section_id={contract.section_id}"
+                )
+            artifacts.append(result.final_section_artifact)
+        return artifacts
 
     def _assemble_document(
         self,

@@ -25,6 +25,7 @@ class SectionAuthoringState(BaseModel):
     """Состояние workflow генерации одного раздела."""
 
     task_context: dict = Field(default_factory=dict)
+    query: str = ""
     section_contract: SectionContract | None = None
     project_context: dict = Field(default_factory=dict)
     evidence_pack: EvidencePack | None = None

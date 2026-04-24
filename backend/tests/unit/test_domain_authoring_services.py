@@ -2,17 +2,19 @@ from __future__ import annotations
 
 from domain_docs import TemplateCompiler
 from domain_authoring import (
+    ArtifactExporter,
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
     SectionAuthoringService,
+    SectionAuthoringWorkflow,
     SectionContractBuilder,
     SectionReviewService,
     WriterDraftService,
-    ArtifactExporter,
 )
 from schemas.authoring.contracts import SectionPacket
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
+from schemas.workflow.states import SectionAuthoringState
 
 
 def _build_evidence_pack() -> EvidencePack:
@@ -164,6 +166,56 @@ def test_section_authoring_service_builds_section_artifacts_and_digests() -> Non
     assert artifacts[0].section_id == "risk_assessment"
     assert artifacts[0].digest.source_refs
     assert artifacts[0].metadata["project_context_keys"] == ["project_id"]
+
+
+def test_section_authoring_workflow_builds_reviewed_section_artifact() -> None:
+    contract = SectionContractBuilder().build_release_readiness_contracts(
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )[0]
+    workflow = SectionAuthoringWorkflow()
+
+    result = workflow.invoke(
+        SectionAuthoringState(
+            task_context={"task_id": "task-1", "correlation_id": "corr-1", "section_id": contract.section_id},
+            query="release readiness",
+            section_contract=contract,
+            project_context={"project_id": "demo"},
+            evidence_pack=_build_evidence_pack(),
+            research_summary="summary",
+        )
+    )
+
+    assert result.final_section_artifact is not None
+    assert result.final_section_artifact.section_id == "risk_assessment"
+    assert result.final_section_artifact.review_status == "completed"
+    assert result.review_result["recommendation"] == "conditional_go"
+    assert result.final_section_artifact.metadata["section_review"]["section_id"] == "risk_assessment"
+
+
+def test_section_authoring_workflow_resume_applies_human_feedback() -> None:
+    contract = SectionContractBuilder().build_release_readiness_contracts(
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )[1]
+    workflow = SectionAuthoringWorkflow(use_langgraph_runtime=False)
+
+    result = workflow.resume(
+        SectionAuthoringState(
+            query="release readiness",
+            section_contract=contract,
+            project_context={"project_id": "demo"},
+            evidence_pack=_build_evidence_pack(),
+            research_summary="summary",
+            human_feedback={"comment": "Уточни approvals и ограничения."},
+            iteration_count=1,
+        )
+    )
+
+    assert result.iteration_count == 2
+    assert result.final_section_artifact is not None
+    assert "### Human Feedback" in result.final_section_artifact.content
+    assert result.final_section_artifact.metadata["human_feedback_applied"] is True
 
 
 def test_section_contract_builder_builds_contracts_from_custom_template() -> None:

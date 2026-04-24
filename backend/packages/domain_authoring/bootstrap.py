@@ -7,6 +7,7 @@ from domain_authoring import (
     ResearchSummaryBuilder,
     SectionContractBuilder,
     SectionAuthoringService,
+    SectionAuthoringWorkflow,
     SectionReviewService,
     WriterDraftService,
 )
@@ -21,16 +22,31 @@ def build_domain_authoring_services() -> tuple[
     WriterDraftService,
     SectionContractBuilder,
     SectionAuthoringService,
+    SectionAuthoringWorkflow,
 ]:
     """Builds the current domain_authoring service set for application wiring."""
 
+    outline_planner = OutlinePlanner()
+    section_review_service = SectionReviewService()
+    document_assembler = DocumentAssembler()
+    artifact_exporter = ArtifactExporter()
+    research_summary_builder = ResearchSummaryBuilder()
+    writer_draft_service = WriterDraftService()
+    section_contract_builder = SectionContractBuilder()
+    section_authoring_service = SectionAuthoringService()
+    section_authoring_workflow = SectionAuthoringWorkflow(
+        section_authoring_service=section_authoring_service,
+        section_review_service=section_review_service,
+    )
+
     return (
-        OutlinePlanner(),
-        SectionReviewService(),
-        DocumentAssembler(),
-        ArtifactExporter(),
-        ResearchSummaryBuilder(),
-        WriterDraftService(),
-        SectionContractBuilder(),
-        SectionAuthoringService(),
+        outline_planner,
+        section_review_service,
+        document_assembler,
+        artifact_exporter,
+        research_summary_builder,
+        writer_draft_service,
+        section_contract_builder,
+        section_authoring_service,
+        section_authoring_workflow,
     )

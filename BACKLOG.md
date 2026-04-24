@@ -448,6 +448,16 @@ Ninth slice done:
 - targeted outline authoring tests: `64 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `189 passed`.
 
+Tenth slice done:
+
+- добавлен baseline `SectionAuthoringWorkflow` поверх existing `SectionAuthoringService` и `SectionReviewService`;
+- workflow использует typed `SectionAuthoringState` и multi-node path `write_section -> review_section -> finalize_section`;
+- `AuthoringApplicationService` теперь строит `section_artifacts` через workflow boundary, без изменения внешних API;
+- resume path поддерживает section-level human feedback как baseline rewrite hook;
+- добавлен ADR-0055 и unit tests для invoke/resume workflow path;
+- targeted section workflow tests: `66 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `191 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;
