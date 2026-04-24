@@ -285,3 +285,111 @@ def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: 
     actions_code, actions_payload = _request("GET", f"{base_url}/api/v1/hitl/actions?task_id={task_id}")
     assert actions_code == 200
     assert actions_payload["total_returned"] >= 1
+
+
+def test_e2e_async_authoring_with_celery_iterative_hitl(celery_async_server_base_url: str) -> None:
+    base_url = celery_async_server_base_url
+
+    start_code, start_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/authoring/start_async",
+        payload={
+            "query": "подготовь async draft с iterative review",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {"requester": "e2e-celery-iterative", "case_dataset_id": "saa_release_readiness"},
+            "artifact_type": "release_report",
+            "artifact_title": "Async Celery Iterative HITL E2E Draft",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+            "hitl_required": True,
+        },
+    )
+    assert start_code == 200
+    assert start_payload["status"] == "queued"
+    task_id = start_payload["task_id"]
+
+    first_wait_payload: dict = {}
+    for _ in range(120):
+        status_code, first_wait_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if first_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.5)
+    assert first_wait_payload["status"] == "waiting_human"
+
+    first_hitl_code, first_hitl_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/hitl")
+    assert first_hitl_code == 200
+    assert first_hitl_payload["current_iteration"] == 1
+    assert first_hitl_payload["can_submit"] is True
+
+    first_submit_code, first_submit_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/{task_id}/hitl/submit",
+        payload={
+            "decision": "needs_changes",
+            "comment": "async celery e2e needs changes",
+            "metadata": {"source": "e2e-celery-iterative"},
+            "idempotency_key": "e2e-celery-needs-changes-1",
+            "expected_iteration": 1,
+        },
+    )
+    assert first_submit_code == 200
+    assert first_submit_payload["status"] in {"queued", "running", "waiting_human", "completed"}
+
+    second_wait_payload: dict = first_submit_payload
+    for _ in range(120):
+        status_code, second_wait_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if second_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            details = second_wait_payload.get("details", {})
+            if second_wait_payload["status"] != "waiting_human" or details.get("hitl_iteration") == 2:
+                break
+        time.sleep(0.5)
+    assert second_wait_payload["status"] == "waiting_human"
+    assert second_wait_payload["details"]["hitl_iteration"] == 2
+
+    second_hitl_code, second_hitl_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/hitl")
+    assert second_hitl_code == 200
+    assert second_hitl_payload["current_iteration"] == 2
+    assert second_hitl_payload["can_submit"] is True
+
+    second_submit_code, second_submit_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/{task_id}/hitl/submit",
+        payload={
+            "decision": "approve",
+            "comment": "async celery e2e approve after changes",
+            "metadata": {"source": "e2e-celery-iterative"},
+            "idempotency_key": "e2e-celery-approve-2",
+            "expected_iteration": 2,
+        },
+    )
+    assert second_submit_code == 200
+    assert second_submit_payload["status"] in {"queued", "running", "completed"}
+
+    final_payload: dict = second_submit_payload
+    for _ in range(120):
+        status_code, final_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if final_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.5)
+    assert final_payload["status"] == "completed"
+
+    artifact_code, artifact_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/artifact")
+    assert artifact_code == 200
+    assert artifact_payload["metadata"]["hitl_decision"] == "approve"
+    assert artifact_payload["metadata"]["hitl_iteration"] == 2
+    assert artifact_payload["metadata"]["hitl_max_iterations"] == 2
+    assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+    actions_code, actions_payload = _request("GET", f"{base_url}/api/v1/hitl/actions?task_id={task_id}")
+    assert actions_code == 200
+    assert actions_payload["total_returned"] >= 2
+    decisions = {item["decision"] for item in actions_payload["items"]}
+    assert "needs_changes" in decisions
+    assert "approve" in decisions

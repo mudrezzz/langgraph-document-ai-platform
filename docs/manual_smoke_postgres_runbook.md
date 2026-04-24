@@ -546,6 +546,7 @@ bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 -
 Как интерпретировать:
 
 - это подтверждает, что async запуск через Celery/Redis работает, а HITL submit корректно завершает workflow.
+- тот же iterative path дополнительно закреплен в реальном Docker/Celery e2e тесте `backend/tests/e2e/test_fastapi_authoring_async_celery_e2e.py`.
 
 ## 17. Расширенный demo: authoring async + HITL
 

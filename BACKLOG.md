@@ -328,6 +328,16 @@ Fifth slice done:
 - targeted MCP tests: `11 passed`.
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `164 passed`.
 
+Sixth slice done:
+
+- реальный Docker/Celery e2e расширен на iterative HITL path;
+- `backend/tests/e2e/test_fastapi_authoring_async_celery_e2e.py` теперь покрывает:
+  - `start_async -> waiting_human -> approve -> completed`;
+  - `start_async -> waiting_human(iteration=1) -> needs_changes -> waiting_human(iteration=2) -> approve -> completed`;
+- e2e проверяет `GET /api/v1/tasks/{task_id}/hitl`, `POST /api/v1/tasks/{task_id}/hitl/submit`, итоговый artifact metadata и `GET /api/v1/hitl/actions`;
+- targeted Docker/Celery e2e: `2 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `165 passed`.
+
 ## Increment 28: Domain Authoring Extraction
 
 Цель: вынести authoring из крупного application service в отдельный доменный слой.

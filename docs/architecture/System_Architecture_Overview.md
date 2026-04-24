@@ -159,6 +159,7 @@
   - Celery worker app: `apps/worker/celery_app.py` + `apps/worker/tasks.py`;
   - dispatcher policy: `APP_ASYNC_PROVIDER=inline|celery`;
   - docker deployment для очереди: `backend/docker-compose.async.yml` (`redis` + `celery-worker`);
+  - реальный Docker/Celery e2e покрывает approve-flow и iterative HITL flow;
   - operational scripts: `backend/scripts/async_up/down.sh(.ps1)`.
 - iterative HITL контур:
   - `hitl/submit` поддерживает `idempotency_key` и `expected_iteration`;
