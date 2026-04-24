@@ -379,8 +379,15 @@ def test_task_events_endpoint_supports_cursor_and_filters(client: TestClient) ->
     filtered = client.get(f"/api/v1/tasks/events?limit=20&task_id={task_id}&task_type=retrieval_pack")
     assert filtered.status_code == 200
     filtered_payload = filtered.json()
-    assert filtered_payload["total_returned"] >= 2
+    assert filtered_payload["total_returned"] >= 4
     assert {item["task_id"] for item in filtered_payload["items"]} == {task_id}
+    node_events = [
+        item for item in filtered_payload["items"] if item["event_payload"].get("event_kind") == "workflow_node"
+    ]
+    assert {(item["event_payload"]["node_name"], item["event_payload"]["node_status"]) for item in node_events} == {
+        ("invoke_entry", "started"),
+        ("invoke_entry", "completed"),
+    }
 
     now_utc = datetime.now(timezone.utc)
     from_param = quote((now_utc - timedelta(minutes=5)).isoformat())

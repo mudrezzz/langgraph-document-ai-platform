@@ -19,6 +19,10 @@ from schemas.mcp.repository import (
 from schemas.mcp.retrieval import (
     RetrievalMcpBuildEvidencePackInput,
     RetrievalMcpBuildEvidencePackOutput,
+    RetrievalMcpLookupSourceInput,
+    RetrievalMcpLookupSourceOutput,
+    RetrievalMcpSearchInput,
+    RetrievalMcpSearchOutput,
 )
 
 __all__ = [
@@ -38,4 +42,8 @@ __all__ = [
     "RepositoryMcpListDocumentsOutput",
     "RetrievalMcpBuildEvidencePackInput",
     "RetrievalMcpBuildEvidencePackOutput",
+    "RetrievalMcpSearchInput",
+    "RetrievalMcpSearchOutput",
+    "RetrievalMcpLookupSourceInput",
+    "RetrievalMcpLookupSourceOutput",
 ]

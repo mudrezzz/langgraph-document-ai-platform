@@ -46,3 +46,11 @@
 - `0034-binary-demo-documents-for-knowledge-factory-acceptance.md`
 - `0035-knowledge-indexing-task-lifecycle-api.md`
 - `0036-canonical-release-go-no-go-demo-report.md`
+- `0037-framework-tool-execution-policy.md`
+- `0038-workflow-node-specs-and-subgraph-context.md`
+- `0039-workflow-node-events-task-audit.md`
+- `0040-workflow-factory-di-builders.md`
+- `0041-indexed-canonical-summary-retrieval.md`
+- `0042-real-tei-embedding-and-rerank-gateways.md`
+- `0043-retrieval-quality-gates.md`
+- `0044-retrieval-mcp-indexed-canonical-tools.md`

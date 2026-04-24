@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from application.errors import InvalidCursorError, TaskNotFoundError
 from framework.stores.interfaces import ICheckpointStore
+from framework.workflows.base import WorkflowNodeEventRecord, WorkflowNodeEventSink
 
 
 class TaskRecord(BaseModel):
@@ -95,6 +96,9 @@ class TaskRegistry(Protocol):
     def save(self, record: TaskRecord) -> None:
         """Сохраняет или обновляет запись задачи."""
 
+    def record_event(self, record: TaskEventRecord) -> None:
+        """Сохраняет audit event без изменения task row."""
+
     def get(self, task_id: str) -> TaskRecord:
         """Возвращает запись задачи по идентификатору."""
 
@@ -159,6 +163,16 @@ class InMemoryTaskRegistry(TaskRegistry):
         saved_record = record.model_copy(update={"created_at": created_at, "updated_at": updated_at})
         self._tasks[record.task_id] = saved_record
         self._register_status_event(previous=current, current=saved_record)
+
+    def record_event(self, record: TaskEventRecord) -> None:
+        now_utc = datetime.now(timezone.utc)
+        event = record.model_copy(
+            update={
+                "event_id": record.event_id or len(self._events) + 1,
+                "created_at": record.created_at or now_utc,
+            }
+        )
+        self._events.append(event)
 
     def get(self, task_id: str) -> TaskRecord:
         item = self._tasks.get(task_id)
@@ -398,6 +412,32 @@ class TaskApplicationService:
         self._registry.save(updated)
         return updated
 
+    def record_task_event(
+        self,
+        *,
+        task_id: str,
+        from_status: str | None,
+        to_status: str,
+        from_current_node: str | None = None,
+        to_current_node: str | None = None,
+        event_payload: dict | None = None,
+    ) -> TaskEventRecord:
+        task = self._registry.get(task_id)
+        event = TaskEventRecord(
+            task_id=task.task_id,
+            task_type=task.task_type,
+            from_status=from_status,
+            to_status=to_status,
+            from_current_node=from_current_node,
+            to_current_node=to_current_node,
+            event_payload=event_payload or {},
+        )
+        self._registry.record_event(event)
+        return event
+
+    def build_workflow_node_event_sink(self) -> WorkflowNodeEventSink:
+        return TaskWorkflowNodeEventSink(self)
+
     def get_task(self, task_id: str) -> TaskRecord:
         return self._registry.get(task_id)
 
@@ -475,6 +515,36 @@ class TaskApplicationService:
         if callable(builder):
             return builder()
         return None
+
+
+class TaskWorkflowNodeEventSink:
+    """Maps framework workflow node events into task_events audit records."""
+
+    def __init__(self, task_service: TaskApplicationService) -> None:
+        self._task_service = task_service
+
+    def record_node_event(self, event: WorkflowNodeEventRecord) -> None:
+        if not event.task_id:
+            return
+
+        task = self._task_service.get_task(event.task_id)
+        self._task_service.record_task_event(
+            task_id=task.task_id,
+            from_status=task.status,
+            to_status=task.status,
+            from_current_node=task.current_node,
+            to_current_node=event.node_name,
+            event_payload={
+                "event_kind": "workflow_node",
+                "workflow_name": event.workflow_name,
+                "node_name": event.node_name,
+                "node_status": event.status,
+                "is_resume": event.is_resume,
+                "correlation_id": event.correlation_id,
+                "metadata": event.metadata,
+                **({"error": event.error} if event.error else {}),
+            },
+        )
 
 
 def build_task_cursor(task: TaskRecord) -> str:

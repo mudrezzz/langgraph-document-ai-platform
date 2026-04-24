@@ -12,6 +12,8 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
             "details": {
                 "knowledge_source": "canonical",
                 "retrieval_backend": "pgvector",
+                "quality_gate_status": "warning",
+                "confidence": 0.42,
             },
         },
         indexing_status_payload={
@@ -33,6 +35,8 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                     {"doc_id": "DOCX-1", "version": "1", "block_id": "B-1"},
                     {"doc_id": "PDF-1", "version": "1", "block_id": "B-1"},
                 ],
+                "unresolved_gaps": ["missing_required_document_types: methodology"],
+                "confidence_notes": ["top_confidence=0.420"],
                 "selected_blocks": [
                     {
                         "text": "Security approval PENDING",
@@ -64,6 +68,11 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
 
     assert "Knowledge source: `canonical`" in report
     assert "Retrieval backend: `pgvector`" in report
+    assert "Retrieval quality gate: `warning`" in report
+    assert "Confidence: `0.42`" in report
+    assert "## Retrieval Quality" in report
+    assert "`top_confidence=0.420`" in report
+    assert "`missing_required_document_types: methodology`" in report
     assert "## Canonical Quality Summary" in report
     assert "quality_gate_status: `warning`" in report
     assert "`PDF-1:low_text_density`" in report

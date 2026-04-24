@@ -27,6 +27,7 @@ from infra.postgres.task_registry import PostgresTaskRegistry
 from infra.vllm.chat_gateway import VllmChatModelGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.tei.embedding_gateway import TeiEmbeddingGateway
+from infra.tei.rerank_gateway import TeiRerankGateway
 
 
 @dataclass(slots=True)
@@ -193,7 +194,8 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
-        embedding_gateway = TeiEmbeddingGateway(vector_dim=settings.vector_dim)
+        embedding_gateway = TeiEmbeddingGateway.from_env(vector_dim=settings.vector_dim)
+        rerank_gateway = TeiRerankGateway.from_env()
         llm_runtime_config = _build_llm_runtime_config()
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
         canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
@@ -202,6 +204,7 @@ class ApiContainer:
             canonical_document_service=canonical_document_service,
             embedding_gateway=embedding_gateway,
             vector_store=vector_store,
+            rerank_gateway=rerank_gateway,
         )
 
         self.settings = settings
@@ -209,6 +212,7 @@ class ApiContainer:
         self.document_service = DocumentApplicationService(repository=document_repository)
         self.canonical_document_service = canonical_document_service
         self.embedding_gateway = embedding_gateway
+        self.rerank_gateway = rerank_gateway
         self.vector_store = vector_store
         self.knowledge_indexing_service = KnowledgeIndexingApplicationService(
             canonical_document_service=canonical_document_service,

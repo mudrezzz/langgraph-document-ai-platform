@@ -1,7 +1,7 @@
 # Framework Extension Guide
 
-Дата обновления: 2026-04-23
-Статус: Increment 24
+Дата обновления: 2026-04-24
+Статус: Increment 26 complete; next Increment 27
 
 ## Назначение
 
@@ -19,12 +19,25 @@
 
 1. Добавить typed state contract в `backend/packages/schemas/workflow` или доменный schema module.
 2. Реализовать класс workflow через `framework.workflows.BaseWorkflow` или `SubgraphWorkflow`.
-3. Описать `state_schema()`, `execute()` и при необходимости `execute_resume()`.
-4. Передавать `task_context.task_id` при использовании LangGraph checkpointer.
-5. Подключить workflow через application service или domain bootstrap factory.
-6. Добавить unit tests:
+3. Для простого одношагового workflow описать `state_schema()`, `execute()` и при необходимости `execute_resume()`.
+4. Для multi-node workflow переопределить `workflow_nodes(is_resume=...)` и вернуть список `WorkflowNodeSpec`.
+5. Node handler должен принимать typed state и `WorkflowExecutionContext`; через context доступны `workflow_name`, `node_name`, `task_id`, `correlation_id`, `is_resume`, `metadata`.
+6. Для reusable subgraph использовать `SubgraphWorkflow` и `invoke_as_subgraph(..., parent_context=...)`, если нужно передать parent workflow metadata.
+7. Передавать `task_context.task_id` при использовании LangGraph checkpointer.
+8. Передавать `task_context.correlation_id`, если workflow участвует в сквозной трассировке.
+9. Если workflow должен попадать в audit/read-model, передать `WorkflowNodeEventSink` при создании workflow.
+10. Для task lifecycle audit использовать `TaskApplicationService.build_workflow_node_event_sink()`.
+11. Подключить workflow через application service или `WorkflowFactory`.
+12. Если workflow требует dependencies, регистрировать builder:
+   `factory.register_builder("key", lambda retriever: MyWorkflow(retriever=retriever), metadata={...})`.
+13. Если workflow не требует dependencies, допустима обратно совместимая регистрация класса:
+   `factory.register("key", MyWorkflow)`.
+14. Для duplicate registration использовать явный `replace=True`; missing key и duplicate key должны обрабатываться через `WorkflowNotRegisteredError`/`WorkflowRegistrationError`.
+15. Добавить unit tests:
    - invoke path;
    - resume path, если workflow resumable;
+   - multi-node ordering и context propagation, если используется `workflow_nodes`;
+   - node event payload, если подключен `WorkflowNodeEventSink`;
    - error/interrupt branch, если есть HITL;
    - checkpointer thread id behavior, если workflow long-running.
 
@@ -34,11 +47,17 @@
 2. Реализовать `framework.tools.BaseTool`.
 3. Зарегистрировать tool в `ToolRegistry`.
 4. Вызывать tool через `ToolExecutor`, если он используется агентом/workflow.
-5. Добавить contract tests:
+5. Передавать `ToolContext` с `task_id`, `actor` и, если доступно, `node_name`, `correlation_id`, `idempotency_key`.
+6. Настроить `ToolExecutionPolicy`, если tool требует retry/timeout/idempotency behavior.
+7. Подключить `ToolExecutionAuditSink`, если tool call должен попадать в audit/read-model.
+8. Добавить contract tests:
    - input validation;
    - output validation;
    - registry lookup;
    - execution context propagation.
+   - retry/failure path, если используется retry policy;
+   - idempotency cache path, если tool может повторно вызываться с тем же ключом;
+   - audit record payload, если подключен audit sink.
 
 ## Как Добавить MCP Service
 

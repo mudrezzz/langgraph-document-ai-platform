@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-import importlib.util
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -71,9 +71,18 @@ def test_canonical_parser_parses_release_demo_directory() -> None:
     assert sum(len(document.content_blocks) for document in documents) >= 8
 
 
-def test_canonical_parser_reports_missing_docx_dependency_when_needed(tmp_path: Path) -> None:
-    if importlib.util.find_spec("docx"):
-        pytest.skip("python-docx installed; missing dependency branch is not active")
+def test_canonical_parser_reports_missing_docx_dependency_when_needed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "docx":
+            raise ImportError("docx unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
     source = tmp_path / "sample.docx"
     source.write_bytes(b"not-a-real-docx")
 
@@ -81,9 +90,18 @@ def test_canonical_parser_reports_missing_docx_dependency_when_needed(tmp_path: 
         CanonicalDocumentParser().parse_path(source)
 
 
-def test_canonical_parser_reports_missing_pdf_dependency_when_needed(tmp_path: Path) -> None:
-    if importlib.util.find_spec("fitz"):
-        pytest.skip("PyMuPDF installed; missing dependency branch is not active")
+def test_canonical_parser_reports_missing_pdf_dependency_when_needed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "fitz":
+            raise ImportError("fitz unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
     source = tmp_path / "sample.pdf"
     source.write_bytes(b"%PDF-1.4")
 

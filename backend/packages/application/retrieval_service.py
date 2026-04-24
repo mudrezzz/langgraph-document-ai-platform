@@ -6,7 +6,7 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
 from domain_rag.retrieval import RetrievalPackWorkflow, build_retrieval_workflow
-from framework.models.interfaces import IEmbeddingGateway
+from framework.models.interfaces import IEmbeddingGateway, IRerankGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from schemas.api.contracts import (
     EvidencePackResponse,
@@ -33,11 +33,13 @@ class RetrievalApplicationService:
         canonical_document_service: CanonicalDocumentApplicationService | None = None,
         embedding_gateway: IEmbeddingGateway | None = None,
         vector_store: PgVectorStoreAdapter | None = None,
+        rerank_gateway: IRerankGateway | None = None,
     ) -> None:
         self._task_service = task_service
         self._canonical_document_service = canonical_document_service
         self._embedding_gateway = embedding_gateway
         self._vector_store = vector_store
+        self._rerank_gateway = rerank_gateway
 
     def _build_workflow(
         self,
@@ -57,7 +59,9 @@ class RetrievalApplicationService:
             canonical_doc_ids=canonical_doc_ids,
             embedding_gateway=self._embedding_gateway,
             vector_store=self._vector_store,
+            rerank_gateway=self._rerank_gateway,
             checkpointer=self._task_service.get_langgraph_checkpointer(),
+            node_event_sink=self._task_service.build_workflow_node_event_sink(),
         )
 
     def start(self, request: StartRetrievalTaskRequest) -> StartTaskResponse:
@@ -109,6 +113,11 @@ class RetrievalApplicationService:
             "selected_summary_count": len(result_state.selected_summaries),
             "selected_block_count": len(result_state.selected_blocks),
             "reranked_count": len(result_state.reranked_blocks),
+            "quality_gate_status": _quality_gate_status(result_state.unresolved_gaps),
+            "unresolved_gaps": result_state.unresolved_gaps,
+            "confidence_notes": (
+                result_state.evidence_pack.confidence_notes if result_state.evidence_pack is not None else []
+            ),
             "knowledge_source": knowledge_source or "case_dataset",
             "retrieval_backend": "pgvector" if knowledge_source == "canonical" and self._vector_store else "in_memory",
         }
@@ -283,8 +292,12 @@ class RetrievalApplicationService:
                 "selected_summary_count": len(result.selected_summaries),
                 "selected_block_count": len(result.selected_blocks),
                 "reranked_count": len(result.reranked_blocks),
+                "quality_gate_status": _quality_gate_status(result.unresolved_gaps),
+                "unresolved_gaps": result.unresolved_gaps,
+                "confidence_notes": result.evidence_pack.confidence_notes if result.evidence_pack is not None else [],
                 "resume_decision": request.decision,
                 "knowledge_source": knowledge_source or "case_dataset",
+                "retrieval_backend": "pgvector" if knowledge_source == "canonical" and self._vector_store else "in_memory",
             }
             self._task_service.complete_task(
                 task_id=task_id,
@@ -316,3 +329,9 @@ def _normalize_doc_ids(value: object) -> list[str] | None:
         normalized = [str(item).strip() for item in value if str(item).strip()]
         return normalized or None
     return None
+
+
+def _quality_gate_status(unresolved_gaps: list[str]) -> str:
+    if any(gap.startswith("low_evidence_count: selected 0") for gap in unresolved_gaps):
+        return "failed"
+    return "warning" if unresolved_gaps else "passed"

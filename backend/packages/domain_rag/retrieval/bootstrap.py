@@ -4,12 +4,13 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from domain_rag.retrieval.canonical_dataset import load_canonical_knowledge_dataset
 from domain_rag.retrieval.datasets import load_case_dataset
 from domain_rag.retrieval.workflows import RetrievalPackWorkflow
-from framework.rag.evidence import EvidenceBuilder
+from framework.rag.evidence import EvidenceBuilder, RetrievalQualityPolicy
 from framework.rag.pipeline import HierarchicalRAGPipeline
 from framework.rag.reranker import GatewayReranker
-from framework.models.interfaces import IEmbeddingGateway
+from framework.models.interfaces import IEmbeddingGateway, IRerankGateway
+from framework.workflows.base import WorkflowNodeEventSink
 from infra.pgvector.vector_store import PgVectorStoreAdapter
-from infra.retrieval.canonical_retrievers import CanonicalVectorRetriever
+from infra.retrieval.canonical_retrievers import CanonicalSummaryVectorRetriever, CanonicalVectorRetriever
 from infra.retrieval.retrievers import InMemoryRetriever
 from infra.tei.rerank_gateway import TeiRerankGateway
 
@@ -24,7 +25,10 @@ def build_retrieval_workflow(
     canonical_doc_ids: list[str] | None = None,
     embedding_gateway: IEmbeddingGateway | None = None,
     vector_store: PgVectorStoreAdapter | None = None,
+    rerank_gateway: IRerankGateway | None = None,
+    quality_policy: RetrievalQualityPolicy | None = None,
     checkpointer: object | None = None,
+    node_event_sink: WorkflowNodeEventSink | None = None,
 ) -> RetrievalPackWorkflow:
     """Собирает retrieval workflow из concrete adapters и тестового case dataset."""
 
@@ -44,18 +48,35 @@ def build_retrieval_workflow(
             if embedding_gateway is not None and vector_store is not None
             else InMemoryRetriever(detail_blocks)
         )
+        summary_retriever = (
+            CanonicalSummaryVectorRetriever(
+                embedding_gateway=embedding_gateway,
+                vector_store=vector_store,
+                doc_ids=canonical_doc_ids,
+            )
+            if embedding_gateway is not None and vector_store is not None
+            else InMemoryRetriever(summary_blocks)
+        )
     else:
         summary_blocks, detail_blocks = load_case_dataset(
             dataset_id=case_dataset_id,
             dataset_path=case_dataset_path,
             dataset_dir=case_dataset_dir,
         )
+        summary_retriever = InMemoryRetriever(summary_blocks)
         detail_retriever = InMemoryRetriever(detail_blocks)
 
     pipeline = HierarchicalRAGPipeline(
-        summary_retriever=InMemoryRetriever(summary_blocks),
+        summary_retriever=summary_retriever,
         detail_retriever=detail_retriever,
-        reranker=GatewayReranker(TeiRerankGateway()),
-        evidence_builder=EvidenceBuilder(),
+        reranker=GatewayReranker(rerank_gateway or TeiRerankGateway()),
+        evidence_builder=EvidenceBuilder(
+            quality_policy=quality_policy
+            or RetrievalQualityPolicy(
+                min_evidence_count=3,
+                min_confidence_score=0.2,
+                required_document_types=("methodology",),
+            )
+        ),
     )
-    return RetrievalPackWorkflow(pipeline, checkpointer=checkpointer)
+    return RetrievalPackWorkflow(pipeline, checkpointer=checkpointer, node_event_sink=node_event_sink)

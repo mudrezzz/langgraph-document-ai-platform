@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-23
+Дата обновления: 2026-04-24
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -139,12 +139,105 @@ Seventh slice done:
 - `release_readiness_report.md` показывает `Canonical Quality Summary` и `Canonical Source Mapping`;
 - report связывает evidence blocks с исходными `.md/.txt/.json/.docx/.pdf` файлами.
 
-## Increment 26: Production Retrieval Fabric
+## Increment 26: Framework Runtime Closure
+
+Статус: Done.
+
+Цель: закрыть reusable framework runtime surface перед дальнейшим расширением retrieval, authoring и MCP доменов. После этого новые workflows/tools/subgraphs должны добавляться через устойчивые framework primitives, а не через временную application glue-логику.
+
+Scope:
+
+- доработать workflow runtime:
+  - multi-node `BaseWorkflow` extension hooks;
+  - рабочий `SubgraphWorkflow` contract;
+  - node-level execution metadata;
+  - typed interrupt/resume boundary;
+  - устойчивый `thread_id`/`correlation_id` propagation;
+- доработать tool execution:
+  - `ToolExecutionPolicy`;
+  - retry policy;
+  - timeout accounting;
+  - idempotency key handling;
+  - audit records для tool calls;
+  - contract tests на success/retry/failure/idempotency;
+- доработать registry/factory слой:
+  - DI-friendly `WorkflowFactory`;
+  - понятные ошибки lookup/duplicate registration;
+  - capability metadata для tools/workflows;
+- зафиксировать framework execution context:
+  - task id;
+  - node name;
+  - actor;
+  - correlation id;
+  - metadata;
+- обновить `docs/framework_extension_guide.md`, README, SAO и ADR/design note.
+
+Demo update:
+
+- release demo может не измениться в первом срезе, если публичные API не меняются;
+- после node-level events demo/smoke должен проверять хотя бы один graph-node event в task audit.
+
+Definition of Done:
+
+- новый tool/workflow/subgraph можно добавить с retry/idempotency/audit behavior без изменения application services;
+- existing retrieval/knowledge-indexing/authoring tests остаются зелеными;
+- framework contract tests фиксируют lifecycle, ошибки и metadata propagation;
+- backlog содержит актуальный статус выполненных slices.
+
+First slice done:
+
+- добавлен policy-aware `ToolExecutor`;
+- сохранена обратная совместимость `ToolExecutor(registry).execute(...)`;
+- `ToolContext` расширен `node_name`, `correlation_id`, `idempotency_key`;
+- добавлены `ToolExecutionPolicy`, `ToolExecutionRecord`, `ToolExecutionAuditSink`;
+- добавлены audit/idempotency/retry contract tests;
+- parser missing-dependency tests переведены с environment-dependent skip на monkeypatch-based проверку;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `137 passed`.
+
+Second slice done:
+
+- добавлен `WorkflowExecutionContext` для workflow node execution;
+- добавлен `WorkflowNodeSpec` как extension hook для sequential multi-node workflows;
+- `BaseWorkflow` компилирует invoke/resume graphs из node specs;
+- fallback runtime также исполняет node specs, сохраняя поведение без LangGraph;
+- `SubgraphWorkflow` получил `subgraph_name`, `invoke_as_subgraph(...)` и parent context propagation;
+- добавлены contract tests для multi-node invoke/resume, fallback runtime и subgraph context.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `140 passed`.
+
+Third slice done:
+
+- `BaseWorkflow` эмитит `WorkflowNodeEventRecord` для node `started/completed/failed`;
+- добавлен `WorkflowNodeEventSink` port;
+- `TaskWorkflowNodeEventSink` мапит workflow node events в существующий `task_events` read-model;
+- внешние API не изменились: node events доступны через `GET /api/v1/tasks/events` в `event_payload.event_kind=workflow_node`;
+- retrieval и knowledge-indexing workflows подключены к node event sink через application services;
+- добавлены unit/integration tests для explicit task events, workflow node events и API payload;
+- обычный suite без внешних флагов: `141 passed, 2 skipped`.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `143 passed`.
+
+Fourth slice done:
+
+- `WorkflowFactory` поддерживает DI-friendly `register_builder(...)` и `build(..., **dependencies)`;
+- сохранена обратная совместимость `register("key", WorkflowClass)`;
+- добавлены явные `WorkflowRegistrationError` и `WorkflowNotRegisteredError`;
+- duplicate registration запрещен по умолчанию, осознанная замена требует `replace=True`;
+- workflow capability metadata доступна через `metadata(key)`, discovery через `has(...)`/`list_workflows()`;
+- обновлены framework extension guide, README, SAO и ADR-0040;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `147 passed`.
+
+Next increment:
+
+- начать Increment 27: Production Retrieval Fabric.
+
+## Increment 27: Production Retrieval Fabric
+
+Статус: In Progress.
 
 Цель: перевести retrieval с demo/in-memory режима на indexed corpus.
 
 Scope:
 
+- использовать framework runtime/tool policies из Increment 26;
 - реализовать pgvector-backed summary/detail retrievers;
 - подключить real TEI embedding gateway для indexing;
 - подключить real TEI rerank gateway в authoring path;
@@ -171,7 +264,55 @@ Definition of Done:
 - metadata filtering работает через SQL/JSONB;
 - authoring path использует rerank.
 
-## Increment 27: Domain Authoring Extraction
+First slice done:
+
+- Knowledge Indexing пишет vector embeddings не только для `content_blocks`, но и для `section_summaries`;
+- добавлен `CanonicalSummaryVectorRetriever` поверх pgvector с `kind=knowledge_summary_embedding`;
+- `build_retrieval_workflow(... knowledge_source="canonical" ...)` использует pgvector-backed summary/detail retrievers при наличии `embedding_gateway` и `vector_store`;
+- in-memory fallback для demo/bootstrap режима сохранен;
+- добавлены contract tests для summary retriever, summary embedding indexing и canonical workflow с indexed summary/detail layers;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `149 passed`.
+
+Second slice done:
+
+- `TeiEmbeddingGateway` поддерживает real TEI HTTP `/embed` endpoint через `TEI_EMBEDDING_URL` или `TEI_BASE_URL`;
+- `TeiRerankGateway` поддерживает real TEI HTTP `/rerank` endpoint через `TEI_RERANK_URL` или `TEI_BASE_URL`;
+- локальный deterministic fallback сохранен, а fallback при сетевой ошибке включается явно через `TEI_FALLBACK_ENABLED=true`;
+- `ApiContainer` собирает embedding/rerank gateways из env;
+- `RetrievalApplicationService` принимает injected `rerank_gateway`, поэтому authoring path использует тот же rerank adapter через retrieval service;
+- добавлены unit tests на HTTP payload/parsing и fallback behavior;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `153 passed`.
+
+Third slice done:
+
+- добавлен `RetrievalQualityPolicy` для evidence quality gates;
+- `EvidenceBuilder` заполняет `EvidencePack.unresolved_gaps` и `confidence_notes`;
+- поддержаны gates:
+  - low evidence count;
+  - low confidence;
+  - missing required document types, включая `methodology`;
+  - missing source refs;
+- retrieval task details содержат `quality_gate_status`, `unresolved_gaps`, `confidence_notes`;
+- release readiness report показывает confidence, retrieval quality gate и unresolved gaps;
+- canonical retrieval smoke выводит `quality_gate_status`, `unresolved_gaps`, `confidence_notes`;
+- добавлены unit tests на policy gaps и report output;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `155 passed`.
+
+Fourth slice done:
+
+- Retrieval MCP расширен indexed canonical tools:
+  - `search_summaries`;
+  - `search_blocks`;
+  - `lookup_source`;
+- `search_summaries` использует `CanonicalSummaryVectorRetriever` поверх existing `embedding_gateway` + `vector_store`;
+- `search_blocks` использует `CanonicalVectorRetriever` поверх того же indexed corpus;
+- `lookup_source` читает canonical document/block source mapping через `CanonicalDocumentApplicationService`;
+- `build_evidence_pack` сохранен без изменения внешнего контракта;
+- добавлены typed MCP schemas и unit tests для metadata, summary/detail search, source lookup и backward compatibility;
+- targeted MCP tests: `6 passed`.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `159 passed`.
+
+## Increment 28: Domain Authoring Extraction
 
 Цель: вынести authoring из крупного application service в отдельный доменный слой.
 
@@ -207,7 +348,7 @@ Definition of Done:
 - authoring domain testable отдельно от FastAPI;
 - итоговый документ собирается deterministic assembly.
 
-## Increment 28: Unified Execution Plane + Observability
+## Increment 29: Unified Execution Plane + Observability
 
 Цель: сделать async execution и observability общими для всех long-running workflows.
 
@@ -239,7 +380,7 @@ Definition of Done:
 - audit/read-model слой пригоден для dashboard;
 - production troubleshooting возможен без чтения raw checkpoint payload.
 
-## Increment 29: MCP + Production Boundary
+## Increment 30: MCP + Production Boundary
 
 Цель: довести service boundary до production-like состояния.
 
@@ -272,6 +413,79 @@ Definition of Done:
 - MCP слой покрывает минимальный целевой набор;
 - operational runbook достаточен для stage/prod rehearsal;
 - service contracts не требуют knowledge of internal state payload.
+
+## Increment 31: Knowledge Factory Hardening
+
+Цель: довести canonical ingestion до требований ТЗ по форматам, quality gates и production parsing behavior.
+
+Scope:
+
+- OCR path для scanned PDF:
+  - `OCRmyPDF`;
+  - Tesseract adapter boundary;
+  - quality flags для OCR confidence;
+- rich layout extraction:
+  - PDF logical blocks;
+  - page/section mapping;
+  - tables;
+- DOCX hardening:
+  - tables;
+  - lists;
+  - appendices;
+- добавить parser adapters для:
+  - `.xlsx`;
+  - `.pptx`;
+- добавить document versions/read-model policy:
+  - stable canonical identity;
+  - version-aware lookup;
+  - re-index semantics;
+- перевести quality gates из summary policy в конфигурируемый production policy layer.
+
+Demo update:
+
+- release go/no-go multifile case расширяется table/list fixture;
+- smoke показывает quality gate decisions по parser families.
+
+Definition of Done:
+
+- canonical document model покрывает целевой parsing stack первого production-контура;
+- quality gates могут блокировать indexing в production policy;
+- retrieval получает source refs с page/table/section mapping.
+
+## Increment 32: Governance, Quality и Release Gate
+
+Цель: завершить backend/framework foundation как управляемую production-ready основу.
+
+Scope:
+
+- quality evaluation workflow;
+- HITL/reviewer aggregates:
+  - SLA;
+  - decision mix;
+  - reviewer load;
+- task events aggregates за day/week;
+- structured JSON logging и correlation id в API/worker/MCP;
+- production runbook:
+  - deploy;
+  - migrate;
+  - smoke;
+  - backup;
+  - restore;
+  - rollback;
+- release gate matrix:
+  - unit;
+  - integration;
+  - e2e;
+  - PostgreSQL smoke;
+  - async/Celery smoke;
+  - optional real LLM OpenRouter smoke.
+
+Definition of Done:
+
+- framework считается завершенным для backend foundation;
+- новый продуктовый workflow добавляется через documented extension path;
+- demo acceptance подтверждает полный путь `documents -> canonical indexing -> pgvector retrieval -> authoring -> HITL -> artifact -> traceability -> audit`;
+- дальнейшее развитие может переходить к frontend/product layer без закрепления временных backend contracts.
 
 ## Later Product/UI Track
 

@@ -90,7 +90,10 @@ class KnowledgeIndexingApplicationService:
             else:
                 documents.append(self._parser.parse_path(source_path))
 
-        workflow = build_knowledge_indexing_workflow(canonical_document_service=self._canonical_document_service)
+        workflow = build_knowledge_indexing_workflow(
+            canonical_document_service=self._canonical_document_service,
+            node_event_sink=self._task_service.build_workflow_node_event_sink() if self._task_service else None,
+        )
         result_state = workflow.invoke(
             KnowledgeIndexingState(
                 task_context=task_context or {},
@@ -141,6 +144,28 @@ class KnowledgeIndexingApplicationService:
                         "block_type": block.block_type,
                         "heading_path": block.heading_path,
                         "text": block.text,
+                    },
+                )
+                indexed += 1
+            for summary in document.section_summaries:
+                block_id = f"summary:{summary.section_id}"
+                block_ref = f"{document.doc_id}:{document.version}:{block_id}"
+                vector_key = f"knowledge_summary:{block_ref}"
+                self._vector_store.upsert_vector(
+                    vector_key,
+                    self._embedding_gateway.embed(summary.summary),
+                    {
+                        **metadata_by_doc,
+                        **summary.metadata,
+                        "kind": "knowledge_summary_embedding",
+                        "block_ref": block_ref,
+                        "doc_id": document.doc_id,
+                        "version": document.version,
+                        "block_id": block_id,
+                        "section_id": summary.section_id,
+                        "section_title": summary.title,
+                        "source_block_ids": list(summary.source_block_ids),
+                        "text": summary.summary,
                     },
                 )
                 indexed += 1

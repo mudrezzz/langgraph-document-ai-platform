@@ -10,6 +10,9 @@ class ToolContext(BaseModel):
 
     task_id: str
     actor: str
+    node_name: str | None = None
+    correlation_id: str | None = None
+    idempotency_key: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

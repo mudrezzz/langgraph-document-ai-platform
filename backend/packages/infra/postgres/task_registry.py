@@ -135,6 +135,40 @@ class PostgresTaskRegistry(TaskRegistry):
 
             conn.commit()
 
+    def record_event(self, record: TaskEventRecord) -> None:
+        if self._use_fallback:
+            self._record_event_with_fallback(record)
+            return
+
+        psycopg, _ = _import_psycopg()
+        event_payload = json.dumps(record.event_payload, ensure_ascii=False)
+        with psycopg.connect(self._dsn) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    INSERT INTO {self._schema}.task_events (
+                        task_id,
+                        task_type,
+                        from_status,
+                        to_status,
+                        from_current_node,
+                        to_current_node,
+                        event_payload
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
+                    """,
+                    (
+                        record.task_id,
+                        record.task_type,
+                        record.from_status,
+                        record.to_status,
+                        record.from_current_node,
+                        record.to_current_node,
+                        event_payload,
+                    ),
+                )
+            conn.commit()
+
     def get(self, task_id: str) -> TaskRecord:
         if self._use_fallback:
             item = self._tasks.get(task_id)
@@ -436,6 +470,15 @@ class PostgresTaskRegistry(TaskRegistry):
             to_current_node=saved_record.current_node,
             event_payload={"details": saved_record.details},
             created_at=saved_record.updated_at or now_utc,
+        )
+        self._events.append(event)
+
+    def _record_event_with_fallback(self, record: TaskEventRecord) -> None:
+        event = record.model_copy(
+            update={
+                "event_id": record.event_id or len(self._events) + 1,
+                "created_at": record.created_at or datetime.now(timezone.utc),
+            }
         )
         self._events.append(event)
 

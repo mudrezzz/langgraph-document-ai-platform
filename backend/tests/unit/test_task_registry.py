@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from application.task_service import InMemoryTaskRegistry, TaskRecord
+from application.task_service import InMemoryTaskRegistry, TaskApplicationService, TaskEventRecord, TaskRecord
+from framework.workflows.base import WorkflowNodeEventRecord
+from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.task_registry import PostgresTaskRegistry
 
 
@@ -167,6 +169,74 @@ def test_postgres_task_registry_fallback_records_status_audit_events() -> None:
     assert page.items[0].to_status == "completed"
     assert page.items[1].from_status is None
     assert page.items[1].to_status == "running"
+
+
+def test_postgres_task_registry_fallback_records_explicit_node_events() -> None:
+    registry = PostgresTaskRegistry(dsn=None, use_fallback_if_unset=True)
+    registry.save(
+        TaskRecord(
+            task_id="task-1",
+            task_type="retrieval_pack",
+            status="running",
+            current_node="start",
+        )
+    )
+
+    registry.record_event(
+        TaskEventRecord(
+            task_id="task-1",
+            task_type="retrieval_pack",
+            from_status="running",
+            to_status="running",
+            from_current_node="start",
+            to_current_node="invoke_entry",
+            event_payload={
+                "event_kind": "workflow_node",
+                "workflow_name": "RetrievalPackWorkflow",
+                "node_name": "invoke_entry",
+                "node_status": "completed",
+            },
+        )
+    )
+
+    page = registry.list_task_events(task_id="task-1", to_status="running", limit=10)
+    node_events = [item for item in page.items if item.event_payload.get("event_kind") == "workflow_node"]
+
+    assert len(node_events) == 1
+    assert node_events[0].from_status == "running"
+    assert node_events[0].to_status == "running"
+    assert node_events[0].to_current_node == "invoke_entry"
+    assert node_events[0].event_payload["node_status"] == "completed"
+
+
+def test_task_service_maps_workflow_node_events_to_task_events() -> None:
+    registry = PostgresTaskRegistry(dsn=None, use_fallback_if_unset=True)
+    service = TaskApplicationService(
+        registry=registry,
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    task = service.create_task("retrieval_pack")
+    sink = service.build_workflow_node_event_sink()
+
+    sink.record_node_event(
+        event=WorkflowNodeEventRecord(
+            workflow_name="RetrievalPackWorkflow",
+            node_name="invoke_entry",
+            task_id=task.task_id,
+            correlation_id="corr-1",
+            status="started",
+            metadata={"task_id": task.task_id, "correlation_id": "corr-1"},
+        )
+    )
+
+    events = service.list_task_events(task_id=task.task_id, limit=10).items
+    node_events = [item for item in events if item.event_payload.get("event_kind") == "workflow_node"]
+
+    assert len(node_events) == 1
+    assert node_events[0].event_payload["workflow_name"] == "RetrievalPackWorkflow"
+    assert node_events[0].event_payload["node_name"] == "invoke_entry"
+    assert node_events[0].event_payload["node_status"] == "started"
+    assert node_events[0].event_payload["correlation_id"] == "corr-1"
 
 
 def test_postgres_task_registry_fallback_task_events_cursor_and_filters() -> None:

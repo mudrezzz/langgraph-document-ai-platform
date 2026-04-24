@@ -63,6 +63,8 @@ def build_report_from_payloads(
 ) -> str:
     selected_blocks = evidence_payload.get("evidence_pack", {}).get("selected_blocks", [])
     selected_sources = evidence_payload.get("evidence_pack", {}).get("selected_sources", [])
+    unresolved_gaps = evidence_payload.get("evidence_pack", {}).get("unresolved_gaps", [])
+    confidence_notes = evidence_payload.get("evidence_pack", {}).get("confidence_notes", [])
 
     blockers = _detect_blockers(selected_blocks)
     pending_approvals = _detect_pending_approvals(selected_blocks)
@@ -88,6 +90,8 @@ def build_report_from_payloads(
         pending_approvals=pending_approvals,
         selected_sources=selected_sources,
         source_mappings=source_mappings,
+        unresolved_gaps=unresolved_gaps,
+        confidence_notes=confidence_notes,
         indexing_details=(indexing_status_payload or {}).get("details", {}),
         transitions=events_summary_payload.get("transitions", []),
         total_events=events_summary_payload.get("total_events", 0),
@@ -136,6 +140,8 @@ def _build_report(
     pending_approvals: list[str],
     selected_sources: list[dict],
     source_mappings: list[dict],
+    unresolved_gaps: list[str],
+    confidence_notes: list[str],
     indexing_details: dict,
     transitions: list[dict],
     total_events: int,
@@ -153,6 +159,8 @@ def _build_report(
     if task_details:
         lines.append(f"- Knowledge source: `{task_details.get('knowledge_source', 'case_dataset')}`")
         lines.append(f"- Retrieval backend: `{task_details.get('retrieval_backend', 'in_memory')}`")
+        lines.append(f"- Retrieval quality gate: `{task_details.get('quality_gate_status', 'unknown')}`")
+        lines.append(f"- Confidence: `{task_details.get('confidence', 'unknown')}`")
     lines.append("")
     lines.append("## Decision")
     lines.append("")
@@ -198,6 +206,26 @@ def _build_report(
             lines.append("")
             for flag in flags:
                 lines.append(f"- `{flag}`")
+
+    lines.append("")
+    lines.append("## Retrieval Quality")
+    lines.append("")
+    if confidence_notes:
+        lines.append("### Confidence Notes")
+        lines.append("")
+        for note in confidence_notes:
+            lines.append(f"- `{note}`")
+    else:
+        lines.append("- Confidence notes: none")
+
+    lines.append("")
+    lines.append("### Unresolved Gaps")
+    lines.append("")
+    if unresolved_gaps:
+        for gap in unresolved_gaps:
+            lines.append(f"- `{gap}`")
+    else:
+        lines.append("- Нет unresolved gaps")
 
     lines.append("")
     lines.append("## Evidence Sources")

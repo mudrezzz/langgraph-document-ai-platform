@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 25`.
+Текущий инкремент: `Increment 27`.
 
 Сделано:
 
@@ -82,7 +82,7 @@
   - `-CaseDatasetDir` (Windows).
 - добавлен Retrieval MCP MVP:
   - `apps/mcp_retrieval/main.py`;
-  - `FastMcpRetrievalService` с tool `build_evidence_pack`;
+  - `FastMcpRetrievalService` с tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
   - скрипты запуска `run_retrieval_mcp.sh/.ps1`.
 - добавлен Repository MCP MVP:
   - `apps/mcp_repository/main.py`;
@@ -162,6 +162,24 @@
   - `PgVectorStoreAdapter.query_similar(...)`;
   - `CanonicalVectorRetriever`;
   - smoke показывает `retrieval_backend=pgvector`.
+- начат `Increment 26: Framework Runtime Closure`:
+  - `ToolExecutor` расширен runtime policy (`ToolExecutionPolicy`);
+  - добавлены retry, idempotency key handling и audit records для framework tools;
+  - `ToolContext` поддерживает `node_name`, `correlation_id`, `idempotency_key`;
+  - добавлены contract tests для retry/idempotency/audit behavior.
+  - `BaseWorkflow` поддерживает multi-node `WorkflowNodeSpec` hooks для invoke/resume graph;
+  - добавлен `WorkflowExecutionContext` с `task_id`, `correlation_id`, `node_name`;
+  - `SubgraphWorkflow` поддерживает `invoke_as_subgraph(...)` и parent context propagation.
+  - `BaseWorkflow` эмитит node-level events (`started/completed/failed`);
+  - retrieval и knowledge-indexing workflows пишут node events в существующий `task_events` audit через `event_payload.event_kind=workflow_node`.
+  - `WorkflowFactory` поддерживает DI-friendly builders, capability metadata и явные ошибки duplicate/missing registration.
+- начат `Increment 27: Production Retrieval Fabric`:
+  - Knowledge Indexing индексирует embeddings для canonical `section_summaries`;
+  - добавлен pgvector-backed `CanonicalSummaryVectorRetriever`;
+  - canonical retrieval использует pgvector summary/detail layers при наличии embedding gateway и vector store.
+  - `TeiEmbeddingGateway` и `TeiRerankGateway` поддерживают real TEI HTTP endpoints с env-конфигом и deterministic fallback.
+  - `EvidenceBuilder` применяет retrieval quality gates и заполняет `unresolved_gaps`/`confidence_notes`.
+  - Retrieval MCP расширен indexed canonical tools `search_summaries`, `search_blocks`, `lookup_source` поверх existing canonical/vector adapters.
 
 ## Структура
 
@@ -544,6 +562,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - добавлен authoring API flow (`authoring/start`, `tasks/{task_id}/artifact`) с итоговым draft-артефактом.
 - сохраняется traceability link `task -> artifact -> retrieval sources` в `app.task_artifacts`.
 - authoring draft поддерживает реальную LLM (OpenRouter) с режимами `auto|deterministic|llm`.
+- embeddings/rerank поддерживают TEI HTTP endpoints:
+  - `TEI_BASE_URL` задает общий endpoint, из которого строятся `/embed` и `/rerank`;
+  - `TEI_EMBEDDING_URL` и `TEI_RERANK_URL` могут задать endpoints явно;
+  - `TEI_API_KEY` добавляется как Bearer token, если требуется;
+  - `TEI_TIMEOUT_SEC` задает timeout;
+  - `TEI_FALLBACK_ENABLED=true` разрешает deterministic fallback при transport/API ошибке.
 - multi-step authoring поддерживает шаги `research -> writer -> reviewer -> assembly` и сохраняет их в `steps_summary`.
 - traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
 - async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
@@ -554,6 +578,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `KnowledgeIndexingWorkflow` сохраняет canonical documents и derived knowledge blocks через отдельный canonical store boundary.
 - retrieval start поддерживает canonical knowledge source через `task_context.knowledge_source=canonical`.
 - canonical detail retrieval использует vector index для `knowledge_blocks`, если доступен embedding gateway + vector store.
+- retrieval quality gates доступны в task details и evidence pack:
+  - `quality_gate_status`;
+  - `unresolved_gaps`;
+  - `confidence_notes`.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -671,7 +699,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 ## MCP Контракты (MVP)
 
 - Retrieval MCP:
-  - tool `build_evidence_pack`;
+  - tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
   - схемы `backend/packages/schemas/mcp/retrieval.py`.
 - Repository MCP:
   - tools `upsert_document`, `get_document`, `list_documents`;

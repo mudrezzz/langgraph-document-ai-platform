@@ -78,6 +78,9 @@ def main() -> None:
         "task_status": status.status,
         "knowledge_source": status.details.get("knowledge_source"),
         "retrieval_backend": status.details.get("retrieval_backend"),
+        "quality_gate_status": status.details.get("quality_gate_status"),
+        "unresolved_gaps": status.details.get("unresolved_gaps", []),
+        "confidence_notes": status.details.get("confidence_notes", []),
         "evidence_blocks": len(evidence.evidence_pack.selected_blocks),
         "top_sources": [source.model_dump(mode="json") for source in evidence.evidence_pack.selected_sources[:5]],
     }

@@ -39,6 +39,12 @@ OPENROUTER_API_KEY=
 OPENROUTER_MODEL=openai/gpt-4o-mini
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_TIMEOUT_SEC=60
+TEI_BASE_URL=
+TEI_EMBEDDING_URL=
+TEI_RERANK_URL=
+TEI_API_KEY=
+TEI_TIMEOUT_SEC=30
+TEI_FALLBACK_ENABLED=false
 APP_ASYNC_PROVIDER=inline
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0
@@ -171,9 +177,10 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 - `quality_gate_status=warning` для текущего PDF fixture;
 - `knowledge_source=canonical`;
 - `retrieval_backend=pgvector`;
+- `quality_gate_status=passed|warning`;
 - `evidence_blocks > 0`;
 - `top_sources` содержит документы из нескольких файлов, включая `.docx`/`.pdf` при релевантном запросе;
-- отчет содержит `Canonical Quality Summary` и `Canonical Source Mapping`.
+- отчет содержит `Canonical Quality Summary`, `Retrieval Quality` и `Canonical Source Mapping`.
 
 ## 8. Готово / Не реализовано в demo-контуре
 
@@ -201,7 +208,16 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
 Что увидеть:
 
 - MCP-сервис стартует без ошибки импорта;
+- доступны tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+Как интерпретировать:
+
+- `build_evidence_pack` сохраняет прежний end-to-end retrieval task contract;
+- `search_summaries` ищет indexed canonical section summaries через pgvector;
+- `search_blocks` ищет indexed canonical content blocks через pgvector;
+- `lookup_source` возвращает source/canonical mapping по `doc_id`/`block_id` или `block_ref`;
+- для indexed tools нужен PostgreSQL/pgvector контур с ранее выполненным Knowledge Indexing.
 
 ## 10. Smoke Repository MCP (document tools)
 
@@ -363,6 +379,7 @@ bash backend/scripts/smoke_canonical_retrieval.sh \
 - `embeddings_indexed` около `37` или больше;
 - `knowledge_source=canonical`;
 - `retrieval_backend=pgvector`;
+- `quality_gate_status=passed|warning`;
 - `evidence_blocks > 0` (на текущем fixture обычно десятки blocks);
 - `top_sources` содержит `05RELEAS-*` и `06AUDITS-*` для этого binary-focused запроса;
 - `task_status=completed`.
@@ -370,7 +387,8 @@ bash backend/scripts/smoke_canonical_retrieval.sh \
 Как интерпретировать:
 
 - это подтверждает путь `canonical documents -> knowledge_blocks -> retrieval evidence pack`.
-- detail retrieval идет через pgvector-backed `CanonicalVectorRetriever`, а не через старый demo dataset loader.
+- summary/detail retrieval идет через pgvector-backed canonical retrievers, а не через старый demo dataset loader;
+- retrieval quality gates видны в task details и `EvidencePack.unresolved_gaps`.
 
 ## 13.4. Ручной API-прогон canonical retrieval после indexing
 

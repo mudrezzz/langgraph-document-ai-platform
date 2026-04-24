@@ -69,9 +69,19 @@ def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Pat
     block = canonical_document_service.list_blocks(limit=1).items[0]
     stored = vector_store.get_vector(f"knowledge_block:{block.block_ref}")
 
-    assert result.embeddings_indexed == 2
+    assert result.embeddings_indexed == 3
     assert stored is not None
     vector, metadata = stored
     assert len(vector) == 8
     assert metadata["kind"] == "knowledge_block_embedding"
     assert metadata["block_ref"] == block.block_ref
+    document = canonical_document_service.get_document(result.indexed_doc_ids[0])
+    summary_key = (
+        f"knowledge_summary:{document.doc_id}:{document.version}:"
+        f"summary:{document.section_summaries[0].section_id}"
+    )
+    summary_stored = vector_store.get_vector(summary_key)
+    assert summary_stored is not None
+    _, summary_metadata = summary_stored
+    assert summary_metadata["kind"] == "knowledge_summary_embedding"
+    assert summary_metadata["block_id"].startswith("summary:")

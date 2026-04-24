@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from framework.rag.pipeline import HierarchicalRAGPipeline
-from framework.workflows.base import BaseWorkflow
+from framework.workflows.base import BaseWorkflow, WorkflowNodeEventSink
 from schemas.workflow.states import RetrievalWorkflowState
 
 
 class RetrievalPackWorkflow(BaseWorkflow):
     """Первый рабочий вертикальный срез retrieval workflow."""
 
-    def __init__(self, pipeline: HierarchicalRAGPipeline, checkpointer: object | None = None) -> None:
-        super().__init__(use_langgraph_runtime=True, checkpointer=checkpointer)
+    def __init__(
+        self,
+        pipeline: HierarchicalRAGPipeline,
+        checkpointer: object | None = None,
+        node_event_sink: WorkflowNodeEventSink | None = None,
+    ) -> None:
+        super().__init__(use_langgraph_runtime=True, checkpointer=checkpointer, node_event_sink=node_event_sink)
         self._pipeline = pipeline
         self.compile()
 

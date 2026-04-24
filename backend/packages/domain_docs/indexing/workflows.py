@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from framework.workflows.base import BaseWorkflow
+from framework.workflows.base import BaseWorkflow, WorkflowNodeEventSink
 from schemas.documents.contracts import CanonicalDocument
 from schemas.workflow.states import KnowledgeIndexingState
 
@@ -17,8 +17,13 @@ class CanonicalDocumentStore(Protocol):
 class KnowledgeIndexingWorkflow(BaseWorkflow):
     """LangGraph-backed canonical indexing workflow MVP."""
 
-    def __init__(self, store: CanonicalDocumentStore, checkpointer: object | None = None) -> None:
-        super().__init__(use_langgraph_runtime=True, checkpointer=checkpointer)
+    def __init__(
+        self,
+        store: CanonicalDocumentStore,
+        checkpointer: object | None = None,
+        node_event_sink: WorkflowNodeEventSink | None = None,
+    ) -> None:
+        super().__init__(use_langgraph_runtime=True, checkpointer=checkpointer, node_event_sink=node_event_sink)
         self._store = store
         self.compile()
 

@@ -16,11 +16,15 @@ class CanonicalVectorRetriever(IRetriever):
         vector_store: PgVectorStoreAdapter,
         doc_ids: list[str] | None = None,
         search_limit: int = 200,
+        metadata_kind: str = "knowledge_block_embedding",
+        block_kind: str = "content_block",
     ) -> None:
         self._embedding_gateway = embedding_gateway
         self._vector_store = vector_store
         self._doc_ids = list(dict.fromkeys(doc_ids or []))
         self._search_limit = search_limit
+        self._metadata_kind = metadata_kind
+        self._block_kind = block_kind
 
     def retrieve(self, query: str, filters: RetrievalFilter) -> list[RetrievedBlock]:
         query_vector = self._embedding_gateway.embed(query)
@@ -31,7 +35,7 @@ class CanonicalVectorRetriever(IRetriever):
                     self._vector_store.query_similar(
                         query_vector,
                         limit=self._search_limit,
-                        metadata_filter={"kind": "knowledge_block_embedding", "doc_id": doc_id},
+                        metadata_filter={"kind": self._metadata_kind, "doc_id": doc_id},
                     )
                 )
             results = sorted(results, key=lambda item: item.score, reverse=True)[: self._search_limit]
@@ -39,13 +43,37 @@ class CanonicalVectorRetriever(IRetriever):
             results = self._vector_store.query_similar(
                 query_vector,
                 limit=self._search_limit,
-                metadata_filter={"kind": "knowledge_block_embedding"},
+                metadata_filter={"kind": self._metadata_kind},
             )
-        blocks = [_result_to_retrieved_block(result.metadata, score=result.score) for result in results]
+        blocks = [
+            _result_to_retrieved_block(result.metadata, score=result.score, block_kind=self._block_kind)
+            for result in results
+        ]
         return [block for block in blocks if _matches_filter(block, filters)]
 
 
-def _result_to_retrieved_block(metadata: dict, *, score: float) -> RetrievedBlock:
+class CanonicalSummaryVectorRetriever(CanonicalVectorRetriever):
+    """Vector-backed retriever for canonical section summaries."""
+
+    def __init__(
+        self,
+        *,
+        embedding_gateway: IEmbeddingGateway,
+        vector_store: PgVectorStoreAdapter,
+        doc_ids: list[str] | None = None,
+        search_limit: int = 200,
+    ) -> None:
+        super().__init__(
+            embedding_gateway=embedding_gateway,
+            vector_store=vector_store,
+            doc_ids=doc_ids,
+            search_limit=search_limit,
+            metadata_kind="knowledge_summary_embedding",
+            block_kind="section_summary",
+        )
+
+
+def _result_to_retrieved_block(metadata: dict, *, score: float, block_kind: str) -> RetrievedBlock:
     return RetrievedBlock.model_validate(
         {
             "text": metadata.get("text", ""),
@@ -62,10 +90,13 @@ def _result_to_retrieved_block(metadata: dict, *, score: float) -> RetrievedBloc
                 "doc_title": metadata.get("doc_title"),
                 "source_path": metadata.get("source_path"),
                 "file_type": metadata.get("file_type"),
-                "block_kind": "content_block",
+                "block_kind": block_kind,
                 "block_type": metadata.get("block_type"),
                 "heading_path": metadata.get("heading_path", []),
                 "block_ref": metadata.get("block_ref"),
+                "section_id": metadata.get("section_id"),
+                "section_title": metadata.get("section_title"),
+                "source_block_ids": metadata.get("source_block_ids", []),
                 "retrieval_backend": "pgvector",
             },
         }

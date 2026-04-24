@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-23
-Статус: Increment 25
+Дата обновления: 2026-04-24
+Статус: Increment 27
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 25)
+## 2. Текущая реализация (Increment 27)
 
 Реализовано:
 
@@ -22,6 +22,27 @@
 - root roadmap `BACKLOG.md` для завершения backend/framework части;
 - framework extension guide `docs/framework_extension_guide.md`;
 - contract tests для базовых framework agents/tools/mcp/db/stores;
+- первый срез Framework Runtime Closure:
+  - `ToolExecutor` поддерживает `ToolExecutionPolicy`;
+  - добавлены retry, timeout accounting, idempotency key handling и audit records для tool calls;
+  - `ToolContext` расширен `node_name`, `correlation_id`, `idempotency_key`;
+  - добавлен in-memory audit sink для unit/dev contract tests.
+- второй срез Framework Runtime Closure:
+  - `BaseWorkflow` поддерживает `workflow_nodes(is_resume=...)` и `WorkflowNodeSpec`;
+  - LangGraph invoke/resume graphs компилируются из sequential node specs;
+  - fallback runtime также исполняет node specs;
+  - `WorkflowExecutionContext` прокидывает `workflow_name`, `node_name`, `task_id`, `correlation_id`, `is_resume`, `metadata`;
+  - `SubgraphWorkflow` поддерживает `subgraph_name`, `invoke_as_subgraph(...)` и parent context propagation.
+- третий срез Framework Runtime Closure:
+  - `BaseWorkflow` эмитит `WorkflowNodeEventRecord` для node `started/completed/failed`;
+  - `TaskWorkflowNodeEventSink` сохраняет workflow node events в существующий `task_events` read-model;
+  - node events доступны через существующий `GET /api/v1/tasks/events` без изменения API schemas;
+  - retrieval и knowledge-indexing workflows подключены к node-level audit.
+- четвертый срез Framework Runtime Closure:
+  - `WorkflowFactory` поддерживает DI-friendly builders через `register_builder(...)`;
+  - `build(..., **dependencies)` передает dependencies в workflow builder;
+  - duplicate/missing registry paths поднимают `WorkflowRegistrationError`/`WorkflowNotRegisteredError`;
+  - factory хранит workflow capability metadata.
 - Knowledge Factory MVP:
   - canonical document contracts в `schemas.documents`;
   - `domain_docs` package;
@@ -39,7 +60,11 @@
   - `task_context.canonical_doc_ids`;
   - loader `load_canonical_knowledge_dataset`;
   - `CanonicalVectorRetriever`;
+  - `CanonicalSummaryVectorRetriever`;
   - embedding write path в `app.embeddings`;
+  - pgvector-backed summary/detail retrieval при наличии embedding gateway и vector store;
+  - TEI HTTP adapters для `/embed` и `/rerank` с env-конфигурацией и explicit fallback;
+  - retrieval quality gates пишут `quality_gate_status`, `unresolved_gaps`, `confidence_notes`;
   - smoke `backend/scripts/smoke_canonical_retrieval.sh/.ps1`.
 - `BaseWorkflow` с LangGraph-backed compile/invoke/resume;
 - API boundary + task lifecycle + interrupt/resume ветки;
@@ -110,7 +135,9 @@
 - Retrieval MCP MVP:
   - app entrypoint `apps/mcp_retrieval/main.py`;
   - сервис `FastMcpRetrievalService`;
-  - минимальный MCP tool `build_evidence_pack`.
+  - MCP tools: `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
+  - indexed canonical search tools используют `CanonicalSummaryVectorRetriever`/`CanonicalVectorRetriever`;
+  - `lookup_source` читает canonical source mapping через `CanonicalDocumentApplicationService`.
 - Repository MCP MVP:
   - app entrypoint `apps/mcp_repository/main.py`;
   - сервис `FastMcpRepositoryService`;
@@ -189,10 +216,19 @@
   - `docs/adr/0031-canonical-document-store-and-binary-parser-adapters.md`.
   - `docs/adr/0032-canonical-knowledge-retrieval-source.md`.
   - `docs/adr/0033-knowledge-block-embedding-index-and-vector-retrieval.md`.
+  - `docs/adr/0037-framework-tool-execution-policy.md`.
+  - `docs/adr/0038-workflow-node-specs-and-subgraph-context.md`.
+  - `docs/adr/0039-workflow-node-events-task-audit.md`.
+  - `docs/adr/0040-workflow-factory-di-builders.md`.
+  - `docs/adr/0041-indexed-canonical-summary-retrieval.md`.
+  - `docs/adr/0042-real-tei-embedding-and-rerank-gateways.md`.
+  - `docs/adr/0043-retrieval-quality-gates.md`.
+  - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
 - MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
+- framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - отсутствуют полноценные `domain_authoring` workflows;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
@@ -202,16 +238,15 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
-2. Дорастить async execution до общего execution-plane (не только authoring).
-3. Дорастить ingestion до OCR/rich layout/table extraction и более строгих quality gates.
-4. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
-5. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
+1. Завершить retrieval fabric вокруг production adapters: pgvector summary/detail search, real TEI embeddings/rerank, quality gates и operational smoke для indexed MCP.
+2. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
+3. Дорастить async execution до общего execution-plane (не только authoring).
+4. Дорастить ingestion до OCR/rich layout/table extraction и более строгих quality gates.
+5. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
+6. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Расширить release go/no-go demo artifact под canonical source mapping и quality flags.
-2. Дорастить quality gates до policy-конфигурации и отдельных acceptance thresholds.
-3. Добавить OCR/table/rich layout extraction как отдельный parser sub-slice.
-4. Подготовить Retrieval MCP tools для canonical source lookup.
-5. Заменить deterministic embedding stub на real TEI HTTP client.
+1. Начать Increment 27: Production Retrieval Fabric.
+2. Закрепить operational smoke для Retrieval MCP indexed tools.
+3. Расширить contract tests для metadata filtering и source lookup edge cases.

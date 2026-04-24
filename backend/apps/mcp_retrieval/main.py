@@ -8,7 +8,12 @@ def create_server() -> object:
     """Создает FastMCP сервер retrieval домена."""
 
     container = ApiContainer()
-    service = FastMcpRetrievalService(container.retrieval_service)
+    service = FastMcpRetrievalService(
+        container.retrieval_service,
+        canonical_document_service=container.canonical_document_service,
+        embedding_gateway=container.embedding_gateway,
+        vector_store=container.vector_store,
+    )
     return create_fastmcp_retrieval_server(service)
 
 
