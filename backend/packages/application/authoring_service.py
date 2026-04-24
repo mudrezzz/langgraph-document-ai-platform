@@ -8,7 +8,13 @@ from pydantic import BaseModel, Field
 
 from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
-from domain_authoring import DocumentAssembler, OutlinePlanner, SectionReviewService
+from domain_authoring import (
+    DocumentAssembler,
+    OutlinePlanner,
+    ResearchSummaryBuilder,
+    SectionReviewService,
+    WriterDraftService,
+)
 from application.errors import (
     InvalidTaskStateError,
     TaskArtifactLinkNotFoundError,
@@ -101,6 +107,8 @@ class AuthoringApplicationService:
         outline_planner: OutlinePlanner | None = None,
         section_review_service: SectionReviewService | None = None,
         document_assembler: DocumentAssembler | None = None,
+        research_summary_builder: ResearchSummaryBuilder | None = None,
+        writer_draft_service: WriterDraftService | None = None,
     ) -> None:
         self._task_service = task_service
         self._retrieval_service = retrieval_service
@@ -117,6 +125,8 @@ class AuthoringApplicationService:
         self._outline_planner = outline_planner or OutlinePlanner()
         self._section_review_service = section_review_service or SectionReviewService()
         self._document_assembler = document_assembler or DocumentAssembler()
+        self._research_summary_builder = research_summary_builder or ResearchSummaryBuilder()
+        self._writer_draft_service = writer_draft_service or WriterDraftService()
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
@@ -1161,25 +1171,7 @@ class AuthoringApplicationService:
         return refs
 
     def _build_research_summary(self, *, query: str, evidence_pack: EvidencePack) -> str:
-        """Собирает research summary для следующего writer этапа."""
-
-        lines = [
-            "Запрос:",
-            query.strip(),
-            "",
-            "Ключевые наблюдения:",
-        ]
-
-        for block in evidence_pack.selected_blocks[:6]:
-            snippet = block.text.strip()
-            if len(snippet) > 220:
-                snippet = snippet[:217] + "..."
-            lines.append(f"- {snippet} ({block.source.doc_id}/{block.source.block_id})")
-
-        if not evidence_pack.selected_blocks:
-            lines.append("- Retrieval не вернул блоки evidence.")
-
-        return "\n".join(lines)
+        return self._research_summary_builder.build_summary(query=query, evidence_pack=evidence_pack)
 
     def _generate_draft(
         self,
@@ -1261,43 +1253,11 @@ class AuthoringApplicationService:
         )
 
     def _build_writer_draft_content(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
-        """Собирает writer draft без внешней LLM."""
-
-        lines = [
-            "## Writer Draft",
-            "",
-            "### Intent",
-            query.strip(),
-            "",
-            "### Research Digest",
-            research_summary,
-            "",
-            "### Risk Signals",
-        ]
-
-        risk_keywords = ("risk", "block", "pending", "fail", "critical", "approval")
-        risk_blocks: list[str] = []
-        for block in evidence_pack.selected_blocks[:10]:
-            lowered = block.text.lower()
-            if any(keyword in lowered for keyword in risk_keywords):
-                snippet = block.text.strip()
-                if len(snippet) > 180:
-                    snippet = snippet[:177] + "..."
-                risk_blocks.append(f"- {snippet} ({block.source.doc_id}/{block.source.block_id})")
-
-        if risk_blocks:
-            lines.extend(risk_blocks[:5])
-        else:
-            lines.append("- Явные risk-signal блоки не найдены, нужна ручная проверка.")
-
-        lines.extend(
-            [
-                "",
-                "### Preliminary Recommendation",
-                "Decision pending reviewer validation.",
-            ]
+        return self._writer_draft_service.build_deterministic_draft(
+            query=query,
+            evidence_pack=evidence_pack,
+            research_summary=research_summary,
         )
-        return "\n".join(lines)
 
     def _review_draft(
         self,
@@ -1340,47 +1300,11 @@ class AuthoringApplicationService:
         )
 
     def _build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
-        """Собирает prompt для LLM writer этапа."""
-
-        lines = [
-            "Подготовь writer-черновик release readiness в markdown.",
-            "",
-            "Структура:",
-            "1. Risk Assessment.",
-            "2. Pending Approvals.",
-            "3. Preliminary Recommendation.",
-            "4. Evidence Sources.",
-            "",
-            "Важно: используй только evidence и research summary, не выдумывай факты.",
-            "",
-            "Запрос:",
-            query.strip(),
-            "",
-            "Research summary:",
-            research_summary,
-            "",
-            "Evidence blocks:",
-        ]
-
-        for block in evidence_pack.selected_blocks[:10]:
-            snippet = block.text.strip()
-            if len(snippet) > 500:
-                snippet = snippet[:497] + "..."
-            lines.append(f"- [{block.source.doc_id}/{block.source.version}/{block.source.block_id}] {snippet}")
-
-        if not evidence_pack.selected_blocks:
-            lines.append("- evidence blocks отсутствуют")
-
-        lines.extend(
-            [
-                "",
-                "Evidence sources:",
-            ]
+        return self._writer_draft_service.build_llm_prompt(
+            query=query,
+            evidence_pack=evidence_pack,
+            research_summary=research_summary,
         )
-        for source in evidence_pack.selected_sources[:20]:
-            lines.append(f"- {source.doc_id}/{source.version}/{source.block_id}")
-
-        return "\n".join(lines)
 
     def _select_sources_by_keywords(
         self,

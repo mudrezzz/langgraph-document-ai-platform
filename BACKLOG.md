@@ -380,6 +380,13 @@ First slice done:
 - добавлен ADR-0045 и unit tests для новых domain services;
 - targeted authoring tests: `11 passed`.
 
+Second slice done:
+
+- в `domain_authoring` добавлены `ResearchSummaryBuilder` и `WriterDraftService`;
+- `AuthoringApplicationService` больше не содержит research summary formatting, deterministic draft formatting и LLM prompt composition;
+- orchestration выбора `draft_strategy`, внешнего LLM gateway и fallback policy сохранена в application layer;
+- добавлен ADR-0046 и расширены unit tests domain authoring.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

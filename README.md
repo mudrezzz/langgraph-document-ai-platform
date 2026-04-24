@@ -587,8 +587,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - Docker/Celery e2e покрывает как базовый approve-flow, так и iterative path `needs_changes -> approve`.
 - начат `Increment 28: Domain Authoring Extraction`:
   - добавлен пакет `backend/packages/domain_authoring`;
-  - минимально выделены `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`;
-  - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API.
+  - выделены `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`, `ResearchSummaryBuilder`, `WriterDraftService`;
+  - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API;
+  - выбор LLM strategy/fallback остается в application layer, а research/writer composition вынесены в domain layer.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.

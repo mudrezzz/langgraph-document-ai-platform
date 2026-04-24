@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from domain_authoring import DocumentAssembler, OutlinePlanner, SectionReviewService
+from domain_authoring import DocumentAssembler, OutlinePlanner, ResearchSummaryBuilder, SectionReviewService, WriterDraftService
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
 
 
@@ -93,3 +93,34 @@ def test_document_assembler_builds_multistep_report() -> None:
     assert "# Release Readiness Report" in content
     assert "## Reviewer" in content
     assert "Pending security approval" in content
+
+
+def test_research_summary_builder_formats_evidence_observations() -> None:
+    builder = ResearchSummaryBuilder()
+
+    summary = builder.build_summary(query="release readiness", evidence_pack=_build_evidence_pack())
+
+    assert "Запрос:" in summary
+    assert "Ключевые наблюдения:" in summary
+    assert "REQ-1/B-1" in summary
+
+
+def test_writer_draft_service_builds_deterministic_draft_and_prompt() -> None:
+    service = WriterDraftService()
+    evidence_pack = _build_evidence_pack()
+
+    draft = service.build_deterministic_draft(
+        query="release readiness",
+        evidence_pack=evidence_pack,
+        research_summary="Research summary",
+    )
+    prompt = service.build_llm_prompt(
+        query="release readiness",
+        evidence_pack=evidence_pack,
+        research_summary="Research summary",
+    )
+
+    assert "## Writer Draft" in draft
+    assert "Critical approval is pending" in draft
+    assert "Research summary:" in prompt
+    assert "[REQ-1/1/B-1]" in prompt

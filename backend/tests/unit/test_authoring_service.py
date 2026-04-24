@@ -8,6 +8,7 @@ from application.authoring_service import AuthoringApplicationService, TaskArtif
 from application.async_dispatcher import InlineAuthoringAsyncDispatcher
 from application.errors import InvalidTaskStateError
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
+from domain_authoring import ResearchSummaryBuilder, WriterDraftService
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from schemas.api.contracts import (
     EvidencePackResponse,
@@ -97,6 +98,41 @@ class _FakeChatGateway:
         if self._error is not None:
             raise self._error
         return self._response
+
+
+class _TrackingResearchSummaryBuilder(ResearchSummaryBuilder):
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def build_summary(self, *, query: str, evidence_pack: EvidencePack) -> str:
+        self.calls.append({"query": query, "blocks": len(evidence_pack.selected_blocks)})
+        return "Tracked research summary"
+
+
+class _TrackingWriterDraftService(WriterDraftService):
+    def __init__(self) -> None:
+        self.draft_calls: list[dict[str, Any]] = []
+        self.prompt_calls: list[dict[str, Any]] = []
+
+    def build_deterministic_draft(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
+        self.draft_calls.append(
+            {
+                "query": query,
+                "research_summary": research_summary,
+                "blocks": len(evidence_pack.selected_blocks),
+            }
+        )
+        return "## Writer Draft\n\nTracked deterministic draft"
+
+    def build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
+        self.prompt_calls.append(
+            {
+                "query": query,
+                "research_summary": research_summary,
+                "blocks": len(evidence_pack.selected_blocks),
+            }
+        )
+        return "Tracked llm prompt"
 
 
 def _build_inline_dispatcher(service: AuthoringApplicationService) -> InlineAuthoringAsyncDispatcher:
@@ -248,6 +284,79 @@ def test_authoring_service_single_pass_marks_reviewer_skipped() -> None:
     artifact = service.artifact(response.task_id)
     assert artifact.metadata["workflow_mode"] == "single_pass"
     assert artifact.metadata["review_status"] == "skipped"
+
+
+def test_authoring_service_uses_injected_research_and_writer_domain_services() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    research_builder = _TrackingResearchSummaryBuilder()
+    writer_service = _TrackingWriterDraftService()
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        research_summary_builder=research_builder,
+        writer_draft_service=writer_service,
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="tracked authoring draft",
+            artifact_type="release_report",
+            artifact_title="Tracked Domain Services",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={"requester": "unit-test"},
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert research_builder.calls == [{"query": "tracked authoring draft", "blocks": 1}]
+    assert writer_service.draft_calls == [
+        {"query": "tracked authoring draft", "research_summary": "Tracked research summary", "blocks": 1}
+    ]
+    assert writer_service.prompt_calls == []
+    assert "Tracked deterministic draft" in artifact.content
+
+
+def test_authoring_service_uses_injected_writer_service_for_llm_prompt() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    writer_service = _TrackingWriterDraftService()
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        research_summary_builder=_TrackingResearchSummaryBuilder(),
+        writer_draft_service=writer_service,
+        chat_model_gateway=_FakeChatGateway(response="# LLM Draft\n\nTracked model output."),
+        llm_enabled=True,
+        llm_provider="openrouter",
+        llm_model_name="openai/gpt-4o-mini",
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="tracked llm authoring draft",
+            artifact_type="release_report",
+            artifact_title="Tracked LLM Prompt",
+            artifact_format="markdown",
+            draft_strategy="auto",
+            task_context={"requester": "unit-test"},
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert len(writer_service.prompt_calls) == 1
+    assert writer_service.prompt_calls[0]["research_summary"] == "Tracked research summary"
+    assert artifact.metadata["draft_generation_mode"] == "llm"
+    assert "Tracked model output." in artifact.content
 
 
 def test_authoring_service_supports_hitl_wait_and_submit() -> None:

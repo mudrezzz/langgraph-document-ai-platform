@@ -55,3 +55,4 @@
 - `0043-retrieval-quality-gates.md`
 - `0044-retrieval-mcp-indexed-canonical-tools.md`
 - `0045-domain-authoring-minimal-service-extraction.md`
+- `0046-domain-authoring-research-writer-composition.md`
