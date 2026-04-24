@@ -219,6 +219,31 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
 - `lookup_source` возвращает source/canonical mapping по `doc_id`/`block_id` или `block_ref`;
 - для indexed tools нужен PostgreSQL/pgvector контур с ранее выполненным Knowledge Indexing.
 
+## 9.1. Smoke Retrieval MCP indexed tools
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
+```
+
+Что увидеть в JSON:
+
+- `tool_names` содержит `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
+- `summary_candidates >= 1`;
+- `block_candidates >= 1`;
+- `lookup_found=true`;
+- `summary_backend=pgvector` и `block_backend=pgvector`;
+- `build_status=completed`;
+- `evidence_blocks >= 1`.
+
+Как интерпретировать:
+
+- это подтверждает прямой MCP path поверх indexed canonical corpus без ручного запуска retrieval API;
+- smoke использует тот же production-compatible assembly: canonical indexing, vector store, retrieval service и source lookup.
+
 ## 10. Smoke Repository MCP (document tools)
 
 ```bash

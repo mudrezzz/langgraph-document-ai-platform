@@ -138,6 +138,7 @@
   - MCP tools: `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
   - indexed canonical search tools используют `CanonicalSummaryVectorRetriever`/`CanonicalVectorRetriever`;
   - `lookup_source` читает canonical source mapping через `CanonicalDocumentApplicationService`.
+  - operational smoke: `backend/scripts/smoke_retrieval_mcp.sh/.ps1`.
 - Repository MCP MVP:
   - app entrypoint `apps/mcp_repository/main.py`;
   - сервис `FastMcpRepositoryService`;
@@ -248,5 +249,5 @@
 ## 5. План следующего инкремента
 
 1. Начать Increment 27: Production Retrieval Fabric.
-2. Закрепить operational smoke для Retrieval MCP indexed tools.
-3. Расширить contract tests для metadata filtering и source lookup edge cases.
+2. Перейти к следующему slice Increment 27 после smoke/test closure или закрывать инкремент целиком.
+3. Подготовить handoff к `Increment 28: Domain Authoring Extraction`.

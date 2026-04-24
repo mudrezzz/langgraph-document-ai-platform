@@ -27,7 +27,8 @@
 - `demo_release_go_no_go_multifile_case.sh` — canonical release go/no-go demo.
   - запускает `knowledge-indexing/start`, затем canonical retrieval по `canonical_doc_ids`;
   - обновляет markdown report с quality summary и source mapping.
-- `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack`).
+- `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack/search_summaries/search_blocks/lookup_source`).
+- `smoke_retrieval_mcp.sh` — ручной smoke Retrieval MCP indexed tools через `smoke_retrieval_mcp.py`.
 - `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
@@ -70,6 +71,9 @@ kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_80
 
 # Repository MCP smoke (работает в текущем runtime profile и DSN из окружения/.env):
 bash backend/scripts/smoke_repository_mcp.sh
+
+# Retrieval MCP indexed-tools smoke:
+bash backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
 
 # Knowledge Factory canonical indexing smoke:
 bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
@@ -126,6 +130,7 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `smoke_retrieval_api.ps1`
 - `demo_saa_release_readiness_case.ps1`
 - `run_retrieval_mcp.ps1`
+- `smoke_retrieval_mcp.ps1`
 - `run_repository_mcp.ps1`
 - `smoke_repository_mcp.ps1`
 - `smoke_knowledge_indexing.ps1`

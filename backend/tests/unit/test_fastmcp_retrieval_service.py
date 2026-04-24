@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from infra.fastmcp.retrieval_service import FastMcpRetrievalService
 from infra.pgvector.vector_store import PgVectorStoreAdapter
@@ -127,6 +129,35 @@ def test_fastmcp_retrieval_service_search_blocks_returns_detail_candidates() -> 
     assert candidate["metadata"]["block_ref"] == "DOC-1:1:B-1"
 
 
+def test_fastmcp_retrieval_service_search_blocks_applies_tags_filter() -> None:
+    mcp_service = _build_indexed_mcp_service()
+
+    matching = mcp_service.search_blocks(
+        {
+            "query": "security approval",
+            "project_id": "p1",
+            "document_types": ["security"],
+            "tags": ["release"],
+            "canonical_doc_ids": ["DOC-1"],
+            "limit": 5,
+        }
+    )
+    non_matching = mcp_service.search_blocks(
+        {
+            "query": "security approval",
+            "project_id": "p1",
+            "document_types": ["security"],
+            "tags": ["finance"],
+            "canonical_doc_ids": ["DOC-1"],
+            "limit": 5,
+        }
+    )
+
+    assert matching["total_returned"] == 1
+    assert non_matching["total_returned"] == 0
+    assert non_matching["candidates"] == []
+
+
 def test_fastmcp_retrieval_service_lookup_source_returns_block_mapping() -> None:
     mcp_service = _build_indexed_mcp_service()
 
@@ -143,6 +174,18 @@ def test_fastmcp_retrieval_service_lookup_source_returns_block_mapping() -> None
     assert result["block"]["text"] == "Security approval is still pending."
 
 
+def test_fastmcp_retrieval_service_lookup_source_returns_document_mapping_for_doc_id() -> None:
+    mcp_service = _build_indexed_mcp_service()
+
+    result = mcp_service.lookup_source({"doc_id": "DOC-1"})
+
+    assert result["found"] is True
+    assert result["doc_id"] == "DOC-1"
+    assert result["block"] is None
+    assert result["source_path"] == "input/security.md"
+    assert result["document_metadata"]["quality_flags"] == []
+
+
 def test_fastmcp_retrieval_service_lookup_source_returns_clear_empty_result() -> None:
     mcp_service = _build_indexed_mcp_service()
 
@@ -151,6 +194,33 @@ def test_fastmcp_retrieval_service_lookup_source_returns_clear_empty_result() ->
     assert result["found"] is False
     assert result["error"] == "canonical block missing not found"
     assert result["doc_id"] == "DOC-1"
+
+
+def test_fastmcp_retrieval_service_lookup_source_handles_invalid_block_ref() -> None:
+    mcp_service = _build_indexed_mcp_service()
+
+    result = mcp_service.lookup_source({"block_ref": "invalid-ref"})
+
+    assert result["found"] is False
+    assert result["error"] == "doc_id or block_ref is required"
+
+
+def test_fastmcp_retrieval_service_lookup_source_without_canonical_service_returns_clear_error() -> None:
+    mcp_service = FastMcpRetrievalService(_FakeRetrievalService())  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    result = mcp_service.lookup_source({"doc_id": "DOC-1"})
+
+    assert result["found"] is False
+    assert result["error"] == "canonical_document_service is not configured"
+
+
+def test_fastmcp_retrieval_service_search_requires_indexed_dependencies() -> None:
+    mcp_service = FastMcpRetrievalService(_FakeRetrievalService())  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    with pytest.raises(RuntimeError, match="embedding_gateway and vector_store"):
+        mcp_service.search_summaries({"query": "security approval", "limit": 5})
 
 
 def _build_indexed_mcp_service() -> FastMcpRetrievalService:

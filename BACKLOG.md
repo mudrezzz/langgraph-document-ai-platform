@@ -312,6 +312,22 @@ Fourth slice done:
 - targeted MCP tests: `6 passed`.
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `159 passed`.
 
+Fifth slice done:
+
+- добавлен operational smoke для Retrieval MCP indexed tools:
+  - `backend/scripts/smoke_retrieval_mcp.py`;
+  - `backend/scripts/smoke_retrieval_mcp.sh`;
+  - `backend/scripts/smoke_retrieval_mcp.ps1`;
+- smoke прогоняет путь `canonical indexing -> search_summaries -> search_blocks -> lookup_source -> build_evidence_pack`;
+- unit tests расширены на edge cases:
+  - tags filtering для `search_blocks`;
+  - doc-level lookup без `block_id`;
+  - invalid `block_ref`;
+  - missing `canonical_document_service`;
+  - missing indexed dependencies;
+- targeted MCP tests: `11 passed`.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `164 passed`.
+
 ## Increment 28: Domain Authoring Extraction
 
 Цель: вынести authoring из крупного application service в отдельный доменный слой.

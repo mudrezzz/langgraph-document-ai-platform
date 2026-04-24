@@ -83,7 +83,7 @@
 - добавлен Retrieval MCP MVP:
   - `apps/mcp_retrieval/main.py`;
   - `FastMcpRetrievalService` с tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
-  - скрипты запуска `run_retrieval_mcp.sh/.ps1`.
+  - скрипты `run_retrieval_mcp.sh/.ps1` и `smoke_retrieval_mcp.sh/.ps1`.
 - добавлен Repository MCP MVP:
   - `apps/mcp_repository/main.py`;
   - `FastMcpRepositoryService` с tool-ами `upsert_document`, `get_document`, `list_documents`;
@@ -309,33 +309,45 @@ pip install fastmcp
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_retrieval_mcp.ps1
 ```
 
-12. Запуск Repository MCP (Linux):
+12. Smoke Retrieval MCP indexed tools (Linux):
+
+```bash
+bash ./backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
+```
+
+13. Smoke Retrieval MCP indexed tools (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_retrieval_mcp.ps1 -BuildBinaryDemoDocs
+```
+
+14. Запуск Repository MCP (Linux):
 
 ```bash
 pip install fastmcp
 bash ./backend/scripts/run_repository_mcp.sh
 ```
 
-13. Запуск Repository MCP (Windows):
+15. Запуск Repository MCP (Windows):
 
 ```powershell
 pip install fastmcp
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_repository_mcp.ps1
 ```
 
-14. Smoke Repository MCP (Linux):
+16. Smoke Repository MCP (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_repository_mcp.sh
 ```
 
-15. Smoke Repository MCP (Windows):
+17. Smoke Repository MCP (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_repository_mcp.ps1
 ```
 
-16. Запуск Artifact Writer MCP (Linux):
+18. Запуск Artifact Writer MCP (Linux):
 
 ```bash
 pip install fastmcp
@@ -582,6 +594,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - `quality_gate_status`;
   - `unresolved_gaps`;
   - `confidence_notes`.
+- Retrieval MCP поддерживает отдельный indexed smoke path через `smoke_retrieval_mcp.sh/.ps1`.
 
 ## Контракт POST /api/v1/tasks/retrieval/start (task_context)
 
@@ -700,6 +713,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 
 - Retrieval MCP:
   - tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
+  - smoke scripts `backend/scripts/smoke_retrieval_mcp.sh/.ps1`;
   - схемы `backend/packages/schemas/mcp/retrieval.py`.
 - Repository MCP:
   - tools `upsert_document`, `get_document`, `list_documents`;
