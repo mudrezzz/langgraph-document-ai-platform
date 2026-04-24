@@ -231,7 +231,7 @@ Next increment:
 
 ## Increment 27: Production Retrieval Fabric
 
-Статус: In Progress.
+Статус: Done.
 
 Цель: перевести retrieval с demo/in-memory режима на indexed corpus.
 
@@ -337,6 +337,10 @@ Sixth slice done:
 - e2e проверяет `GET /api/v1/tasks/{task_id}/hitl`, `POST /api/v1/tasks/{task_id}/hitl/submit`, итоговый artifact metadata и `GET /api/v1/hitl/actions`;
 - targeted Docker/Celery e2e: `2 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `165 passed`.
+
+Next increment:
+
+- начать `Increment 28: Domain Authoring Extraction`.
 
 ## Increment 28: Domain Authoring Extraction
 
