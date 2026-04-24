@@ -527,6 +527,40 @@ def test_authoring_service_uses_injected_writer_service_for_llm_prompt() -> None
     assert "Tracked model output." in artifact.content
 
 
+def test_authoring_service_hitl_wait_state_exposes_outline_snapshot() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+
+    started = service.start(
+        StartAuthoringTaskRequest(
+            query="outline approval draft",
+            artifact_type="release_report",
+            artifact_title="Unit HITL Outline Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            workflow_mode="multi_step",
+            hitl_required=True,
+            task_context={"requester": "unit-test"},
+        )
+    )
+    assert started.status == "waiting_human"
+
+    hitl_status = service.hitl_status(started.task_id)
+    assert hitl_status.phase == "outline_review"
+    assert hitl_status.outline is not None
+    assert hitl_status.outline.template_id == "release_readiness"
+    assert hitl_status.outline.sections[0].section_id == "risk_assessment"
+    assert hitl_status.outline.sections[0].source_refs
+
+
 def test_authoring_service_supports_hitl_wait_and_submit() -> None:
     task_service = TaskApplicationService(
         registry=InMemoryTaskRegistry(),
@@ -659,8 +693,7 @@ def test_authoring_service_hitl_iterations_and_idempotency() -> None:
     assert artifact.metadata["hitl_max_iterations"] == 2
     assert len(artifact.metadata["section_contracts"]) == 4
     assert len(artifact.metadata["section_artifacts"]) == 4
-    assert "### Human Feedback" in artifact.content
-    assert "добавь больше деталей по approvals" in artifact.content
+    assert "### Human Feedback" not in artifact.content
 
 
 def test_authoring_service_start_async_with_inline_dispatcher() -> None:

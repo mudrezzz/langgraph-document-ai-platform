@@ -83,9 +83,11 @@ class AuthoringTaskState(BaseModel):
     hitl_deadline_at: str | None = None
     hitl_pending_action_id: str | None = None
     hitl_actions: list[dict] = Field(default_factory=list)
+    template_spec: dict = Field(default_factory=dict)
     section_contracts: list[SectionContract] = Field(default_factory=list)
     section_artifacts: list[SectionArtifact] = Field(default_factory=list)
     section_traceability: list[dict] = Field(default_factory=list)
+    hitl_phase: str | None = None
     draft_generation_mode: str = "deterministic"
     draft_generation_metadata: dict = Field(default_factory=dict)
     traceability: dict = Field(default_factory=dict)

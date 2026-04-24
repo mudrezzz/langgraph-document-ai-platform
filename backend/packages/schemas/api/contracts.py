@@ -163,6 +163,24 @@ class HitlActionsResponse(BaseModel):
     has_more: bool = False
 
 
+class HitlOutlineSectionResponse(BaseModel):
+    """Секция outline snapshot для HITL authoring."""
+
+    section_id: str
+    title: str
+    review_status: str = "not_reviewed"
+    objective: str | None = None
+    required_keywords: list[str] = Field(default_factory=list)
+    source_refs: list[SourceRef] = Field(default_factory=list)
+
+
+class HitlOutlineResponse(BaseModel):
+    """Outline snapshot для ручного решения до section authoring."""
+
+    template_id: str
+    sections: list[HitlOutlineSectionResponse] = Field(default_factory=list)
+
+
 class HitlReviewStatusResponse(BaseModel):
     """Текущий статус HITL по задаче."""
 
@@ -176,6 +194,8 @@ class HitlReviewStatusResponse(BaseModel):
     pending_action_id: str | None = None
     pending_reason: str | None = None
     reviewer_notes: str | None = None
+    phase: str | None = None
+    outline: HitlOutlineResponse | None = None
     actions: list[HitlReviewActionResponse] = Field(default_factory=list)
 
 

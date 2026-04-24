@@ -53,6 +53,38 @@ class OutlinePlanner:
             },
         ]
 
+
+    def build_outline_snapshot(
+        self,
+        *,
+        template_id: str,
+        section_contracts: list[Any],
+        section_traceability: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        contracts_by_id = {
+            str(contract.section_id): contract
+            for contract in section_contracts
+            if getattr(contract, "section_id", None)
+        }
+        sections: list[dict[str, Any]] = []
+        for section in section_traceability:
+            section_id = str(section.get("section_id", "")).strip()
+            contract = contracts_by_id.get(section_id)
+            sections.append(
+                {
+                    "section_id": section_id,
+                    "title": str(section.get("title", section_id)).strip(),
+                    "review_status": str(section.get("review_status", "not_reviewed")),
+                    "source_refs": list(section.get("source_refs", [])),
+                    "objective": getattr(contract, "objective", ""),
+                    "required_keywords": list(getattr(contract, "required_keywords", [])),
+                }
+            )
+        return {
+            "template_id": template_id,
+            "sections": sections,
+        }
+
     def build_traceability(
         self,
         *,

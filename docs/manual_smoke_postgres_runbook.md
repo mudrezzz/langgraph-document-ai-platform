@@ -537,16 +537,18 @@ bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 -
 Что увидеть в JSON:
 
 - `start_status=queued`;
+- первая пауза приходит как `waiting_human`, а `GET /api/v1/tasks/{task_id}/hitl` возвращает `phase=outline_review`;
+- в `outline.sections[]` видны planned sections и их `source_refs`;
 - после первого submit (`needs_changes`) задача снова становится `waiting_human` с `hitl_iteration=2`;
 - после второго submit (`approve`) задача доходит до `task_status=completed`;
 - `steps_total >= 4`;
 - `traceability_sections >= 3`;
-- `hitl_submit_count=2`.
+- `hitl_submit_count=2`;
 - `hitl_actions_total=2` (проверка нового read-model endpoint `/api/v1/hitl/actions`).
 
 Как интерпретировать:
 
-- это подтверждает, что async запуск через Celery/Redis работает, а HITL submit корректно завершает workflow.
+- это подтверждает, что async запуск через Celery/Redis работает, а reviewer сначала видит outline approval point до section authoring;
 - тот же iterative path дополнительно закреплен в реальном Docker/Celery e2e тесте `backend/tests/e2e/test_fastapi_authoring_async_celery_e2e.py`.
 
 ## 17. Расширенный demo: authoring async + HITL

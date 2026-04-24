@@ -439,6 +439,15 @@ Eighth slice done:
 - targeted authoring/export tests: `61 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `186 passed`.
 
+Ninth slice done:
+
+- `hitl_required=true` теперь сначала открывает outline approval pause перед section authoring и expose-ит outline snapshot через HITL status;
+- HITL status read-model расширен полями `phase` и `outline`;
+- approve path сохраняет совместимость существующего completion flow, а outline `needs_changes` переводит задачу в следующую HITL iteration без section authoring;
+- добавлен ADR-0054 и unit/integration tests;
+- targeted outline authoring tests: `64 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `189 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

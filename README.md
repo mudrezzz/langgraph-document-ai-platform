@@ -636,6 +636,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `draft_strategy` (`auto|deterministic|llm`, по умолчанию `auto`)
 - `workflow_mode` (`single_pass|multi_step`, по умолчанию `multi_step`)
 - `hitl_required` (`true|false`, по умолчанию `false`)
+  - в `multi_step` режиме сначала открывает outline approval pause (`phase=outline_review`) перед section authoring.
 
 Ответ:
 
@@ -685,6 +686,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `pending_action_id`
 - `pending_reason`
 - `reviewer_notes`
+- `phase` (`outline_review|final_review|null`)
+- `outline` (опционально):
+  - `template_id`
+  - `sections[]` (`section_id`, `title`, `review_status`, `objective`, `required_keywords`, `source_refs`)
 - `actions[]` (`action_id`, `iteration`, `decision`, `status`, `idempotency_key`, `comment`, `metadata`, `created_at`)
 
 ## Контракт POST /api/v1/tasks/{task_id}/hitl/submit

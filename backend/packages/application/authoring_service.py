@@ -28,6 +28,8 @@ from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from framework.models.interfaces import IChatModelGateway
 from schemas.api.contracts import (
+    HitlOutlineResponse,
+    HitlOutlineSectionResponse,
     HitlReviewActionResponse,
     HitlActionsResponse,
     HitlReviewStatusResponse,
@@ -292,16 +294,12 @@ class AuthoringApplicationService:
                 evidence_pack=evidence_pack,
                 review_result=review_result,
             )
-            section_artifacts = self._build_section_artifacts(
-                section_contracts=section_contracts,
-                query=request.query,
-                task_context=task_context,
-                evidence_pack=evidence_pack,
-                research_summary=research_summary,
-                review_result=review_result,
-            )
-
             if request.hitl_required and request.workflow_mode == "multi_step":
+                outline_snapshot = self._build_outline_snapshot(
+                    template_spec=template_spec,
+                    section_contracts=section_contracts,
+                    section_traceability=section_traceability,
+                )
                 waiting_traceability = self._build_traceability(
                     retrieval_task_id=retrieval_task_id,
                     evidence_pack=evidence_pack,
@@ -316,7 +314,7 @@ class AuthoringApplicationService:
                         "review_result": review_result,
                         "template_spec": template_spec.model_dump(mode="json"),
                         "section_contracts": section_contracts,
-                        "section_artifacts": section_artifacts,
+                        "section_artifacts": [],
                         "section_traceability": section_traceability,
                         "steps_summary": [step.model_dump(mode="json") for step in steps],
                         "traceability": waiting_traceability,
@@ -325,10 +323,31 @@ class AuthoringApplicationService:
                         "hitl_status": "pending",
                         "hitl_iteration": 1,
                         "hitl_max_iterations": self._hitl_max_iterations,
+                        "hitl_phase": "outline_review",
+                        "task_context": {
+                            **initial_state.task_context,
+                            "template_id": template_spec.template_id,
+                            "template_spec": template_spec.model_dump(mode="json"),
+                            "outline_snapshot": outline_snapshot,
+                        },
                     }
                 )
-                self._move_to_waiting_human(task_id=task_id, state=waiting_state, pending_action_id=None)
+                self._move_to_waiting_human(
+                    task_id=task_id,
+                    state=waiting_state,
+                    pending_action_id=None,
+                    pending_reason="Требуется ручное outline approval перед section authoring.",
+                )
                 return StartTaskResponse(task_id=task_id, status="waiting_human")
+
+            section_artifacts = self._build_section_artifacts(
+                section_contracts=section_contracts,
+                query=request.query,
+                task_context=task_context,
+                evidence_pack=evidence_pack,
+                research_summary=research_summary,
+                review_result=review_result,
+            )
 
             return self._finalize_task(
                 task_id=task_id,
@@ -383,6 +402,8 @@ class AuthoringApplicationService:
             pending_action_id=state.hitl_pending_action_id,
             pending_reason=task.details.get("pending_reason"),
             reviewer_notes=str(state.review_result.get("notes", "")) or None,
+            phase=state.hitl_phase,
+            outline=self._build_hitl_outline_response(state),
             actions=actions,
         )
 
@@ -664,6 +685,54 @@ class AuthoringApplicationService:
         section_contracts = [SectionContract.model_validate(item) for item in processing_state.section_contracts]
         section_artifacts = [SectionArtifact.model_validate(item) for item in processing_state.section_artifacts]
         section_traceability = list(processing_state.section_traceability)
+
+        if processing_state.hitl_phase == "outline_review":
+            if request.decision == "needs_changes":
+                completed_actions = self._update_hitl_action(
+                    processing_state.hitl_actions,
+                    action_id=action_id,
+                    updates={"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()},
+                )
+                completed_action = self._find_hitl_action_by_id(completed_actions, action_id)
+                if completed_action is not None:
+                    self._persist_hitl_action(task_id=task_id, action=completed_action)
+                waiting_state = processing_state.model_copy(
+                    update={
+                        "hitl_status": "pending",
+                        "hitl_iteration": processing_state.hitl_iteration + 1,
+                        "hitl_pending_action_id": None,
+                        "hitl_actions": completed_actions,
+                    }
+                )
+                self._move_to_waiting_human(
+                    task_id=task_id,
+                    state=waiting_state,
+                    pending_action_id=None,
+                    pending_reason=request.comment or "Outline требует доработки evidence/template inputs перед authoring.",
+                )
+                waiting_task = self._task_service.get_task(task_id)
+                return TaskStatusResponse(
+                    task_id=waiting_task.task_id,
+                    status=waiting_task.status,
+                    current_node=waiting_task.current_node,
+                    details=waiting_task.details,
+                )
+
+            evidence_pack = self._retrieval_service.evidence(processing_state.retrieval_task_id).evidence_pack
+            section_artifacts = self._build_section_artifacts(
+                section_contracts=section_contracts,
+                query=processing_state.query,
+                task_context=processing_state.task_context,
+                evidence_pack=evidence_pack,
+                research_summary=processing_state.research_summary or "",
+                review_result=updated_review_result,
+            )
+            processing_state = processing_state.model_copy(
+                update={
+                    "section_artifacts": section_artifacts,
+                    "hitl_phase": "final_review",
+                }
+            )
 
         if request.decision == "needs_changes":
             updated_draft = self._apply_human_feedback_to_draft(
@@ -1492,4 +1561,37 @@ class AuthoringApplicationService:
             evidence_pack=evidence_pack,
             section_traceability=section_traceability,
             workflow_steps=workflow_steps,
+        )
+
+    def _build_outline_snapshot(
+        self,
+        *,
+        template_spec: TemplateSpec,
+        section_contracts: list[SectionContract],
+        section_traceability: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        return self._outline_planner.build_outline_snapshot(
+            template_id=template_spec.template_id,
+            section_contracts=section_contracts,
+            section_traceability=section_traceability,
+        )
+
+    def _build_hitl_outline_response(self, state: AuthoringTaskState) -> HitlOutlineResponse | None:
+        snapshot = state.task_context.get("outline_snapshot")
+        if not isinstance(snapshot, dict):
+            return None
+        sections_payload = snapshot.get("sections") if isinstance(snapshot.get("sections"), list) else []
+        return HitlOutlineResponse(
+            template_id=str(snapshot.get("template_id", state.task_context.get("template_id", "release_readiness"))),
+            sections=[
+                HitlOutlineSectionResponse(
+                    section_id=str(item.get("section_id", "")),
+                    title=str(item.get("title", "")),
+                    review_status=str(item.get("review_status", "not_reviewed")),
+                    objective=str(item.get("objective", "") or "") or None,
+                    required_keywords=[str(value) for value in item.get("required_keywords", [])],
+                    source_refs=self._to_source_refs(item.get("source_refs", [])),
+                )
+                for item in sections_payload
+            ],
         )

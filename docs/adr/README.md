@@ -63,3 +63,4 @@
 - `0051-template-aware-deterministic-assembly.md`
 - `0052-template-catalog-and-assembly-rules-baseline.md`
 - `0053-artifact-exporter-baseline-for-template-aware-authoring.md`
+- `0054-outline-approval-hitl-point.md`

@@ -162,7 +162,8 @@
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
   - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);
   - steps read-model в task details и artifact metadata (`steps_summary`);
-  - поддержан статус паузы `waiting_human` и возобновление по `hitl/submit`.
+  - поддержан статус паузы `waiting_human` и возобновление по `hitl/submit`;
+  - при `hitl_required=true` multi-step authoring теперь сначала ставит outline approval pause (`phase=outline_review`) и отдает outline snapshot через HITL read-model.
 - async execution контур:
   - Celery worker app: `apps/worker/celery_app.py` + `apps/worker/tasks.py`;
   - dispatcher policy: `APP_ASYNC_PROVIDER=inline|celery`;

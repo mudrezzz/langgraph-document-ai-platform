@@ -636,6 +636,28 @@ def test_task_artifact_endpoint_returns_404_for_unknown_task(client: TestClient)
     assert response.status_code == 404
 
 
+def test_authoring_hitl_status_returns_outline_snapshot(client: TestClient) -> None:
+    task_id = _create_authoring_task_async(client, hitl_required=True)
+
+    status_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        status_payload = response.json()
+        if status_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+
+    assert status_payload["status"] == "waiting_human"
+    hitl_status = client.get(f"/api/v1/tasks/{task_id}/hitl")
+    assert hitl_status.status_code == 200
+    payload = hitl_status.json()
+    assert payload["phase"] == "outline_review"
+    assert payload["outline"]["template_id"] == "release_readiness"
+    assert payload["outline"]["sections"][0]["section_id"] == "risk_assessment"
+    assert payload["outline"]["sections"][0]["source_refs"]
+
+
 def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> None:
     task_id = _create_authoring_task_async(client, hitl_required=True)
 

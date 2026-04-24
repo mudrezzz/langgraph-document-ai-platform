@@ -57,6 +57,31 @@ def test_section_review_service_returns_conditional_go_with_approval_context() -
     assert result["approval_mentions"] >= 1
 
 
+def test_outline_planner_builds_outline_snapshot() -> None:
+    planner = OutlinePlanner()
+    evidence_pack = _build_evidence_pack()
+    review_result = {"status": "completed"}
+    builder = SectionContractBuilder()
+    contracts = builder.build_release_readiness_contracts(
+        evidence_pack=evidence_pack,
+        review_status="completed",
+    )
+
+    snapshot = planner.build_outline_snapshot(
+        template_id="release_readiness",
+        section_contracts=contracts,
+        section_traceability=planner.build_section_traceability(
+            evidence_pack=evidence_pack,
+            review_result=review_result,
+        ),
+    )
+
+    assert snapshot["template_id"] == "release_readiness"
+    assert snapshot["sections"][0]["section_id"] == "risk_assessment"
+    assert snapshot["sections"][0]["objective"]
+    assert snapshot["sections"][0]["source_refs"]
+
+
 def test_outline_planner_builds_traceability_and_dedups_sources() -> None:
     planner = OutlinePlanner()
     evidence_pack = _build_evidence_pack()
