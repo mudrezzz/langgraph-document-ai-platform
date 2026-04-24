@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from domain_authoring import (
+    ArtifactExporter,
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
@@ -15,6 +16,7 @@ def build_domain_authoring_services() -> tuple[
     OutlinePlanner,
     SectionReviewService,
     DocumentAssembler,
+    ArtifactExporter,
     ResearchSummaryBuilder,
     WriterDraftService,
     SectionContractBuilder,
@@ -26,6 +28,7 @@ def build_domain_authoring_services() -> tuple[
         OutlinePlanner(),
         SectionReviewService(),
         DocumentAssembler(),
+        ArtifactExporter(),
         ResearchSummaryBuilder(),
         WriterDraftService(),
         SectionContractBuilder(),

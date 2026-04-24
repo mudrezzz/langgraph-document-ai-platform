@@ -9,6 +9,7 @@ from domain_authoring import (
     SectionContractBuilder,
     SectionReviewService,
     WriterDraftService,
+    ArtifactExporter,
 )
 from schemas.authoring.contracts import SectionPacket
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
@@ -362,6 +363,87 @@ def test_document_assembler_respects_template_assembly_visibility_flags() -> Non
     assert "## Reviewer" in content
     assert "## Writer Draft" not in content
     assert "## Section Traceability" not in content
+
+
+def test_artifact_exporter_renders_json_artifact() -> None:
+    exporter = ArtifactExporter()
+    section_artifact = SectionAuthoringService().author_section(
+        SectionPacket(
+            section_contract=SectionContractBuilder().build_contracts_from_template(
+                template_id="board_memo",
+                evidence_pack=_build_evidence_pack(),
+                review_status="completed",
+                template_payload={
+                    "sections": [
+                        {
+                            "section_id": "decision",
+                            "title": "Decision",
+                            "objective": "Summarize decision.",
+                        }
+                    ],
+                    "assembly_rules": [
+                        {
+                            "rule_id": "json_compact",
+                            "mode": "section_order",
+                            "section_order": ["decision"],
+                            "include_writer_draft": False,
+                            "include_traceability": False,
+                        }
+                    ],
+                },
+            )[1][0],
+            query="prepare board memo",
+            project_context={"project_id": "demo"},
+            evidence_pack=_build_evidence_pack(),
+            research_summary="Research summary",
+        )
+    )
+
+    result = exporter.export(
+        artifact_type="board_memo",
+        artifact_title="Compact Board Memo",
+        artifact_format="json",
+        assembled_content="# Board Memo",
+        query="prepare board memo",
+        research_summary="Research summary",
+        writer_draft="Writer draft",
+        review_result={
+            "status": "completed",
+            "recommendation": "go",
+            "notes": "Ready.",
+            "issues": [],
+        },
+        template_spec=TemplateCompiler().compile(
+            template_id="board_memo",
+            template_payload={
+                "sections": [{"section_id": "decision", "title": "Decision"}],
+                "assembly_rules": [
+                    {
+                        "rule_id": "json_compact",
+                        "mode": "section_order",
+                        "section_order": ["decision"],
+                        "include_writer_draft": False,
+                        "include_traceability": False,
+                    }
+                ],
+            },
+        ),
+        section_artifacts=[section_artifact],
+        section_traceability=[
+            {
+                "section_id": "decision",
+                "title": "Decision",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            }
+        ],
+    )
+
+    assert result.format == "json"
+    assert result.metadata["export_format_resolved"] == "json"
+    assert '"sections"' in result.content
+    assert '"writer_draft"' not in result.content
+    assert '"traceability"' not in result.content
 
 
 def test_research_summary_builder_formats_evidence_observations() -> None:

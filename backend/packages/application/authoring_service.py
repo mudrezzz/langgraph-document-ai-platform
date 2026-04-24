@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
 from domain_authoring import (
+    ArtifactExporter,
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
@@ -111,6 +112,7 @@ class AuthoringApplicationService:
         outline_planner: OutlinePlanner | None = None,
         section_review_service: SectionReviewService | None = None,
         document_assembler: DocumentAssembler | None = None,
+        artifact_exporter: ArtifactExporter | None = None,
         research_summary_builder: ResearchSummaryBuilder | None = None,
         writer_draft_service: WriterDraftService | None = None,
         section_contract_builder: SectionContractBuilder | None = None,
@@ -131,6 +133,7 @@ class AuthoringApplicationService:
         self._outline_planner = outline_planner or OutlinePlanner()
         self._section_review_service = section_review_service or SectionReviewService()
         self._document_assembler = document_assembler or DocumentAssembler()
+        self._artifact_exporter = artifact_exporter or ArtifactExporter()
         self._research_summary_builder = research_summary_builder or ResearchSummaryBuilder()
         self._writer_draft_service = writer_draft_service or WriterDraftService()
         self._section_contract_builder = section_contract_builder or SectionContractBuilder()
@@ -766,7 +769,7 @@ class AuthoringApplicationService:
                 metadata={"decision": request.decision, "iteration": processing_state.hitl_iteration},
             )
         )
-        final_content = self._assemble_document(
+        assembled_content = self._assemble_document(
             query=processing_state.query,
             research_summary=processing_state.research_summary or "",
             writer_draft=updated_draft,
@@ -776,6 +779,20 @@ class AuthoringApplicationService:
             template_spec=template_spec,
             section_artifacts=section_artifacts,
         )
+        export_result = self._export_artifact(
+            artifact_type=processing_state.artifact_type,
+            artifact_title=processing_state.artifact_title,
+            artifact_format=processing_state.artifact_format,
+            assembled_content=assembled_content,
+            query=processing_state.query,
+            research_summary=processing_state.research_summary or "",
+            writer_draft=updated_draft,
+            review_result=updated_review_result,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
+            section_traceability=section_traceability,
+        )
+        final_content = export_result.content
         completed_actions = self._update_hitl_action(
             processing_state.hitl_actions,
             action_id=action_id,
@@ -788,6 +805,7 @@ class AuthoringApplicationService:
             task_id=task_id,
             state=processing_state,
             final_content=final_content,
+            export_result=export_result,
             updated_draft=updated_draft,
             review_result=updated_review_result,
             template_spec=template_spec,
@@ -859,7 +877,7 @@ class AuthoringApplicationService:
         draft_result: DraftGenerationResult,
         initial_state: AuthoringTaskState,
     ) -> StartTaskResponse:
-        final_content = self._assemble_document(
+        assembled_content = self._assemble_document(
             query=request.query,
             research_summary=research_summary,
             writer_draft=writer_draft,
@@ -869,6 +887,20 @@ class AuthoringApplicationService:
             template_spec=template_spec,
             section_artifacts=section_artifacts,
         )
+        export_result = self._export_artifact(
+            artifact_type=request.artifact_type,
+            artifact_title=request.artifact_title,
+            artifact_format=request.artifact_format,
+            assembled_content=assembled_content,
+            query=request.query,
+            research_summary=research_summary,
+            writer_draft=writer_draft,
+            review_result=review_result,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
+            section_traceability=section_traceability,
+        )
+        final_content = export_result.content
         steps.append(
             AuthoringStepResult(
                 step="assembly",
@@ -892,6 +924,7 @@ class AuthoringApplicationService:
             "review_status": review_result.get("status"),
             "final_recommendation": review_result.get("recommendation"),
             "steps_summary": [step.model_dump(mode="json") for step in steps],
+            **export_result.metadata,
         }
         if draft_result.metadata.get("provider"):
             artifact_metadata["draft_model_provider"] = draft_result.metadata["provider"]
@@ -905,7 +938,7 @@ class AuthoringApplicationService:
             payload={
                 "title": artifact_title,
                 "content": final_content,
-                "format": request.artifact_format,
+                "format": export_result.format,
                 "metadata": artifact_metadata,
             },
         )
@@ -972,6 +1005,7 @@ class AuthoringApplicationService:
         task_id: str,
         state: AuthoringTaskState,
         final_content: str,
+        export_result,
         updated_draft: str,
         review_result: dict[str, Any],
         template_spec: TemplateSpec,
@@ -997,6 +1031,7 @@ class AuthoringApplicationService:
             "final_recommendation": review_result.get("recommendation"),
             "hitl_decision": decision,
             "steps_summary": [step.model_dump(mode="json") for step in steps],
+            **export_result.metadata,
         }
         if state.draft_generation_metadata.get("provider"):
             artifact_metadata["draft_model_provider"] = state.draft_generation_metadata.get("provider")
@@ -1008,7 +1043,7 @@ class AuthoringApplicationService:
             payload={
                 "title": artifact_title,
                 "content": final_content,
-                "format": state.artifact_format,
+                "format": export_result.format,
                 "metadata": artifact_metadata,
             },
         )
@@ -1390,6 +1425,35 @@ class AuthoringApplicationService:
             workflow_mode=workflow_mode,
             template_spec=template_spec,
             section_artifacts=section_artifacts,
+        )
+
+    def _export_artifact(
+        self,
+        *,
+        artifact_type: str,
+        artifact_title: str | None,
+        artifact_format: str,
+        assembled_content: str,
+        query: str,
+        research_summary: str,
+        writer_draft: str,
+        review_result: dict[str, Any],
+        template_spec: TemplateSpec,
+        section_artifacts: list[SectionArtifact],
+        section_traceability: list[dict[str, Any]],
+    ):
+        return self._artifact_exporter.export(
+            artifact_type=artifact_type,
+            artifact_title=artifact_title,
+            artifact_format=artifact_format,
+            assembled_content=assembled_content,
+            query=query,
+            research_summary=research_summary,
+            writer_draft=writer_draft,
+            review_result=review_result,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
+            section_traceability=section_traceability,
         )
 
     def _build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:

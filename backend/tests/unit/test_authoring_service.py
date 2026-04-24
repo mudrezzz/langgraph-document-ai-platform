@@ -335,6 +335,61 @@ def test_authoring_service_applies_template_assembly_visibility_flags() -> None:
     assert "## Section Traceability" not in artifact.content
 
 
+def test_authoring_service_exports_json_artifact_when_requested() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare board memo",
+            artifact_type="board_memo",
+            artifact_title="Board Memo JSON",
+            artifact_format="json",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "board_memo",
+                "template_payload": {
+                    "version": "1",
+                    "sections": [
+                        {
+                            "section_id": "decision",
+                            "title": "Decision",
+                            "objective": "Summarize the board decision.",
+                            "required_keywords": ["approval", "decision"],
+                        }
+                    ],
+                    "assembly_rules": [
+                        {
+                            "rule_id": "board_json",
+                            "mode": "section_order",
+                            "section_order": ["decision"],
+                            "include_writer_draft": False,
+                            "include_traceability": False,
+                        }
+                    ],
+                },
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.format == "json"
+    assert artifact.metadata["export_format_requested"] == "json"
+    assert artifact.metadata["export_format_resolved"] == "json"
+    assert '"sections"' in artifact.content
+    assert '"writer_draft"' not in artifact.content
+    assert '"traceability"' not in artifact.content
+
+
 def test_authoring_service_fallbacks_to_deterministic_when_llm_fails() -> None:
     task_service = TaskApplicationService(
         registry=InMemoryTaskRegistry(),

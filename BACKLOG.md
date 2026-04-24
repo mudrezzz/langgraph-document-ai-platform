@@ -433,9 +433,11 @@ Eighth slice done:
 - `TemplateCompiler` компилирует и нормализует assembly rules;
 - `DocumentAssembler` использует assembly rules для section order;
 - `DocumentAssembler` теперь также применяет `include_writer_draft` и `include_traceability` из assembly rules;
-- добавлен ADR-0052 и unit tests;
-- targeted template authoring tests: `26 passed`;
-- full suite with Docker async e2e and OpenRouter external LLM enabled: `183 passed`.
+- добавлен baseline `ArtifactExporter` для `markdown|json` export без изменения внешнего authoring API;
+- `artifact_format=json` теперь возвращает structured artifact payload для template-aware authoring;
+- добавлен ADR-0053 и unit/integration tests;
+- targeted authoring/export tests: `61 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `186 passed`.
 
 Demo update:
 

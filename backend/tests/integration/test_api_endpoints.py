@@ -572,6 +572,56 @@ def test_task_artifact_endpoint_returns_authoring_artifact(client: TestClient) -
     assert len(payload["traceability"]["sections"]) >= 3
 
 
+def test_task_artifact_endpoint_returns_json_artifact_when_requested(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь board memo в json",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "requester": "integration-authoring-json-test",
+                "template_id": "board_memo",
+                "template_payload": {
+                    "sections": [
+                        {
+                            "section_id": "decision",
+                            "title": "Decision",
+                            "objective": "Summarize board decision.",
+                            "required_keywords": ["approval", "decision"],
+                        }
+                    ],
+                    "assembly_rules": [
+                        {
+                            "rule_id": "board_json",
+                            "mode": "section_order",
+                            "section_order": ["decision"],
+                            "include_writer_draft": False,
+                            "include_traceability": False,
+                        }
+                    ],
+                },
+            },
+            "artifact_type": "board_memo",
+            "artifact_title": "Integration Board Memo JSON",
+            "artifact_format": "json",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+
+    artifact = client.get(f"/api/v1/tasks/{task_id}/artifact")
+    assert artifact.status_code == 200
+    payload = artifact.json()
+    assert payload["format"] == "json"
+    assert payload["metadata"]["export_format_resolved"] == "json"
+    assert '"sections"' in payload["content"]
+    assert '"writer_draft"' not in payload["content"]
+    assert '"traceability"' not in payload["content"]
+
+
 def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:
     retrieval_task_id = _create_task(client)
 

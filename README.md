@@ -632,7 +632,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - `assembly_rules` сейчас управляют как минимум `section_order`, `include_writer_draft`, `include_traceability`.
 - `artifact_type` (по умолчанию `release_report`)
 - `artifact_title` (опционально)
-- `artifact_format` (по умолчанию `markdown`)
+- `artifact_format` (по умолчанию `markdown`, также поддерживается `json`)
 - `draft_strategy` (`auto|deterministic|llm`, по умолчанию `auto`)
 - `workflow_mode` (`single_pass|multi_step`, по умолчанию `multi_step`)
 - `hitl_required` (`true|false`, по умолчанию `false`)
@@ -660,7 +660,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `artifact_type`
 - `title`
 - `content`
-- `format`
+- `format` (`markdown|json`)
 - `metadata`
 - `traceability`:
   - `retrieval_task_id`

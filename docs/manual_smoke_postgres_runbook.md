@@ -480,6 +480,7 @@ bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workf
 
 - `start_status=completed` и `task_status=completed`;
 - `artifact_id` и `artifact_title` заполнены;
+- при `--artifact-format json` поле `format` возвращается как `json`, а `content` содержит structured JSON artifact;
 - `draft_generation_mode` обычно `deterministic` (если LLM не включена);
 - `workflow_mode=multi_step`;
 - `steps_total=4` (research/writer/reviewer/assembly);
