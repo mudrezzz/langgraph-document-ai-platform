@@ -489,6 +489,8 @@ def test_authoring_service_hitl_iterations_and_idempotency() -> None:
     artifact = service.artifact(started.task_id)
     assert artifact.metadata["hitl_iteration"] == 2
     assert artifact.metadata["hitl_max_iterations"] == 2
+    assert "### Human Feedback" in artifact.content
+    assert "добавь больше деталей по approvals" in artifact.content
 
 
 def test_authoring_service_start_async_with_inline_dispatcher() -> None:

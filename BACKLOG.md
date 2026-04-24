@@ -387,6 +387,14 @@ Second slice done:
 - orchestration выбора `draft_strategy`, внешнего LLM gateway и fallback policy сохранена в application layer;
 - добавлен ADR-0046 и расширены unit tests domain authoring.
 
+Third slice done:
+
+- `OutlinePlanner` теперь покрывает source-ref mapping для section traceability;
+- `SectionReviewService` используется для массового обновления section review status;
+- `WriterDraftService` форматирует human feedback при HITL rewrite;
+- `AuthoringApplicationService` продолжает orchestration, но больше не содержит эти stateless helper-методы как самостоятельную domain logic;
+- добавлен ADR-0047 и расширены authoring unit tests.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

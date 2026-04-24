@@ -589,7 +589,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлен пакет `backend/packages/domain_authoring`;
   - выделены `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`, `ResearchSummaryBuilder`, `WriterDraftService`;
   - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API;
-  - выбор LLM strategy/fallback остается в application layer, а research/writer composition вынесены в domain layer.
+  - выбор LLM strategy/fallback остается в application layer, а research/writer composition вынесены в domain layer;
+  - traceability/source-ref mapping и HITL human feedback formatting тоже перенесены в `domain_authoring`.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.

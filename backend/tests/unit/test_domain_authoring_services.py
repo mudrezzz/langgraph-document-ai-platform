@@ -65,6 +65,11 @@ def test_outline_planner_builds_traceability_and_dedups_sources() -> None:
     assert len(traceability["source_refs"]) == 2
     assert traceability["retrieval_task_id"] == "retrieval-1"
 
+    source_refs = planner.collect_source_refs_from_sections(sections)
+    normalized_refs = planner.to_source_refs(traceability["source_refs"])
+    assert len(source_refs) == 2
+    assert normalized_refs[0].doc_id == "REQ-1"
+
 
 def test_document_assembler_builds_multistep_report() -> None:
     assembler = DocumentAssembler()
@@ -124,3 +129,31 @@ def test_writer_draft_service_builds_deterministic_draft_and_prompt() -> None:
     assert "Critical approval is pending" in draft
     assert "Research summary:" in prompt
     assert "[REQ-1/1/B-1]" in prompt
+
+
+def test_writer_draft_service_applies_human_feedback_with_metadata() -> None:
+    service = WriterDraftService()
+
+    updated = service.apply_human_feedback(
+        draft="## Writer Draft",
+        comment="please add approvals",
+        metadata={"reviewer": "qa", "priority": "high"},
+    )
+
+    assert "### Human Feedback" in updated
+    assert "please add approvals" in updated
+    assert "- reviewer: qa" in updated
+    assert "- priority: high" in updated
+
+
+def test_section_review_service_updates_non_informational_section_statuses() -> None:
+    service = SectionReviewService()
+    sections = [
+        {"section_id": "risk_assessment", "review_status": "needs_revision"},
+        {"section_id": "evidence_register", "review_status": "informational"},
+    ]
+
+    updated = service.set_section_review_status(sections=sections, review_status="approved")
+
+    assert updated[0]["review_status"] == "approved"
+    assert updated[1]["review_status"] == "informational"

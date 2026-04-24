@@ -83,6 +83,18 @@ class OutlinePlanner:
                 refs.append(SourceRef(doc_id=doc_id, version=version, block_id=block_id))
         return refs
 
+    def to_source_refs(self, raw_refs: list[dict[str, Any]]) -> list[SourceRef]:
+        refs: list[SourceRef] = []
+        for item in raw_refs:
+            refs.append(
+                SourceRef(
+                    doc_id=str(item.get("doc_id", "")),
+                    version=str(item.get("version", "")),
+                    block_id=str(item.get("block_id", "")),
+                )
+            )
+        return refs
+
     def dedup_source_refs(self, sources: list[SourceRef]) -> list[dict[str, str]]:
         deduped: list[dict[str, str]] = []
         seen: set[tuple[str, str, str]] = set()

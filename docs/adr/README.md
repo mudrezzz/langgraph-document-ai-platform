@@ -56,3 +56,4 @@
 - `0044-retrieval-mcp-indexed-canonical-tools.md`
 - `0045-domain-authoring-minimal-service-extraction.md`
 - `0046-domain-authoring-research-writer-composition.md`
+- `0047-domain-authoring-traceability-and-hitl-feedback-helpers.md`

@@ -78,3 +78,12 @@ class WriterDraftService:
             lines.append(f"- {source.doc_id}/{source.version}/{source.block_id}")
 
         return "\n".join(lines)
+
+    def apply_human_feedback(self, *, draft: str, comment: str, metadata: dict[str, object]) -> str:
+        lines = [draft.strip(), "", "### Human Feedback", comment.strip() or "Изменения подтверждены reviewer."]
+        if metadata:
+            lines.append("")
+            lines.append("### Human Feedback Metadata")
+            for key, value in metadata.items():
+                lines.append(f"- {key}: {value}")
+        return "\n".join(lines).strip()

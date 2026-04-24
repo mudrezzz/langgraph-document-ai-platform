@@ -1122,53 +1122,23 @@ class AuthoringApplicationService:
         )
 
     def _apply_human_feedback_to_draft(self, *, draft: str, comment: str, metadata: dict[str, Any]) -> str:
-        """Добавляет ручной feedback в writer draft перед финальной сборкой."""
-
-        lines = [draft.strip(), "", "### Human Feedback", comment.strip() or "Изменения подтверждены reviewer."]
-        if metadata:
-            lines.append("")
-            lines.append("### Human Feedback Metadata")
-            for key, value in metadata.items():
-                lines.append(f"- {key}: {value}")
-        return "\n".join(lines).strip()
+        return self._writer_draft_service.apply_human_feedback(
+            draft=draft,
+            comment=comment,
+            metadata=metadata,
+        )
 
     def _set_section_review_status(self, *, sections: list[dict[str, Any]], review_status: str) -> list[dict[str, Any]]:
-        """Обновляет review_status по traceability секциям (кроме информационной)."""
-
-        updated: list[dict[str, Any]] = []
-        for section in sections:
-            current = dict(section)
-            if current.get("section_id") != "evidence_register":
-                current["review_status"] = review_status
-            updated.append(current)
-        return updated
+        return self._section_review_service.set_section_review_status(
+            sections=sections,
+            review_status=review_status,
+        )
 
     def _to_source_refs_from_evidence(self, sections: list[dict[str, Any]]) -> list[SourceRef]:
-        refs: list[SourceRef] = []
-        seen: set[tuple[str, str, str]] = set()
-        for section in sections:
-            for item in section.get("source_refs", []):
-                doc_id = str(item.get("doc_id", ""))
-                version = str(item.get("version", ""))
-                block_id = str(item.get("block_id", ""))
-                key = (doc_id, version, block_id)
-                if key in seen:
-                    continue
-                seen.add(key)
-                refs.append(SourceRef(doc_id=doc_id, version=version, block_id=block_id))
-        return refs
+        return self._outline_planner.collect_source_refs_from_sections(sections)
 
     def _to_source_refs(self, raw_refs: list[dict[str, Any]]) -> list[SourceRef]:
-        refs: list[SourceRef] = []
-        for item in raw_refs:
-            refs.append(
-                SourceRef(
-                    doc_id=str(item.get("doc_id", "")),
-                    version=str(item.get("version", "")),
-                    block_id=str(item.get("block_id", "")),
-                )
-            )
-        return refs
+        return self._outline_planner.to_source_refs(raw_refs)
 
     def _build_research_summary(self, *, query: str, evidence_pack: EvidencePack) -> str:
         return self._research_summary_builder.build_summary(query=query, evidence_pack=evidence_pack)
