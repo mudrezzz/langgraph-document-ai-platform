@@ -17,7 +17,7 @@
 1. Добавить минимальный `TemplateCatalog` boundary и `InMemoryTemplateCatalog` в `domain_docs`.
 2. Расширить `TemplateSpec` полем `assembly_rules`.
 3. Научить `TemplateCompiler` компилировать и нормализовать `assembly_rules`, а также задавать default rule для section order.
-4. Использовать `assembly_rules` в `DocumentAssembler` для определения section order.
+4. Использовать `assembly_rules` в `DocumentAssembler` для определения section order, а также управления видимостью `Writer Draft` и `Section Traceability`.
 5. Сохранить backward compatibility:
    - inline `template_payload` все еще поддерживается;
    - при отсутствии catalog entry используется local compile fallback.
@@ -33,4 +33,4 @@
 Минусы:
 
 - catalog пока только in-memory baseline;
-- assembly rules пока ограничены в основном `section_order` semantics.
+- assembly rules пока ограничены базовыми deterministic semantics: `section_order`, `include_writer_draft`, `include_traceability`.

@@ -629,6 +629,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `task_context`
   - поддерживает `template_id` и `template_payload` для template-aware authoring section contracts.
   - `template_payload` может содержать `assembly_rules`.
+  - `assembly_rules` сейчас управляют как минимум `section_order`, `include_writer_draft`, `include_traceability`.
 - `artifact_type` (по умолчанию `release_report`)
 - `artifact_title` (опционально)
 - `artifact_format` (по умолчанию `markdown`)

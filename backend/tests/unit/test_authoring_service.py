@@ -280,6 +280,61 @@ def test_authoring_service_accepts_template_context_for_custom_sections() -> Non
     assert "## Executive Summary" in artifact.content
 
 
+def test_authoring_service_applies_template_assembly_visibility_flags() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare board memo",
+            artifact_type="board_memo",
+            artifact_title="Compact Board Memo",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "board_memo",
+                "template_payload": {
+                    "version": "1",
+                    "sections": [
+                        {
+                            "section_id": "decision",
+                            "title": "Decision",
+                            "objective": "Summarize the board decision.",
+                            "required_keywords": ["approval", "decision"],
+                        }
+                    ],
+                    "assembly_rules": [
+                        {
+                            "rule_id": "board_compact",
+                            "mode": "section_order",
+                            "section_order": ["decision"],
+                            "include_writer_draft": False,
+                            "include_traceability": False,
+                        }
+                    ],
+                },
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.metadata["template_spec"]["assembly_rules"][0]["include_writer_draft"] is False
+    assert artifact.metadata["template_spec"]["assembly_rules"][0]["include_traceability"] is False
+    assert "## Decision" in artifact.content
+    assert "## Reviewer" in artifact.content
+    assert "## Writer Draft" not in artifact.content
+    assert "## Section Traceability" not in artifact.content
+
+
 def test_authoring_service_fallbacks_to_deterministic_when_llm_fails() -> None:
     task_service = TaskApplicationService(
         registry=InMemoryTaskRegistry(),

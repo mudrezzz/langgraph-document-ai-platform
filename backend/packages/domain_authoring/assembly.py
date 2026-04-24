@@ -83,7 +83,8 @@ class DocumentAssembler:
         section_traceability: list[dict[str, Any]],
     ) -> str:
         artifact_by_id = {item.section_id: item for item in section_artifacts}
-        section_order = self._resolve_section_order(template_spec)
+        assembly_rule = self._resolve_assembly_rule(template_spec)
+        section_order = self._resolve_section_order(template_spec, assembly_rule=assembly_rule)
         lines = [
             f"# {self._title_from_template(template_spec)}",
             "",
@@ -101,7 +102,10 @@ class DocumentAssembler:
         }
 
         for section_id in section_order:
-            section = sections_by_id.get(section_id, {"section_id": section_id, "title": section_id.replace("_", " ").title()})
+            section = sections_by_id.get(
+                section_id,
+                {"section_id": section_id, "title": section_id.replace("_", " ").title()},
+            )
             title = str(section.get("title", section_id)).strip()
             artifact = artifact_by_id.get(section_id)
             lines.extend(["", f"## {title}"])
@@ -132,19 +136,24 @@ class DocumentAssembler:
                 f"- status: {review_result.get('status', 'unknown')}",
                 f"- recommendation: {review_result.get('recommendation', 'pending_manual_review')}",
                 f"- notes: {review_result.get('notes', '-')}",
-                "",
-                "## Writer Draft",
-                writer_draft,
-                "",
-                "## Section Traceability",
             ]
         )
-        for section in section_traceability:
-            lines.append(
-                f"- {section['section_id']} ({section['title']}), review_status={section.get('review_status', 'not_reviewed')}"
+        if self._include_writer_draft(assembly_rule):
+            lines.extend(
+                [
+                    "",
+                    "## Writer Draft",
+                    writer_draft,
+                ]
             )
-            for source in section.get("source_refs", [])[:5]:
-                lines.append(f"  - {source['doc_id']}/{source['version']}/{source['block_id']}")
+        if self._include_traceability(assembly_rule):
+            lines.extend(["", "## Section Traceability"])
+            for section in section_traceability:
+                lines.append(
+                    f"- {section['section_id']} ({section['title']}), review_status={section.get('review_status', 'not_reviewed')}"
+                )
+                for source in section.get("source_refs", [])[:5]:
+                    lines.append(f"  - {source['doc_id']}/{source['version']}/{source['block_id']}")
 
         return "\n".join(lines)
 
@@ -153,11 +162,59 @@ class DocumentAssembler:
             return "Release Readiness Report"
         return template_spec.template_id.replace("_", " ").title()
 
-    def _resolve_section_order(self, template_spec: TemplateSpec) -> list[str]:
+    def _resolve_assembly_rule(self, template_spec: TemplateSpec) -> dict[str, Any]:
+        default_section_order = [
+            str(section.get("section_id", "")).strip()
+            for section in template_spec.sections
+            if str(section.get("section_id", "")).strip()
+        ]
         for rule in template_spec.assembly_rules:
             if str(rule.get("mode", "")) != "section_order":
                 continue
-            section_order = [str(item).strip() for item in rule.get("section_order", []) if str(item).strip()]
-            if section_order:
-                return section_order
-        return [str(section.get("section_id", "")).strip() for section in template_spec.sections if str(section.get("section_id", "")).strip()]
+            return {
+                "mode": "section_order",
+                "section_order": [str(item).strip() for item in rule.get("section_order", []) if str(item).strip()],
+                "include_writer_draft": self._coerce_bool(rule.get("include_writer_draft"), default=True),
+                "include_traceability": self._coerce_bool(rule.get("include_traceability"), default=True),
+            }
+        return {
+            "mode": "section_order",
+            "section_order": default_section_order,
+            "include_writer_draft": True,
+            "include_traceability": True,
+        }
+
+    def _resolve_section_order(
+        self,
+        template_spec: TemplateSpec,
+        *,
+        assembly_rule: dict[str, Any] | None = None,
+    ) -> list[str]:
+        resolved_rule = assembly_rule or self._resolve_assembly_rule(template_spec)
+        section_order = [str(item).strip() for item in resolved_rule.get("section_order", []) if str(item).strip()]
+        if section_order:
+            return section_order
+        return [
+            str(section.get("section_id", "")).strip()
+            for section in template_spec.sections
+            if str(section.get("section_id", "")).strip()
+        ]
+
+    def _include_writer_draft(self, assembly_rule: dict[str, Any]) -> bool:
+        return self._coerce_bool(assembly_rule.get("include_writer_draft"), default=True)
+
+    def _include_traceability(self, assembly_rule: dict[str, Any]) -> bool:
+        return self._coerce_bool(assembly_rule.get("include_traceability"), default=True)
+
+    def _coerce_bool(self, value: Any, *, default: bool) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"", "0", "false", "no", "off"}:
+                return False
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+        return bool(value)

@@ -156,7 +156,7 @@
   - добавлен `SectionAuthoringService`, который строит section-level deterministic artifacts/digests;
   - template-aware contracts поддерживаются через `domain_docs.TemplateCompiler` и `task_context.template_id/template_payload`;
   - final assembly теперь умеет использовать `TemplateSpec` + `section_artifacts` для template-driven documents;
-  - baseline `TemplateCatalog` и `TemplateSpec.assembly_rules` подготовлены для reusable template library path;
+  - baseline `TemplateCatalog` и `TemplateSpec.assembly_rules` подготовлены для reusable template library path; assembly rules уже управляют section order, writer-draft visibility и traceability visibility;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
   - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);

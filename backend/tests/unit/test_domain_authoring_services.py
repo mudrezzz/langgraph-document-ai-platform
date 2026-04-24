@@ -293,6 +293,77 @@ def test_document_assembler_uses_template_spec_and_section_artifacts_when_presen
     assert "Section artifact is missing." in content
 
 
+def test_document_assembler_respects_template_assembly_visibility_flags() -> None:
+    assembler = DocumentAssembler()
+
+    content = assembler.assemble_document(
+        query="prepare board memo",
+        research_summary="Research summary",
+        writer_draft="Writer draft",
+        review_result={
+            "status": "completed",
+            "recommendation": "go",
+            "notes": "Ready.",
+            "issues": [],
+        },
+        section_traceability=[
+            {
+                "section_id": "decision",
+                "title": "Decision",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            }
+        ],
+        workflow_mode="multi_step",
+        template_spec=TemplateCompiler().compile(
+            template_id="board_memo",
+            template_payload={
+                "sections": [
+                    {"section_id": "decision", "title": "Decision"},
+                ],
+                "assembly_rules": [
+                    {
+                        "rule_id": "board_compact",
+                        "mode": "section_order",
+                        "section_order": ["decision"],
+                        "include_writer_draft": False,
+                        "include_traceability": False,
+                    }
+                ],
+            },
+        ),
+        section_artifacts=[
+            SectionAuthoringService().author_section(
+                SectionPacket(
+                    section_contract=SectionContractBuilder().build_contracts_from_template(
+                        template_id="board_memo",
+                        evidence_pack=_build_evidence_pack(),
+                        review_status="completed",
+                        template_payload={
+                            "sections": [
+                                {
+                                    "section_id": "decision",
+                                    "title": "Decision",
+                                    "objective": "Summarize decision.",
+                                }
+                            ]
+                        },
+                    )[1][0],
+                    query="prepare board memo",
+                    project_context={"project_id": "demo"},
+                    evidence_pack=_build_evidence_pack(),
+                    research_summary="Research summary",
+                )
+            )
+        ],
+    )
+
+    assert "## Decision" in content
+    assert "## Reviewer" in content
+    assert "## Writer Draft" not in content
+    assert "## Section Traceability" not in content
+
+
 def test_research_summary_builder_formats_evidence_observations() -> None:
     builder = ResearchSummaryBuilder()
 
