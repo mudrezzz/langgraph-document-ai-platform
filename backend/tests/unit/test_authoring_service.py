@@ -275,6 +275,8 @@ def test_authoring_service_accepts_template_context_for_custom_sections() -> Non
     assert artifact.metadata["template_spec"]["version"] == "2"
     assert artifact.metadata["section_contracts"][0]["section_id"] == "executive_summary"
     assert artifact.metadata["section_artifacts"][0]["section_id"] == "executive_summary"
+    assert "# Decision Memo" in artifact.content
+    assert "## Executive Summary" in artifact.content
 
 
 def test_authoring_service_fallbacks_to_deterministic_when_llm_fails() -> None:

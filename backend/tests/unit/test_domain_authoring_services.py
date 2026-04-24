@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from domain_docs import TemplateCompiler
 from domain_authoring import (
     DocumentAssembler,
     OutlinePlanner,
@@ -203,6 +204,69 @@ def test_document_assembler_builds_multistep_report() -> None:
     assert "# Release Readiness Report" in content
     assert "## Reviewer" in content
     assert "Pending security approval" in content
+
+
+def test_document_assembler_uses_template_spec_and_section_artifacts_when_present() -> None:
+    assembler = DocumentAssembler()
+
+    content = assembler.assemble_document(
+        query="prepare decision memo",
+        research_summary="Research summary",
+        writer_draft="Writer draft",
+        review_result={
+            "status": "completed",
+            "recommendation": "go",
+            "notes": "Ready.",
+            "issues": [],
+        },
+        section_traceability=[
+            {
+                "section_id": "executive_summary",
+                "title": "Executive Summary",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            }
+        ],
+        workflow_mode="multi_step",
+        template_spec=TemplateCompiler().compile(
+            template_id="decision_memo",
+            template_payload={
+                "sections": [
+                    {"section_id": "executive_summary", "title": "Executive Summary"},
+                    {"section_id": "risk_log", "title": "Risk Log"},
+                ]
+            },
+        ),
+        section_artifacts=[
+            SectionAuthoringService().author_section(
+                SectionPacket(
+                    section_contract=SectionContractBuilder().build_contracts_from_template(
+                        template_id="decision_memo",
+                        evidence_pack=_build_evidence_pack(),
+                        review_status="completed",
+                        template_payload={
+                            "sections": [
+                                {
+                                    "section_id": "executive_summary",
+                                    "title": "Executive Summary",
+                                    "objective": "Summarize decision.",
+                                }
+                            ]
+                        },
+                    )[1][0],
+                    query="prepare decision memo",
+                    project_context={"project_id": "demo"},
+                    evidence_pack=_build_evidence_pack(),
+                    research_summary="Research summary",
+                )
+            )
+        ],
+    )
+
+    assert "# Decision Memo" in content
+    assert "## Executive Summary" in content
+    assert "## Risk Log" in content
+    assert "Section artifact is missing." in content
 
 
 def test_research_summary_builder_formats_evidence_observations() -> None:

@@ -773,6 +773,8 @@ class AuthoringApplicationService:
             review_result=updated_review_result,
             section_traceability=section_traceability,
             workflow_mode=processing_state.workflow_mode,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
         )
         completed_actions = self._update_hitl_action(
             processing_state.hitl_actions,
@@ -864,6 +866,8 @@ class AuthoringApplicationService:
             review_result=review_result,
             section_traceability=section_traceability,
             workflow_mode=request.workflow_mode,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
         )
         steps.append(
             AuthoringStepResult(
@@ -1374,6 +1378,8 @@ class AuthoringApplicationService:
         review_result: dict[str, Any],
         section_traceability: list[dict[str, Any]],
         workflow_mode: str,
+        template_spec: TemplateSpec | None = None,
+        section_artifacts: list[SectionArtifact] | None = None,
     ) -> str:
         return self._document_assembler.assemble_document(
             query=query,
@@ -1382,6 +1388,8 @@ class AuthoringApplicationService:
             review_result=review_result,
             section_traceability=section_traceability,
             workflow_mode=workflow_mode,
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
         )
 
     def _build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:

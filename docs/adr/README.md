@@ -60,3 +60,4 @@
 - `0048-domain-authoring-section-contracts-and-packets.md`
 - `0049-domain-authoring-section-authoring-service-baseline.md`
 - `0050-template-compiler-and-template-aware-section-contracts.md`
+- `0051-template-aware-deterministic-assembly.md`

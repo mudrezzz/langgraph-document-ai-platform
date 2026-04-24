@@ -419,6 +419,13 @@ Sixth slice done:
 - дефолтный путь `release_readiness` сохранен для обратной совместимости;
 - добавлен ADR-0050 и unit tests для custom templates.
 
+Seventh slice done:
+
+- `DocumentAssembler` теперь поддерживает template-aware deterministic assembly;
+- итоговый документ может собираться из `TemplateSpec` и `section_artifacts`, а не только из release-readiness-specific layout;
+- старый fallback path сохранен для обратной совместимости;
+- добавлен ADR-0051 и расширены unit tests.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

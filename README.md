@@ -594,6 +594,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - введены typed `SectionContract` и `SectionPacket`, а section contracts сохраняются в authoring state и artifact metadata.
   - добавлен `SectionAuthoringService`, который строит deterministic `section_artifacts` и `SectionDigest` из section packets.
   - добавлен `TemplateCompiler`, а authoring поддерживает template-aware section contracts через `task_context.template_id/template_payload`.
+  - deterministic assembly теперь template-aware и может собирать итоговый документ из `TemplateSpec` + `section_artifacts`.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
