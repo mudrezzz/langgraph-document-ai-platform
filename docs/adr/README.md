@@ -57,3 +57,5 @@
 - `0045-domain-authoring-minimal-service-extraction.md`
 - `0046-domain-authoring-research-writer-composition.md`
 - `0047-domain-authoring-traceability-and-hitl-feedback-helpers.md`
+- `0048-domain-authoring-section-contracts-and-packets.md`
+- `0049-domain-authoring-section-authoring-service-baseline.md`

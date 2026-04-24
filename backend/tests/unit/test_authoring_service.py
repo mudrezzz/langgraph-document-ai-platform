@@ -183,6 +183,11 @@ def test_authoring_service_start_and_artifact_flow() -> None:
     assert artifact.task_id == response.task_id
     assert artifact.artifact_type == "release_report"
     assert artifact.title == "Unit Authoring Draft"
+    assert len(artifact.metadata["section_contracts"]) == 4
+    assert artifact.metadata["section_contracts"][0]["section_id"] == "risk_assessment"
+    assert len(artifact.metadata["section_artifacts"]) == 4
+    assert artifact.metadata["section_artifacts"][0]["section_id"] == "risk_assessment"
+    assert artifact.metadata["section_artifacts"][0]["digest"]["source_refs"]
     assert len(artifact.traceability.source_refs) == 2
     assert len(artifact.traceability.sections) >= 3
 
@@ -489,6 +494,8 @@ def test_authoring_service_hitl_iterations_and_idempotency() -> None:
     artifact = service.artifact(started.task_id)
     assert artifact.metadata["hitl_iteration"] == 2
     assert artifact.metadata["hitl_max_iterations"] == 2
+    assert len(artifact.metadata["section_contracts"]) == 4
+    assert len(artifact.metadata["section_artifacts"]) == 4
     assert "### Human Feedback" in artifact.content
     assert "добавь больше деталей по approvals" in artifact.content
 

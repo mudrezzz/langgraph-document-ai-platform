@@ -591,6 +591,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API;
   - выбор LLM strategy/fallback остается в application layer, а research/writer composition вынесены в domain layer;
   - traceability/source-ref mapping и HITL human feedback formatting тоже перенесены в `domain_authoring`.
+  - введены typed `SectionContract` и `SectionPacket`, а section contracts сохраняются в authoring state и artifact metadata.
+  - добавлен `SectionAuthoringService`, который строит deterministic `section_artifacts` и `SectionDigest` из section packets.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.

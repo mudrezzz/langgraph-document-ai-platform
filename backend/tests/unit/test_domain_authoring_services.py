@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from domain_authoring import DocumentAssembler, OutlinePlanner, ResearchSummaryBuilder, SectionReviewService, WriterDraftService
+from domain_authoring import (
+    DocumentAssembler,
+    OutlinePlanner,
+    ResearchSummaryBuilder,
+    SectionAuthoringService,
+    SectionContractBuilder,
+    SectionReviewService,
+    WriterDraftService,
+)
+from schemas.authoring.contracts import SectionPacket
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
 
 
@@ -69,6 +78,65 @@ def test_outline_planner_builds_traceability_and_dedups_sources() -> None:
     normalized_refs = planner.to_source_refs(traceability["source_refs"])
     assert len(source_refs) == 2
     assert normalized_refs[0].doc_id == "REQ-1"
+
+
+def test_section_contract_builder_builds_release_readiness_contracts() -> None:
+    builder = SectionContractBuilder()
+
+    contracts = builder.build_release_readiness_contracts(
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )
+
+    assert len(contracts) == 4
+    assert contracts[0].section_id == "risk_assessment"
+    assert contracts[1].section_id == "pending_approvals"
+    assert contracts[-1].metadata["review_status"] == "informational"
+    assert contracts[0].preferred_source_refs
+
+
+def test_section_packet_is_typed_and_preserves_context() -> None:
+    builder = SectionContractBuilder()
+    contract = builder.build_release_readiness_contracts(
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )[0]
+
+    packet = SectionPacket(
+        section_contract=contract,
+        query="release readiness",
+        project_context={"project_id": "demo"},
+        evidence_pack=_build_evidence_pack(),
+        research_summary="summary",
+        relevant_state={"iteration": 1},
+    )
+
+    assert packet.section_contract.section_id == "risk_assessment"
+    assert packet.project_context["project_id"] == "demo"
+    assert packet.relevant_state["iteration"] == 1
+
+
+def test_section_authoring_service_builds_section_artifacts_and_digests() -> None:
+    contract_builder = SectionContractBuilder()
+    authoring_service = SectionAuthoringService()
+    contracts = contract_builder.build_release_readiness_contracts(
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )
+
+    artifacts = authoring_service.author_sections(
+        contracts=contracts,
+        query="release readiness",
+        project_context={"project_id": "demo"},
+        evidence_pack=_build_evidence_pack(),
+        research_summary="summary",
+        relevant_state={"review_status": "completed"},
+    )
+
+    assert len(artifacts) == 4
+    assert artifacts[0].section_id == "risk_assessment"
+    assert artifacts[0].digest.source_refs
+    assert artifacts[0].metadata["project_context_keys"] == ["project_id"]
 
 
 def test_document_assembler_builds_multistep_report() -> None:

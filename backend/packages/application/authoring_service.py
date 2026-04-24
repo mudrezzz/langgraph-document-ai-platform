@@ -12,6 +12,8 @@ from domain_authoring import (
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
+    SectionContractBuilder,
+    SectionAuthoringService,
     SectionReviewService,
     WriterDraftService,
 )
@@ -37,6 +39,7 @@ from schemas.api.contracts import (
     TaskStatusResponse,
     TaskArtifactTraceabilityResponse,
 )
+from schemas.authoring.contracts import SectionArtifact, SectionContract
 from schemas.rag.contracts import EvidencePack, SourceRef
 from schemas.workflow.states import AuthoringTaskState
 
@@ -109,6 +112,8 @@ class AuthoringApplicationService:
         document_assembler: DocumentAssembler | None = None,
         research_summary_builder: ResearchSummaryBuilder | None = None,
         writer_draft_service: WriterDraftService | None = None,
+        section_contract_builder: SectionContractBuilder | None = None,
+        section_authoring_service: SectionAuthoringService | None = None,
     ) -> None:
         self._task_service = task_service
         self._retrieval_service = retrieval_service
@@ -127,6 +132,8 @@ class AuthoringApplicationService:
         self._document_assembler = document_assembler or DocumentAssembler()
         self._research_summary_builder = research_summary_builder or ResearchSummaryBuilder()
         self._writer_draft_service = writer_draft_service or WriterDraftService()
+        self._section_contract_builder = section_contract_builder or SectionContractBuilder()
+        self._section_authoring_service = section_authoring_service or SectionAuthoringService()
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
@@ -276,6 +283,18 @@ class AuthoringApplicationService:
                 evidence_pack=evidence_pack,
                 review_result=review_result,
             )
+            section_contracts = self._build_section_contracts(
+                evidence_pack=evidence_pack,
+                review_result=review_result,
+            )
+            section_artifacts = self._build_section_artifacts(
+                section_contracts=section_contracts,
+                query=request.query,
+                task_context=task_context,
+                evidence_pack=evidence_pack,
+                research_summary=research_summary,
+                review_result=review_result,
+            )
 
             if request.hitl_required and request.workflow_mode == "multi_step":
                 waiting_traceability = self._build_traceability(
@@ -290,6 +309,8 @@ class AuthoringApplicationService:
                         "research_summary": research_summary,
                         "draft": draft_result.content,
                         "review_result": review_result,
+                        "section_contracts": section_contracts,
+                        "section_artifacts": section_artifacts,
                         "section_traceability": section_traceability,
                         "steps_summary": [step.model_dump(mode="json") for step in steps],
                         "traceability": waiting_traceability,
@@ -310,6 +331,8 @@ class AuthoringApplicationService:
                 research_summary=research_summary,
                 writer_draft=draft_result.content,
                 review_result=review_result,
+                section_contracts=section_contracts,
+                section_artifacts=section_artifacts,
                 section_traceability=section_traceability,
                 steps=steps,
                 draft_result=draft_result,
@@ -625,6 +648,8 @@ class AuthoringApplicationService:
         steps = [AuthoringStepResult.model_validate(item) for item in processing_state.steps_summary]
         updated_draft = processing_state.draft or ""
         updated_review_result = dict(processing_state.review_result)
+        section_contracts = [SectionContract.model_validate(item) for item in processing_state.section_contracts]
+        section_artifacts = [SectionArtifact.model_validate(item) for item in processing_state.section_artifacts]
         section_traceability = list(processing_state.section_traceability)
 
         if request.decision == "needs_changes":
@@ -667,6 +692,18 @@ class AuthoringApplicationService:
                 evidence_pack=evidence_pack,
                 review_result=updated_review_result,
             )
+            section_contracts = self._build_section_contracts(
+                evidence_pack=evidence_pack,
+                review_result=updated_review_result,
+            )
+            section_artifacts = self._build_section_artifacts(
+                section_contracts=section_contracts,
+                query=processing_state.query,
+                task_context=processing_state.task_context,
+                evidence_pack=evidence_pack,
+                research_summary=processing_state.research_summary or "",
+                review_result=updated_review_result,
+            )
 
             completed_actions = self._update_hitl_action(
                 processing_state.hitl_actions,
@@ -680,6 +717,8 @@ class AuthoringApplicationService:
                 update={
                     "draft": updated_draft,
                     "review_result": updated_review_result,
+                    "section_contracts": section_contracts,
+                    "section_artifacts": section_artifacts,
                     "section_traceability": section_traceability,
                     "steps_summary": [step.model_dump(mode="json") for step in steps],
                     "hitl_status": "pending",
@@ -737,6 +776,8 @@ class AuthoringApplicationService:
             final_content=final_content,
             updated_draft=updated_draft,
             review_result=updated_review_result,
+            section_contracts=section_contracts,
+            section_artifacts=section_artifacts,
             section_traceability=section_traceability,
             steps=steps,
             hitl_actions=completed_actions,
@@ -795,6 +836,8 @@ class AuthoringApplicationService:
         research_summary: str,
         writer_draft: str,
         review_result: dict[str, Any],
+        section_contracts: list[SectionContract],
+        section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
         steps: list[AuthoringStepResult],
         draft_result: DraftGenerationResult,
@@ -825,6 +868,8 @@ class AuthoringApplicationService:
             "draft_generation_mode": draft_result.mode,
             "draft_generation_requested_strategy": request.draft_strategy,
             "workflow_mode": request.workflow_mode,
+            "section_contracts": [item.model_dump(mode="json") if hasattr(item, "model_dump") else item for item in section_contracts],
+            "section_artifacts": [item.model_dump(mode="json") for item in section_artifacts],
             "review_status": review_result.get("status"),
             "final_recommendation": review_result.get("recommendation"),
             "steps_summary": [step.model_dump(mode="json") for step in steps],
@@ -867,6 +912,8 @@ class AuthoringApplicationService:
                 "research_summary": research_summary,
                 "draft": writer_draft,
                 "review_result": review_result,
+                "section_contracts": section_contracts,
+                "section_artifacts": section_artifacts,
                 "section_traceability": section_traceability,
                 "steps_summary": [step.model_dump(mode="json") for step in steps],
                 "traceability": traceability,
@@ -903,6 +950,8 @@ class AuthoringApplicationService:
         final_content: str,
         updated_draft: str,
         review_result: dict[str, Any],
+        section_contracts: list[SectionContract],
+        section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
         steps: list[AuthoringStepResult],
         hitl_actions: list[dict[str, Any]],
@@ -916,6 +965,8 @@ class AuthoringApplicationService:
             "workflow_mode": state.workflow_mode,
             "hitl_iteration": state.hitl_iteration,
             "hitl_max_iterations": state.hitl_max_iterations,
+            "section_contracts": [item.model_dump(mode="json") if hasattr(item, "model_dump") else item for item in section_contracts],
+            "section_artifacts": [item.model_dump(mode="json") for item in section_artifacts],
             "review_status": review_result.get("status"),
             "final_recommendation": review_result.get("recommendation"),
             "hitl_decision": decision,
@@ -955,6 +1006,8 @@ class AuthoringApplicationService:
                 "artifact_id": artifact.artifact_id,
                 "draft": updated_draft,
                 "review_result": review_result,
+                "section_contracts": section_contracts,
+                "section_artifacts": section_artifacts,
                 "section_traceability": section_traceability,
                 "steps_summary": [step.model_dump(mode="json") for step in steps],
                 "traceability": traceability,
@@ -1248,6 +1301,36 @@ class AuthoringApplicationService:
         return self._outline_planner.build_section_traceability(
             evidence_pack=evidence_pack,
             review_result=review_result,
+        )
+
+    def _build_section_contracts(
+        self,
+        *,
+        evidence_pack: EvidencePack,
+        review_result: dict[str, Any],
+    ) -> list[SectionContract]:
+        return self._section_contract_builder.build_release_readiness_contracts(
+            evidence_pack=evidence_pack,
+            review_status=str(review_result.get("status", "not_reviewed")),
+        )
+
+    def _build_section_artifacts(
+        self,
+        *,
+        section_contracts: list[SectionContract],
+        query: str,
+        task_context: dict[str, Any],
+        evidence_pack: EvidencePack,
+        research_summary: str,
+        review_result: dict[str, Any],
+    ) -> list[SectionArtifact]:
+        return self._section_authoring_service.author_sections(
+            contracts=section_contracts,
+            query=query,
+            project_context=task_context,
+            evidence_pack=evidence_pack,
+            research_summary=research_summary,
+            relevant_state={"review_status": review_result.get("status")},
         )
 
     def _assemble_document(

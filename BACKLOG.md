@@ -395,6 +395,22 @@ Third slice done:
 - `AuthoringApplicationService` продолжает orchestration, но больше не содержит эти stateless helper-методы как самостоятельную domain logic;
 - добавлен ADR-0047 и расширены authoring unit tests.
 
+Fourth slice done:
+
+- добавлены typed schemas `SectionContract` и `SectionPacket`;
+- добавлен `SectionContractBuilder` в `domain_authoring`;
+- `AuthoringApplicationService` строит section contracts из evidence/review context и сохраняет их в state + artifact metadata;
+- публичные authoring/HITL API не изменены;
+- добавлен ADR-0048 и unit tests для section contracts/packets.
+
+Fifth slice done:
+
+- добавлены typed `SectionArtifact` и `SectionAuthoringService`;
+- section packets теперь реально используются для deterministic section draft/digest generation;
+- `AuthoringTaskState` и artifact metadata сохраняют `section_artifacts`;
+- финальный внешний API и assembled document пока сохранены без изменения;
+- добавлен ADR-0049 и расширены unit tests.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

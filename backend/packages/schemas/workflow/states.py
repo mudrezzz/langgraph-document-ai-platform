@@ -2,6 +2,7 @@
 
 from pydantic import BaseModel, Field
 
+from schemas.authoring.contracts import SectionArtifact, SectionContract
 from schemas.documents.contracts import CanonicalDocument
 from schemas.rag.contracts import EvidencePack, RetrievalFilter, RerankedBlock, RetrievedBlock
 
@@ -24,7 +25,7 @@ class SectionAuthoringState(BaseModel):
     """Состояние workflow генерации одного раздела."""
 
     task_context: dict = Field(default_factory=dict)
-    section_contract: dict = Field(default_factory=dict)
+    section_contract: SectionContract | None = None
     project_context: dict = Field(default_factory=dict)
     evidence_pack: EvidencePack | None = None
     research_summary: str | None = None
@@ -32,14 +33,14 @@ class SectionAuthoringState(BaseModel):
     review_result: dict | None = None
     human_feedback: dict | None = None
     iteration_count: int = 0
-    final_section_artifact: dict | None = None
+    final_section_artifact: SectionArtifact | None = None
 
 
 class AssemblyWorkflowState(BaseModel):
     """Состояние детерминированной сборки итогового документа."""
 
     template_spec: dict = Field(default_factory=dict)
-    section_artifacts: list[dict] = Field(default_factory=list)
+    section_artifacts: list[SectionArtifact] = Field(default_factory=list)
     chapter_summaries: list[str] = Field(default_factory=list)
     consistency_report: dict | None = None
     final_document: dict | None = None
@@ -82,6 +83,8 @@ class AuthoringTaskState(BaseModel):
     hitl_deadline_at: str | None = None
     hitl_pending_action_id: str | None = None
     hitl_actions: list[dict] = Field(default_factory=list)
+    section_contracts: list[SectionContract] = Field(default_factory=list)
+    section_artifacts: list[SectionArtifact] = Field(default_factory=list)
     section_traceability: list[dict] = Field(default_factory=list)
     draft_generation_mode: str = "deterministic"
     draft_generation_metadata: dict = Field(default_factory=dict)
