@@ -54,3 +54,4 @@
 - `0042-real-tei-embedding-and-rerank-gateways.md`
 - `0043-retrieval-quality-gates.md`
 - `0044-retrieval-mcp-indexed-canonical-tools.md`
+- `0045-domain-authoring-minimal-service-extraction.md`

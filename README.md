@@ -585,6 +585,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
 - HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
 - Docker/Celery e2e покрывает как базовый approve-flow, так и iterative path `needs_changes -> approve`.
+- начат `Increment 28: Domain Authoring Extraction`:
+  - добавлен пакет `backend/packages/domain_authoring`;
+  - минимально выделены `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`;
+  - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.

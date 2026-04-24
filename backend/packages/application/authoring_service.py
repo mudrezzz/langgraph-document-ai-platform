@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
+from domain_authoring import DocumentAssembler, OutlinePlanner, SectionReviewService
 from application.errors import (
     InvalidTaskStateError,
     TaskArtifactLinkNotFoundError,
@@ -97,6 +98,9 @@ class AuthoringApplicationService:
         llm_model_name: str | None = None,
         hitl_max_iterations: int = 2,
         hitl_wait_timeout_sec: int = 1800,
+        outline_planner: OutlinePlanner | None = None,
+        section_review_service: SectionReviewService | None = None,
+        document_assembler: DocumentAssembler | None = None,
     ) -> None:
         self._task_service = task_service
         self._retrieval_service = retrieval_service
@@ -110,6 +114,9 @@ class AuthoringApplicationService:
         self._llm_model_name = llm_model_name
         self._hitl_max_iterations = max(1, hitl_max_iterations)
         self._hitl_wait_timeout_sec = max(60, hitl_wait_timeout_sec)
+        self._outline_planner = outline_planner or OutlinePlanner()
+        self._section_review_service = section_review_service or SectionReviewService()
+        self._document_assembler = document_assembler or DocumentAssembler()
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
@@ -1300,105 +1307,18 @@ class AuthoringApplicationService:
         evidence_pack: EvidencePack,
         workflow_mode: str,
     ) -> dict[str, Any]:
-        """Выполняет reviewer этап и выдает итоговую рекомендацию."""
-
-        _ = query, draft
-        if workflow_mode == "single_pass":
-            return {
-                "status": "skipped",
-                "notes": "Reviewer этап пропущен в single_pass режиме.",
-                "recommendation": "pending_manual_review",
-                "issues": [],
-            }
-
-        risk_keywords = ("pending", "block", "critical", "fail", "no-go", "risk")
-        approval_keywords = ("approval", "approve", "governance", "security")
-
-        risk_count = 0
-        approval_mentions = 0
-        issues: list[str] = []
-
-        for block in evidence_pack.selected_blocks:
-            lowered = block.text.lower()
-            if any(word in lowered for word in risk_keywords):
-                risk_count += 1
-            if any(word in lowered for word in approval_keywords):
-                approval_mentions += 1
-
-        if not evidence_pack.selected_blocks:
-            issues.append("Нет evidence блоков для reviewer проверки.")
-        if risk_count == 0:
-            issues.append("Risk-сигналы в evidence почти не выражены.")
-        if approval_mentions == 0:
-            issues.append("Не обнаружены явные approval-ссылки.")
-
-        if not evidence_pack.selected_blocks:
-            recommendation = "no_go"
-            status = "needs_revision"
-            notes = "Недостаточно evidence для релизного решения."
-        elif risk_count >= 2:
-            recommendation = "no_go"
-            status = "needs_revision"
-            notes = "Обнаружены выраженные risk-сигналы и pending ограничения."
-        elif approval_mentions >= 1:
-            recommendation = "conditional_go"
-            status = "completed"
-            notes = "Есть approval-контекст, но требуется контроль оставшихся ограничений."
-        else:
-            recommendation = "go"
-            status = "completed"
-            notes = "Критичные риск-сигналы не выявлены, evidence достаточно для GO." 
-
-        return {
-            "status": status,
-            "notes": notes,
-            "recommendation": recommendation,
-            "issues": issues,
-            "risk_count": risk_count,
-            "approval_mentions": approval_mentions,
-        }
+        return self._section_review_service.review_draft(
+            query=query,
+            draft=draft,
+            evidence_pack=evidence_pack,
+            workflow_mode=workflow_mode,
+        )
 
     def _build_section_traceability(self, *, evidence_pack: EvidencePack, review_result: dict[str, Any]) -> list[dict[str, Any]]:
-        """Формирует traceability на уровне секций итогового документа."""
-
-        unique_sources = self._dedup_source_dicts(evidence_pack.selected_sources)
-        risk_sources = self._select_sources_by_keywords(
+        return self._outline_planner.build_section_traceability(
             evidence_pack=evidence_pack,
-            keywords=("risk", "block", "critical", "pending", "no-go"),
-            limit=3,
+            review_result=review_result,
         )
-        approval_sources = self._select_sources_by_keywords(
-            evidence_pack=evidence_pack,
-            keywords=("approval", "governance", "security", "policy", "pending"),
-            limit=3,
-        )
-
-        return [
-            {
-                "section_id": "risk_assessment",
-                "title": "Risk Assessment",
-                "review_status": review_result.get("status", "not_reviewed"),
-                "source_refs": risk_sources or unique_sources[:2],
-            },
-            {
-                "section_id": "pending_approvals",
-                "title": "Pending Approvals",
-                "review_status": review_result.get("status", "not_reviewed"),
-                "source_refs": approval_sources or unique_sources[:2],
-            },
-            {
-                "section_id": "final_recommendation",
-                "title": "Final Recommendation",
-                "review_status": review_result.get("status", "not_reviewed"),
-                "source_refs": unique_sources[:3],
-            },
-            {
-                "section_id": "evidence_register",
-                "title": "Evidence Register",
-                "review_status": "informational",
-                "source_refs": unique_sources,
-            },
-        ]
 
     def _assemble_document(
         self,
@@ -1410,46 +1330,14 @@ class AuthoringApplicationService:
         section_traceability: list[dict[str, Any]],
         workflow_mode: str,
     ) -> str:
-        """Собирает финальный документ из результатов шагов authoring."""
-
-        if workflow_mode == "single_pass":
-            return writer_draft
-
-        lines = [
-            "# Release Readiness Report",
-            "",
-            "## Query",
-            query.strip(),
-            "",
-            "## Research",
-            research_summary,
-            "",
-            "## Writer",
-            writer_draft,
-            "",
-            "## Reviewer",
-            f"- status: {review_result.get('status', 'unknown')}",
-            f"- recommendation: {review_result.get('recommendation', 'pending_manual_review')}",
-            f"- notes: {review_result.get('notes', '-')}",
-        ]
-
-        issues = review_result.get("issues", []) or []
-        lines.append("- issues:")
-        if issues:
-            for issue in issues:
-                lines.append(f"  - {issue}")
-        else:
-            lines.append("  - none")
-
-        lines.extend(["", "## Section Traceability"]) 
-        for section in section_traceability:
-            lines.append(
-                f"- {section['section_id']} ({section['title']}), review_status={section.get('review_status', 'not_reviewed')}"
-            )
-            for source in section.get("source_refs", [])[:5]:
-                lines.append(f"  - {source['doc_id']}/{source['version']}/{source['block_id']}")
-
-        return "\n".join(lines)
+        return self._document_assembler.assemble_document(
+            query=query,
+            research_summary=research_summary,
+            writer_draft=writer_draft,
+            review_result=review_result,
+            section_traceability=section_traceability,
+            workflow_mode=workflow_mode,
+        )
 
     def _build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
         """Собирает prompt для LLM writer этапа."""
@@ -1501,43 +1389,14 @@ class AuthoringApplicationService:
         keywords: tuple[str, ...],
         limit: int,
     ) -> list[dict[str, str]]:
-        selected: list[dict[str, str]] = []
-        seen: set[tuple[str, str, str]] = set()
-        for block in evidence_pack.selected_blocks:
-            lowered = block.text.lower()
-            if not any(keyword in lowered for keyword in keywords):
-                continue
-            key = (block.source.doc_id, block.source.version, block.source.block_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            selected.append(
-                {
-                    "doc_id": block.source.doc_id,
-                    "version": block.source.version,
-                    "block_id": block.source.block_id,
-                }
-            )
-            if len(selected) >= limit:
-                break
-        return selected
+        return self._outline_planner.select_sources_by_keywords(
+            evidence_pack=evidence_pack,
+            keywords=keywords,
+            limit=limit,
+        )
 
     def _dedup_source_dicts(self, sources: list[SourceRef]) -> list[dict[str, str]]:
-        deduped: list[dict[str, str]] = []
-        seen: set[tuple[str, str, str]] = set()
-        for source in sources:
-            key = (source.doc_id, source.version, source.block_id)
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(
-                {
-                    "doc_id": source.doc_id,
-                    "version": source.version,
-                    "block_id": source.block_id,
-                }
-            )
-        return deduped
+        return self._outline_planner.dedup_source_refs(sources)
 
     def _build_traceability(
         self,
@@ -1547,11 +1406,9 @@ class AuthoringApplicationService:
         section_traceability: list[dict[str, Any]],
         workflow_steps: list[AuthoringStepResult],
     ) -> dict[str, Any]:
-        source_refs = self._dedup_source_dicts(evidence_pack.selected_sources)
-
-        return {
-            "retrieval_task_id": retrieval_task_id,
-            "source_refs": source_refs,
-            "sections": section_traceability,
-            "workflow_steps": [step.model_dump(mode="json") for step in workflow_steps],
-        }
+        return self._outline_planner.build_traceability(
+            retrieval_task_id=retrieval_task_id,
+            evidence_pack=evidence_pack,
+            section_traceability=section_traceability,
+            workflow_steps=workflow_steps,
+        )

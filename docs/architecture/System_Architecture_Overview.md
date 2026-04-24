@@ -150,6 +150,7 @@
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
+  - minimal `domain_authoring` extraction: `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
   - fallback в deterministic draft при недоступности LLM (если strict-mode выключен);
@@ -233,6 +234,7 @@
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - отсутствуют полноценные `domain_authoring` workflows;
+- `domain_authoring` начат минимальными stateless services, но section workflows/template contracts пока не вынесены;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;

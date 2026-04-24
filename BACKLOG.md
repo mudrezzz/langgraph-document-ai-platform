@@ -344,6 +344,8 @@ Next increment:
 
 ## Increment 28: Domain Authoring Extraction
 
+Статус: In Progress.
+
 Цель: вынести authoring из крупного application service в отдельный доменный слой.
 
 Scope:
@@ -365,6 +367,18 @@ Scope:
   - `tasks/{task_id}/artifact`;
   - `tasks/{task_id}/hitl`;
   - `hitl/submit`.
+
+First slice done:
+
+- добавлен пакет `backend/packages/domain_authoring`;
+- выделены минимальные domain services:
+  - `OutlinePlanner`;
+  - `SectionReviewService`;
+  - `DocumentAssembler`;
+- `AuthoringApplicationService` интегрирует эти сервисы через dependency injection с дефолтными реализациями;
+- внешние authoring API и HITL contracts не изменились;
+- добавлен ADR-0045 и unit tests для новых domain services;
+- targeted authoring tests: `11 passed`.
 
 Demo update:
 
