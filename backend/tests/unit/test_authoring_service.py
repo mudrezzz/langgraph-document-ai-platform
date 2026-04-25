@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
@@ -420,6 +421,87 @@ def test_authoring_service_exports_json_artifact_when_requested() -> None:
     assert '"sections"' in artifact.content
     assert '"writer_draft"' not in artifact.content
     assert '"traceability"' not in artifact.content
+
+
+def test_authoring_service_applies_conditional_template_assembly_policy_to_json_export() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare appendix board memo",
+            artifact_type="board_memo",
+            artifact_title="Conditional Appendix Board Memo",
+            artifact_format="json",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "board_memo",
+                "template_payload": {
+                    "version": "1",
+                    "sections": [
+                        {
+                            "section_id": "decision",
+                            "title": "Decision",
+                            "objective": "Summarize the board decision.",
+                            "required": True,
+                            "section_group": "core",
+                            "required_keywords": ["approval", "decision"],
+                        },
+                        {
+                            "section_id": "evidence_register",
+                            "title": "Evidence Register",
+                            "objective": "Show evidence-backed appendix.",
+                            "required": False,
+                            "include_if_has_evidence": True,
+                            "section_group": "appendix",
+                        },
+                        {
+                            "section_id": "reviewer_appendix",
+                            "title": "Reviewer Appendix",
+                            "objective": "Show completed reviewer appendix.",
+                            "required": False,
+                            "include_if_review_status": ["completed"],
+                            "section_group": "appendix",
+                        },
+                    ],
+                    "assembly_rules": [
+                        {
+                            "rule_id": "appendix_only_json",
+                            "mode": "section_order",
+                            "section_order": ["decision", "evidence_register", "reviewer_appendix"],
+                            "allowed_section_groups": ["appendix"],
+                            "include_writer_draft": False,
+                            "include_traceability": True,
+                        }
+                    ],
+                },
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    payload = json.loads(artifact.content)
+
+    assert artifact.format == "json"
+    assert [section["section_id"] for section in payload["sections"]] == [
+        "evidence_register",
+        "reviewer_appendix",
+    ]
+    assert [section["section_id"] for section in payload["traceability"]["sections"]] == [
+        "evidence_register",
+        "reviewer_appendix",
+    ]
+    assert "writer_draft" not in payload
+    assert artifact.metadata["template_spec"]["assembly_rules"][0]["allowed_section_groups"] == ["appendix"]
 
 
 def test_authoring_service_fallbacks_to_deterministic_when_llm_fails() -> None:

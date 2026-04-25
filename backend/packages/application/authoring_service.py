@@ -305,14 +305,16 @@ class AuthoringApplicationService:
                 )
             )
 
-            section_traceability = self._build_section_traceability(
-                evidence_pack=evidence_pack,
-                review_result=review_result,
-            )
             template_spec, section_contracts = self._build_section_contracts(
                 task_context=task_context,
                 evidence_pack=evidence_pack,
                 review_result=review_result,
+            )
+            section_traceability = self._build_section_traceability(
+                evidence_pack=evidence_pack,
+                review_result=review_result,
+                template_spec=template_spec,
+                section_contracts=section_contracts,
             )
             if request.hitl_required and request.workflow_mode == "multi_step":
                 outline_snapshot = self._build_outline_snapshot(
@@ -790,14 +792,16 @@ class AuthoringApplicationService:
                     },
                 )
             )
-            section_traceability = self._build_section_traceability(
-                evidence_pack=evidence_pack,
-                review_result=updated_review_result,
-            )
             template_spec, section_contracts = self._build_section_contracts(
                 task_context=processing_state.task_context,
                 evidence_pack=evidence_pack,
                 review_result=updated_review_result,
+            )
+            section_traceability = self._build_section_traceability(
+                evidence_pack=evidence_pack,
+                review_result=updated_review_result,
+                template_spec=template_spec,
+                section_contracts=section_contracts,
             )
             section_artifacts = self._build_section_artifacts(
                 section_contracts=section_contracts,
@@ -1436,10 +1440,19 @@ class AuthoringApplicationService:
             workflow_mode=workflow_mode,
         )
 
-    def _build_section_traceability(self, *, evidence_pack: EvidencePack, review_result: dict[str, Any]) -> list[dict[str, Any]]:
+    def _build_section_traceability(
+        self,
+        *,
+        evidence_pack: EvidencePack,
+        review_result: dict[str, Any],
+        template_spec: TemplateSpec | None = None,
+        section_contracts: list[SectionContract] | None = None,
+    ) -> list[dict[str, Any]]:
         return self._outline_planner.build_section_traceability(
             evidence_pack=evidence_pack,
             review_result=review_result,
+            template_spec=template_spec,
+            section_contracts=section_contracts,
         )
 
     def _build_section_contracts(

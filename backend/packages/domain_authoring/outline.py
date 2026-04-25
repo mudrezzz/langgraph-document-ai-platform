@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from schemas.documents.contracts import TemplateSpec
 from schemas.rag.contracts import EvidencePack, SourceRef
 
 
@@ -13,7 +14,17 @@ class OutlinePlanner:
         *,
         evidence_pack: EvidencePack,
         review_result: dict[str, Any],
+        template_spec: TemplateSpec | None = None,
+        section_contracts: list[Any] | None = None,
     ) -> list[dict[str, Any]]:
+        if template_spec is not None and section_contracts:
+            return self._build_template_section_traceability(
+                evidence_pack=evidence_pack,
+                review_result=review_result,
+                template_spec=template_spec,
+                section_contracts=section_contracts,
+            )
+
         unique_sources = self.dedup_source_refs(evidence_pack.selected_sources)
         risk_sources = self.select_sources_by_keywords(
             evidence_pack=evidence_pack,
@@ -53,6 +64,37 @@ class OutlinePlanner:
             },
         ]
 
+    def _build_template_section_traceability(
+        self,
+        *,
+        evidence_pack: EvidencePack,
+        review_result: dict[str, Any],
+        template_spec: TemplateSpec,
+        section_contracts: list[Any],
+    ) -> list[dict[str, Any]]:
+        unique_sources = self.dedup_source_refs(evidence_pack.selected_sources)
+        contracts_by_id = {
+            str(contract.section_id): contract
+            for contract in section_contracts
+            if getattr(contract, "section_id", None)
+        }
+        sections: list[dict[str, Any]] = []
+        for section in template_spec.sections:
+            section_id = str(section.get("section_id", "")).strip()
+            if not section_id:
+                continue
+            contract = contracts_by_id.get(section_id)
+            metadata = dict(getattr(contract, "metadata", {}) or {})
+            preferred_source_refs = list(getattr(contract, "preferred_source_refs", []) or [])
+            sections.append(
+                {
+                    "section_id": section_id,
+                    "title": str(section.get("title", section_id)).strip(),
+                    "review_status": str(metadata.get("review_status") or review_result.get("status", "not_reviewed")),
+                    "source_refs": preferred_source_refs or unique_sources[:2],
+                }
+            )
+        return sections
 
     def build_outline_snapshot(
         self,

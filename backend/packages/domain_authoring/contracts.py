@@ -88,6 +88,14 @@ class SectionContractBuilder:
             metadata = dict(section.get("metadata") or {})
             metadata["review_status"] = "informational" if metadata.get("informational") else review_status
             metadata["template_id"] = template_spec.template_id
+            metadata["required"] = bool(section.get("required", True))
+            metadata["include_if_has_evidence"] = bool(section.get("include_if_has_evidence", False))
+            metadata["include_if_review_status"] = [
+                str(item).strip().lower()
+                for item in section.get("include_if_review_status", [])
+                if str(item).strip()
+            ]
+            metadata["section_group"] = section.get("section_group")
 
             contracts.append(
                 SectionContract(

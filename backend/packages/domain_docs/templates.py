@@ -54,6 +54,10 @@ class TemplateCompiler:
                     "objective": objective,
                     "required_keywords": required_keywords,
                     "source_hints": source_hints,
+                    "required": self._coerce_bool(item.get("required"), default=True),
+                    "include_if_has_evidence": self._coerce_bool(item.get("include_if_has_evidence"), default=False),
+                    "include_if_review_status": self._normalize_status_list(item.get("include_if_review_status")),
+                    "section_group": str(item.get("section_group") or "").strip() or None,
                     "metadata": dict(item.get("metadata") or {}),
                 }
             )
@@ -96,6 +100,15 @@ class TemplateCompiler:
                     "rule_id": rule_id,
                     "mode": str(item.get("mode") or "section_order"),
                     "section_order": section_order,
+                    "include_sections": [
+                        str(value).strip() for value in item.get("include_sections", []) if str(value).strip()
+                    ],
+                    "exclude_sections": [
+                        str(value).strip() for value in item.get("exclude_sections", []) if str(value).strip()
+                    ],
+                    "allowed_section_groups": [
+                        str(value).strip() for value in item.get("allowed_section_groups", []) if str(value).strip()
+                    ],
                     "include_writer_draft": bool(item.get("include_writer_draft", True)),
                     "include_traceability": bool(item.get("include_traceability", True)),
                     "metadata": dict(item.get("metadata") or {}),
@@ -136,6 +149,10 @@ class TemplateCompiler:
                     "objective": "Provide a compact register of source references used by the report.",
                     "required_keywords": [],
                     "source_hints": [],
+                    "required": False,
+                    "include_if_has_evidence": True,
+                    "include_if_review_status": [],
+                    "section_group": "appendix",
                     "metadata": {"informational": True},
                 },
             ]
@@ -147,6 +164,10 @@ class TemplateCompiler:
                 "objective": f"Provide a concise overview for template {template_id}.",
                 "required_keywords": [],
                 "source_hints": [],
+                "required": True,
+                "include_if_has_evidence": False,
+                "include_if_review_status": [],
+                "section_group": None,
                 "metadata": {},
             }
         ]
@@ -157,8 +178,34 @@ class TemplateCompiler:
                 "rule_id": f"{template_id}_default_assembly",
                 "mode": "section_order",
                 "section_order": [str(item.get("section_id", "")).strip() for item in sections if str(item.get("section_id", "")).strip()],
+                "include_sections": [],
+                "exclude_sections": [],
+                "allowed_section_groups": [],
                 "include_writer_draft": True,
                 "include_traceability": True,
                 "metadata": {},
             }
         ]
+
+    def _normalize_status_list(self, raw_value: Any) -> list[str]:
+        if not isinstance(raw_value, list):
+            return []
+        normalized = []
+        for value in raw_value:
+            item = str(value).strip().lower()
+            if item:
+                normalized.append(item)
+        return normalized
+
+    def _coerce_bool(self, value: Any, *, default: bool) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"", "0", "false", "no", "off"}:
+                return False
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+        return bool(value)

@@ -70,3 +70,4 @@
 - `0058-template-management-api-boundary.md`
 - `0059-template-library-mcp-boundary.md`
 - `0060-template-library-governance-status-baseline.md`
+- `0061-rich-template-assembly-policy-baseline.md`

@@ -635,6 +635,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
   - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/publish_template/get_template/list_templates` FastMCP tools.
   - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь берет published template.
+  - `TemplateCompiler` и authoring assembly получили richer template assembly policy baseline:
+    - section-level `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`;
+    - assembly-level `include_sections`, `exclude_sections`, `allowed_section_groups`.
+  - `DocumentAssembler` и `ArtifactExporter` теперь используют общий section selection path, поэтому markdown/json export остаются консистентными по набору секций.
+  - template-aware traceability теперь строится и для custom templates, а не только для дефолтного `release_readiness` path.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
@@ -686,7 +691,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - `template_payload` имеет наивысший приоритет и может содержать `assembly_rules`.
   - если `template_payload` не передан и `template_version` задан, authoring пытается загрузить эту reusable template version из persisted library.
   - если `template_payload` не передан и `template_version` не задан, authoring пытается загрузить последнюю `published` reusable template version.
-  - `assembly_rules` сейчас управляют как минимум `section_order`, `include_writer_draft`, `include_traceability`.
+  - `assembly_rules` сейчас управляют как минимум `section_order`, `include_sections`, `exclude_sections`, `allowed_section_groups`, `include_writer_draft`, `include_traceability`.
+  - `sections[]` в `template_payload` дополнительно поддерживают `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`.
 - `artifact_type` (по умолчанию `release_report`)
 - `artifact_title` (опционально)
 - `artifact_format` (по умолчанию `markdown`, также поддерживается `json`)

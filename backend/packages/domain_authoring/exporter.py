@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from domain_authoring.assembly import DocumentAssembler
 from schemas.authoring.contracts import SectionArtifact
 from schemas.documents.contracts import TemplateSpec
 
@@ -19,6 +20,9 @@ class ArtifactExportResult(BaseModel):
 
 class ArtifactExporter:
     """Exports deterministic authoring results into the requested artifact format."""
+
+    def __init__(self, *, document_assembler: DocumentAssembler | None = None) -> None:
+        self._document_assembler = document_assembler or DocumentAssembler()
 
     def export(
         self,
@@ -80,6 +84,19 @@ class ArtifactExporter:
         section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
     ) -> str:
+        selected_section_ids = self._document_assembler.resolve_selected_section_ids(
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
+        )
+        selected_section_artifacts = self._select_section_artifacts(
+            section_artifacts=section_artifacts,
+            selected_section_ids=selected_section_ids,
+        )
+        selected_traceability = self._document_assembler.filter_section_traceability(
+            template_spec=template_spec,
+            section_artifacts=section_artifacts,
+            section_traceability=section_traceability,
+        )
         payload: dict[str, Any] = {
             "title": artifact_title,
             "artifact_type": artifact_type,
@@ -93,13 +110,22 @@ class ArtifactExporter:
                 "notes": review_result.get("notes"),
                 "issues": list(review_result.get("issues", []) or []),
             },
-            "sections": [item.model_dump(mode="json") for item in section_artifacts],
+            "sections": [item.model_dump(mode="json") for item in selected_section_artifacts],
         }
         if self._include_writer_draft(template_spec):
             payload["writer_draft"] = writer_draft
         if self._include_traceability(template_spec):
-            payload["traceability"] = {"sections": section_traceability}
+            payload["traceability"] = {"sections": selected_traceability}
         return json.dumps(payload, ensure_ascii=False, indent=2)
+
+    def _select_section_artifacts(
+        self,
+        *,
+        section_artifacts: list[SectionArtifact],
+        selected_section_ids: list[str],
+    ) -> list[SectionArtifact]:
+        artifact_by_id = {item.section_id: item for item in section_artifacts}
+        return [artifact_by_id[section_id] for section_id in selected_section_ids if section_id in artifact_by_id]
 
     def _include_writer_draft(self, template_spec: TemplateSpec) -> bool:
         rule = self._resolve_assembly_rule(template_spec)

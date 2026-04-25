@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from application.template_library_service import TemplateLibraryApplicationService, TemplateLibraryCatalogAdapter
 from domain_docs import InMemoryTemplateCatalog, TemplateCompiler
 from infra.postgres.template_store import PostgresTemplateStore
@@ -15,7 +17,7 @@ from domain_authoring import (
     SectionReviewService,
     WriterDraftService,
 )
-from schemas.authoring.contracts import SectionPacket
+from schemas.authoring.contracts import SectionArtifact, SectionPacket
 from schemas.rag.contracts import EvidencePack, RerankedBlock, SourceRef
 from schemas.workflow.states import SectionAuthoringState
 
@@ -43,6 +45,22 @@ def _build_evidence_pack() -> EvidencePack:
         ],
         unresolved_gaps=[],
         confidence_notes=[],
+    )
+
+
+def _build_section_artifact(
+    section_id: str,
+    title: str,
+    *,
+    source_refs: list[dict[str, str]] | None = None,
+    review_status: str = "completed",
+) -> SectionArtifact:
+    return SectionArtifact(
+        section_id=section_id,
+        title=title,
+        content=f"### {title}\n\nDeterministic section content.",
+        source_refs=list(source_refs or []),
+        review_status=review_status,
     )
 
 
@@ -110,6 +128,45 @@ def test_outline_planner_builds_traceability_and_dedups_sources() -> None:
     normalized_refs = planner.to_source_refs(traceability["source_refs"])
     assert len(source_refs) == 2
     assert normalized_refs[0].doc_id == "REQ-1"
+
+
+def test_outline_planner_builds_template_aware_traceability() -> None:
+    planner = OutlinePlanner()
+    evidence_pack = _build_evidence_pack()
+    builder = SectionContractBuilder()
+    template_spec, contracts = builder.build_contracts_from_template(
+        template_id="board_memo",
+        evidence_pack=evidence_pack,
+        review_status="completed",
+        template_payload={
+            "sections": [
+                {
+                    "section_id": "decision",
+                    "title": "Decision",
+                    "objective": "Summarize decision.",
+                    "required_keywords": ["approval"],
+                },
+                {
+                    "section_id": "reviewer_appendix",
+                    "title": "Reviewer Appendix",
+                    "objective": "Record reviewer status.",
+                    "required": False,
+                    "include_if_review_status": ["completed"],
+                },
+            ]
+        },
+    )
+
+    traceability = planner.build_section_traceability(
+        evidence_pack=evidence_pack,
+        review_result={"status": "completed"},
+        template_spec=template_spec,
+        section_contracts=contracts,
+    )
+
+    assert [section["section_id"] for section in traceability] == ["decision", "reviewer_appendix"]
+    assert traceability[0]["source_refs"]
+    assert traceability[1]["review_status"] == "completed"
 
 
 def test_section_contract_builder_builds_release_readiness_contracts() -> None:
@@ -280,6 +337,47 @@ def test_template_compiler_and_catalog_support_assembly_rules() -> None:
 
     assert template_spec.assembly_rules[0]["section_order"] == ["risks", "decision"]
     assert template_spec.assembly_rules[0]["include_writer_draft"] is False
+
+
+def test_template_compiler_normalizes_richer_assembly_policy_fields() -> None:
+    compiler = TemplateCompiler()
+
+    template_spec = compiler.compile(
+        template_id="board_memo",
+        template_payload={
+            "sections": [
+                {
+                    "section_id": "decision",
+                    "title": "Decision",
+                    "required": "false",
+                    "include_if_has_evidence": "true",
+                    "include_if_review_status": [" completed ", "needs_revision"],
+                    "section_group": "core",
+                }
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "board_policy",
+                    "mode": "section_order",
+                    "section_order": ["decision"],
+                    "include_sections": ["decision"],
+                    "exclude_sections": ["draft_notes"],
+                    "allowed_section_groups": ["core"],
+                    "include_writer_draft": False,
+                    "include_traceability": True,
+                }
+            ],
+        },
+    )
+
+    section = template_spec.sections[0]
+    assert section["required"] is False
+    assert section["include_if_has_evidence"] is True
+    assert section["include_if_review_status"] == ["completed", "needs_revision"]
+    assert section["section_group"] == "core"
+    assert template_spec.assembly_rules[0]["include_sections"] == ["decision"]
+    assert template_spec.assembly_rules[0]["exclude_sections"] == ["draft_notes"]
+    assert template_spec.assembly_rules[0]["allowed_section_groups"] == ["core"]
 
 
 def test_document_assembly_workflow_builds_final_document_and_export_payload() -> None:
@@ -519,6 +617,128 @@ def test_document_assembler_respects_template_assembly_visibility_flags() -> Non
     assert "## Section Traceability" not in content
 
 
+def test_document_assembler_applies_richer_section_selection_policy() -> None:
+    assembler = DocumentAssembler()
+    template_spec = TemplateCompiler().compile(
+        template_id="board_memo",
+        template_payload={
+            "sections": [
+                {"section_id": "overview", "title": "Overview", "required": True, "section_group": "core"},
+                {
+                    "section_id": "evidence_register",
+                    "title": "Evidence Register",
+                    "required": False,
+                    "include_if_has_evidence": True,
+                    "section_group": "appendix",
+                },
+                {
+                    "section_id": "reviewer_appendix",
+                    "title": "Reviewer Appendix",
+                    "required": False,
+                    "include_if_review_status": ["completed"],
+                    "section_group": "appendix",
+                },
+                {
+                    "section_id": "suppressed_appendix",
+                    "title": "Suppressed Appendix",
+                    "required": False,
+                    "include_if_review_status": ["needs_revision"],
+                    "section_group": "appendix",
+                },
+                {
+                    "section_id": "excluded_appendix",
+                    "title": "Excluded Appendix",
+                    "required": True,
+                    "section_group": "appendix",
+                },
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "appendix_policy",
+                    "mode": "section_order",
+                    "section_order": [
+                        "overview",
+                        "evidence_register",
+                        "reviewer_appendix",
+                        "suppressed_appendix",
+                        "excluded_appendix",
+                    ],
+                    "allowed_section_groups": ["appendix"],
+                    "exclude_sections": ["excluded_appendix"],
+                    "include_writer_draft": False,
+                    "include_traceability": True,
+                }
+            ],
+        },
+    )
+
+    content = assembler.assemble_document(
+        query="prepare board memo",
+        research_summary="Research summary",
+        writer_draft="Writer draft",
+        review_result={
+            "status": "completed",
+            "recommendation": "go",
+            "notes": "Ready.",
+            "issues": [],
+        },
+        section_traceability=[
+            {"section_id": "overview", "title": "Overview", "review_status": "completed", "source_refs": []},
+            {
+                "section_id": "evidence_register",
+                "title": "Evidence Register",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            },
+            {
+                "section_id": "reviewer_appendix",
+                "title": "Reviewer Appendix",
+                "review_status": "completed",
+                "source_refs": [],
+            },
+            {
+                "section_id": "suppressed_appendix",
+                "title": "Suppressed Appendix",
+                "review_status": "not_reviewed",
+                "source_refs": [],
+            },
+            {
+                "section_id": "excluded_appendix",
+                "title": "Excluded Appendix",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-2"}],
+            },
+        ],
+        workflow_mode="multi_step",
+        template_spec=template_spec,
+        section_artifacts=[
+            _build_section_artifact("overview", "Overview", source_refs=[{"doc_id": "REQ-1", "version": "1", "block_id": "B-0"}]),
+            _build_section_artifact(
+                "evidence_register",
+                "Evidence Register",
+                source_refs=[{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            ),
+            _build_section_artifact("reviewer_appendix", "Reviewer Appendix", review_status="completed"),
+            _build_section_artifact("suppressed_appendix", "Suppressed Appendix", review_status="not_reviewed"),
+            _build_section_artifact(
+                "excluded_appendix",
+                "Excluded Appendix",
+                source_refs=[{"doc_id": "REQ-1", "version": "1", "block_id": "B-2"}],
+            ),
+        ],
+    )
+
+    assert "## Overview" not in content
+    assert "## Evidence Register" in content
+    assert "## Reviewer Appendix" in content
+    assert "## Suppressed Appendix" not in content
+    assert "## Excluded Appendix" not in content
+    assert "## Writer Draft" not in content
+    assert "- evidence_register (Evidence Register)" in content
+    assert "- reviewer_appendix (Reviewer Appendix)" in content
+    assert "- overview (Overview)" not in content
+
+
 def test_artifact_exporter_renders_json_artifact() -> None:
     exporter = ArtifactExporter()
     section_artifact = SectionAuthoringService().author_section(
@@ -598,6 +818,105 @@ def test_artifact_exporter_renders_json_artifact() -> None:
     assert '"sections"' in result.content
     assert '"writer_draft"' not in result.content
     assert '"traceability"' not in result.content
+
+
+def test_artifact_exporter_filters_json_sections_with_same_policy_as_assembler() -> None:
+    exporter = ArtifactExporter()
+    template_spec = TemplateCompiler().compile(
+        template_id="board_memo",
+        template_payload={
+            "sections": [
+                {"section_id": "overview", "title": "Overview", "required": True, "section_group": "core"},
+                {
+                    "section_id": "evidence_register",
+                    "title": "Evidence Register",
+                    "required": False,
+                    "include_if_has_evidence": True,
+                    "section_group": "appendix",
+                },
+                {
+                    "section_id": "reviewer_appendix",
+                    "title": "Reviewer Appendix",
+                    "required": False,
+                    "include_if_review_status": ["completed"],
+                    "section_group": "appendix",
+                },
+                {
+                    "section_id": "suppressed_appendix",
+                    "title": "Suppressed Appendix",
+                    "required": False,
+                    "include_if_review_status": ["needs_revision"],
+                    "section_group": "appendix",
+                },
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "appendix_json",
+                    "mode": "section_order",
+                    "section_order": ["overview", "evidence_register", "reviewer_appendix", "suppressed_appendix"],
+                    "allowed_section_groups": ["appendix"],
+                    "include_writer_draft": False,
+                    "include_traceability": True,
+                }
+            ],
+        },
+    )
+
+    result = exporter.export(
+        artifact_type="board_memo",
+        artifact_title="Appendix Board Memo",
+        artifact_format="json",
+        assembled_content="# Board Memo",
+        query="prepare board memo",
+        research_summary="Research summary",
+        writer_draft="Writer draft",
+        review_result={
+            "status": "completed",
+            "recommendation": "go",
+            "notes": "Ready.",
+            "issues": [],
+        },
+        template_spec=template_spec,
+        section_artifacts=[
+            _build_section_artifact("overview", "Overview", source_refs=[{"doc_id": "REQ-1", "version": "1", "block_id": "B-0"}]),
+            _build_section_artifact(
+                "evidence_register",
+                "Evidence Register",
+                source_refs=[{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            ),
+            _build_section_artifact("reviewer_appendix", "Reviewer Appendix", review_status="completed"),
+            _build_section_artifact("suppressed_appendix", "Suppressed Appendix", review_status="not_reviewed"),
+        ],
+        section_traceability=[
+            {"section_id": "overview", "title": "Overview", "review_status": "completed", "source_refs": []},
+            {
+                "section_id": "evidence_register",
+                "title": "Evidence Register",
+                "review_status": "completed",
+                "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+            },
+            {
+                "section_id": "reviewer_appendix",
+                "title": "Reviewer Appendix",
+                "review_status": "completed",
+                "source_refs": [],
+            },
+            {
+                "section_id": "suppressed_appendix",
+                "title": "Suppressed Appendix",
+                "review_status": "not_reviewed",
+                "source_refs": [],
+            },
+        ],
+    )
+
+    payload = json.loads(result.content)
+    assert [section["section_id"] for section in payload["sections"]] == ["evidence_register", "reviewer_appendix"]
+    assert [section["section_id"] for section in payload["traceability"]["sections"]] == [
+        "evidence_register",
+        "reviewer_appendix",
+    ]
+    assert "writer_draft" not in payload
 
 
 def test_research_summary_builder_formats_evidence_observations() -> None:

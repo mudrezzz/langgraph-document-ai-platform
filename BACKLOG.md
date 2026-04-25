@@ -509,6 +509,18 @@ Fifteenth slice done:
 - targeted governance tests: `80 passed`;
 - local suite without external flags: `208 passed, 3 skipped`.
 
+Sixteenth slice done:
+
+- `TemplateCompiler` и `SectionContractBuilder` получили richer template assembly policy baseline:
+  - section-level поля `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`;
+  - assembly-level поля `include_sections`, `exclude_sections`, `allowed_section_groups`;
+- `DocumentAssembler` теперь применяет эти richer rules при выборе итоговых секций и фильтрации section traceability;
+- `ArtifactExporter` переиспользует тот же deterministic section selection path, поэтому `markdown` и `json` больше не расходятся по составу секций;
+- `OutlinePlanner` и `AuthoringApplicationService` теперь строят template-aware `section_traceability` для custom templates, а не только для release-readiness default path;
+- добавлен ADR-0061 и расширены unit tests для compiler normalization, template-aware traceability, conditional section inclusion и JSON export consistency;
+- targeted authoring/domain tests: `44 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `216 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;
