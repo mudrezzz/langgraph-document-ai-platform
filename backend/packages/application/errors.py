@@ -31,3 +31,7 @@ class TaskArtifactLinkNotFoundError(KeyError):
 
 class TemplateNotFoundError(KeyError):
     """Шаблон не найден в template library."""
+
+
+class InvalidTemplateStatusTransitionError(ValueError):
+    """Некорректный переход статуса шаблона."""

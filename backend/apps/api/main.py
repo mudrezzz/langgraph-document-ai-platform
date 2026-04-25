@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 from application.errors import (
     InvalidCursorError,
     InvalidTaskStateError,
+    InvalidTemplateStatusTransitionError,
     TaskArtifactLinkNotFoundError,
     TaskNotFoundError,
     TemplateNotFoundError,
@@ -24,6 +25,7 @@ from schemas.api.contracts import (
     StartRetrievalTaskRequest,
     StartTaskResponse,
     PublishTemplateRequest,
+    SetTemplateStatusRequest,
     TaskArtifactResponse,
     TaskEventsResponse,
     TaskEventsSummaryResponse,
@@ -59,11 +61,15 @@ def upsert_template(
         validation_rules=request.validation_rules,
         assembly_rules=request.assembly_rules,
     )
-    container.template_library_service.upsert_template(template_spec, metadata=request.metadata)
-    if request.status == "published":
-        saved = container.template_library_service.publish_template(template_id, request.version)
-    else:
-        saved = container.template_library_service.get_template(template_id, request.version)
+    try:
+        container.template_library_service.upsert_template(
+            template_spec,
+            metadata=request.metadata,
+            status=request.status,
+        )
+    except InvalidTemplateStatusTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    saved = container.template_library_service.get_template(template_id, request.version)
     return TemplateResponse(
         template_id=saved.template_id,
         version=saved.version,
@@ -111,6 +117,8 @@ def publish_template(
         published = container.template_library_service.publish_template(template_id, request.version)
     except TemplateNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvalidTemplateStatusTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
     return TemplateResponse(
         template_id=published.template_id,
@@ -120,6 +128,39 @@ def publish_template(
         metadata=published.metadata,
         created_at=published.created_at,
         updated_at=published.updated_at,
+    )
+
+
+@app.post("/api/v1/templates/{template_id}/status", response_model=TemplateResponse)
+def set_template_status(
+    template_id: str,
+    request: SetTemplateStatusRequest,
+    container: ApiContainer = Depends(get_container),
+) -> TemplateResponse:
+    """Применяет explicit lifecycle transition к reusable template version."""
+
+    try:
+        updated = container.template_library_service.set_template_status(
+            template_id,
+            request.version,
+            request.status,
+            reason=request.reason,
+            actor=request.actor,
+            metadata=request.metadata,
+        )
+    except TemplateNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except InvalidTemplateStatusTransitionError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    return TemplateResponse(
+        template_id=updated.template_id,
+        version=updated.version,
+        status=updated.status,
+        template_spec=updated.template_spec.model_dump(mode="json"),
+        metadata=updated.metadata,
+        created_at=updated.created_at,
+        updated_at=updated.updated_at,
     )
 
 

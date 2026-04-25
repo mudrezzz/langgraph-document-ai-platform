@@ -36,6 +36,6 @@
 
 Минусы:
 
-- lifecycle пока предельно простой: нет archived/deprecated states, promotion history и approval chain;
-- detail publish policy для active published-version дальше уточнен в ADR-0062;
-- richer governance policy остается следующим возможным slice.
+- baseline lifecycle затем расширен до `draft|published|deprecated|archived` и explicit status transitions в ADR-0063;
+- detail publish policy для active published-version уточнен в ADR-0062;
+- approval workflow и RBAC по-прежнему остаются вне текущего scope.

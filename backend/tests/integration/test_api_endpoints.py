@@ -216,6 +216,76 @@ def test_template_api_publish_demotes_previous_published_version(client: TestCli
     assert listed.json()["items"][0]["version"] == "6"
 
 
+def test_template_api_status_transition_supports_deprecated_and_archived(client: TestClient) -> None:
+    upsert = client.put(
+        "/api/v1/templates/decision_memo",
+        json={
+            "version": "7",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        },
+    )
+    assert upsert.status_code == 200
+
+    deprecated = client.post(
+        "/api/v1/templates/decision_memo/status",
+        json={
+            "version": "7",
+            "status": "deprecated",
+            "reason": "legacy",
+            "actor": "integration-test",
+        },
+    )
+    archived = client.post(
+        "/api/v1/templates/decision_memo/status",
+        json={
+            "version": "7",
+            "status": "archived",
+            "reason": "retired",
+            "actor": "integration-test",
+        },
+    )
+    listed_archived = client.get("/api/v1/templates?template_id=decision_memo&status=archived")
+
+    assert deprecated.status_code == 200
+    assert deprecated.json()["status"] == "deprecated"
+    assert deprecated.json()["metadata"]["governance"]["current_status"] == "deprecated"
+    assert archived.status_code == 200
+    assert archived.json()["status"] == "archived"
+    assert listed_archived.status_code == 200
+    assert listed_archived.json()["total_returned"] == 1
+
+
+def test_template_api_status_transition_rejects_reactivating_archived_template(client: TestClient) -> None:
+    upsert = client.put(
+        "/api/v1/templates/decision_memo",
+        json={
+            "version": "8",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        },
+    )
+    assert upsert.status_code == 200
+
+    archived = client.post(
+        "/api/v1/templates/decision_memo/status",
+        json={
+            "version": "8",
+            "status": "archived",
+        },
+    )
+    assert archived.status_code == 200
+
+    reactivate = client.post(
+        "/api/v1/templates/decision_memo/status",
+        json={
+            "version": "8",
+            "status": "draft",
+        },
+    )
+
+    assert reactivate.status_code == 409
+    assert "archived" in reactivate.json()["detail"]
+
+
 def test_template_api_get_returns_404_for_missing_template(client: TestClient) -> None:
     response = client.get("/api/v1/templates/missing-template")
 
@@ -846,6 +916,73 @@ def test_authoring_endpoint_uses_latest_published_template_when_version_missing(
     payload = artifact.json()
     assert payload["metadata"]["template_spec"]["version"] == "10"
     assert payload["metadata"]["section_contracts"][0]["section_id"] == "published_section"
+
+
+def test_authoring_endpoint_rejects_archived_template_version(client: TestClient) -> None:
+    container = get_container()
+    archived_spec = container.authoring_service._section_contract_builder.get_template_spec(
+        template_id="decision_memo",
+        template_payload={
+            "version": "13",
+            "sections": [{"section_id": "archived_section", "title": "Archived Section"}],
+        },
+    )
+    container.template_library_service.upsert_template(archived_spec)
+    container.template_library_service.set_template_status("decision_memo", "13", "archived")
+
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь decision memo по archived template",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "requester": "integration-template-library-archived-test",
+                "template_id": "decision_memo",
+                "template_version": "13",
+            },
+            "artifact_type": "decision_memo",
+            "artifact_title": "Integration Archived Decision Memo",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "archived" in response.json()["detail"]
+
+
+def test_authoring_endpoint_requires_published_template_when_version_missing(client: TestClient) -> None:
+    container = get_container()
+    deprecated_spec = container.authoring_service._section_contract_builder.get_template_spec(
+        template_id="decision_memo",
+        template_payload={
+            "version": "14",
+            "sections": [{"section_id": "deprecated_only", "title": "Deprecated Only"}],
+        },
+    )
+    container.template_library_service.upsert_template(deprecated_spec)
+    container.template_library_service.set_template_status("decision_memo", "14", "deprecated")
+
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь decision memo по default template",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "requester": "integration-template-library-no-published-test",
+                "template_id": "decision_memo",
+            },
+            "artifact_type": "decision_memo",
+            "artifact_title": "Integration Missing Published Decision Memo",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 400
+    assert "published version" in response.json()["detail"]
 
 def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:
     retrieval_task_id = _create_task(client)

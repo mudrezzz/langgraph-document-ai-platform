@@ -5,6 +5,7 @@ import os
 import pytest
 
 from apps.api.dependencies import ApiContainer
+from application.errors import InvalidTemplateStatusTransitionError
 from application.template_library_service import TemplateLibraryApplicationService
 from domain_docs import TemplateCompiler
 from infra.pgvector.vector_store import PgVectorStoreAdapter
@@ -305,6 +306,73 @@ def test_template_store_publish_demotes_previous_published_version() -> None:
     assert second.status == "published"
     assert published_only_list.total_returned == 1
     assert published_only_list.items[0].version == "2"
+
+
+def test_template_store_supports_deprecated_and_archived_status_transitions() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="governed_memo",
+            template_payload={"version": "1", "sections": [{"section_id": "overview", "title": "Overview"}]},
+        )
+    )
+
+    deprecated = library.set_template_status(
+        "governed_memo",
+        "1",
+        "deprecated",
+        reason="superseded",
+        actor="unit-test",
+    )
+    archived = library.set_template_status(
+        "governed_memo",
+        "1",
+        "archived",
+        reason="retired",
+        actor="unit-test",
+    )
+
+    assert deprecated.status == "deprecated"
+    assert deprecated.metadata["governance"]["current_status"] == "deprecated"
+    assert archived.status == "archived"
+    assert archived.metadata["governance"]["status_history"][-1]["status"] == "archived"
+
+
+def test_template_store_rejects_reading_archived_version_when_disallowed() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="governed_memo",
+            template_payload={"version": "2", "sections": [{"section_id": "overview", "title": "Overview"}]},
+        )
+    )
+    library.set_template_status("governed_memo", "2", "archived")
+
+    with pytest.raises(KeyError, match="не найден"):
+        store.get_template("governed_memo", "2", allow_archived=False)
+
+
+def test_template_store_archived_version_cannot_be_reactivated() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="governed_memo",
+            template_payload={"version": "3", "sections": [{"section_id": "overview", "title": "Overview"}]},
+        )
+    )
+    library.set_template_status("governed_memo", "3", "archived")
+
+    with pytest.raises(InvalidTemplateStatusTransitionError, match="archived"):
+        library.set_template_status("governed_memo", "3", "draft")
 
 
 def test_template_library_service_compile_template_normalizes_payload() -> None:

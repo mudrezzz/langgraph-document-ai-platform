@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from application.template_library_service import TemplateLibraryApplicationService, TemplateLibraryCatalogAdapter
 from domain_docs import InMemoryTemplateCatalog, TemplateCompiler
 from infra.postgres.template_store import PostgresTemplateStore
@@ -1036,3 +1038,23 @@ def test_section_contract_builder_uses_persisted_template_library_when_payload_m
     assert template_spec.version == "3"
     assert contracts[0].section_id == "executive_summary"
     assert contracts[0].metadata["template_id"] == "decision_memo"
+
+
+def test_template_library_catalog_adapter_rejects_archived_template_for_authoring() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+    spec = compiler.compile(
+        template_id="decision_memo",
+        template_payload={
+            "version": "4",
+            "sections": [{"section_id": "archived_section", "title": "Archived Section"}],
+        },
+    )
+    library.upsert_template(spec)
+    library.set_template_status("decision_memo", "4", "archived")
+
+    catalog = TemplateLibraryCatalogAdapter(library)
+
+    with pytest.raises(KeyError, match="archived"):
+        catalog.get_template_spec("decision_memo", "4")

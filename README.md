@@ -95,9 +95,10 @@
   - скрипты `run_artifact_writer_mcp.sh/.ps1` и `smoke_artifact_writer_mcp.sh/.ps1`.
 - добавлен Template Library MCP boundary:
   - `apps/mcp_template_library/main.py`;
-  - `FastMcpTemplateLibraryService` с tool-ами `upsert_template`, `publish_template`, `get_template`, `list_templates`;
+  - `FastMcpTemplateLibraryService` с tool-ами `upsert_template`, `publish_template`, `set_template_status`, `get_template`, `list_templates`;
   - скрипты `run_template_library_mcp.sh/.ps1` и `smoke_template_library_mcp.sh/.ps1`.
-  - reusable templates получили baseline governance status `draft|published`, а authoring по умолчанию резолвит published template, если `template_version` явно не задан.
+  - reusable templates получили lifecycle `draft|published|deprecated|archived`, explicit status-transition path и governance metadata/history;
+  - authoring по умолчанию резолвит только published template, explicit archived version для authoring запрещена.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -633,8 +634,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлены baseline `TemplateCatalog` и `assembly_rules` в `TemplateSpec`.
   - добавлена persisted template library (`TemplateLibraryApplicationService` + `PostgresTemplateStore`), а authoring теперь умеет резолвить reusable templates по `template_id/template_version` без обязательного inline `template_payload`.
   - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
-  - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/publish_template/get_template/list_templates` FastMCP tools.
-  - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь берет published template.
+  - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/publish_template/set_template_status/get_template/list_templates` FastMCP tools.
+  - template library получила lifecycle `draft|published|deprecated|archived`, governance metadata/history и explicit status transition API/MCP path.
+  - authoring без явного `template_version` теперь требует published template, explicit archived version не допускается, а deprecated version остается доступной только по явному version lookup.
   - publish semantics стали exclusive: при публикации новой version предыдущая published-version того же `template_id` автоматически demote-ится обратно в `draft`.
   - `TemplateCompiler` и authoring assembly получили richer template assembly policy baseline:
     - section-level `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`;
@@ -675,6 +677,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - body: `version`;
   - переводит конкретную reusable template version в статус `published`;
   - автоматически demote-ит другие published versions того же `template_id` обратно в `draft`.
+- `POST /api/v1/templates/{template_id}/status`
+  - body: `version`, `status`, `reason`, `actor`, `metadata`;
+  - применяет explicit lifecycle transition (`draft|published|deprecated|archived`) и записывает governance metadata/history.
 - `GET /api/v1/templates/{template_id}`
   - query: `version` (опционально);
   - возвращает конкретную или последнюю доступную версию шаблона.
@@ -692,7 +697,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - поддерживает `template_id`, `template_version` и `template_payload` для template-aware authoring section contracts.
   - `template_payload` имеет наивысший приоритет и может содержать `assembly_rules`.
   - если `template_payload` не передан и `template_version` задан, authoring пытается загрузить эту reusable template version из persisted library.
-  - если `template_payload` не передан и `template_version` не задан, authoring пытается загрузить последнюю `published` reusable template version.
+  - если `template_payload` не передан и `template_version` не задан, authoring требует последнюю `published` reusable template version.
+  - explicit `template_version` может читать `draft|published|deprecated`, но `archived` version для authoring запрещена.
   - `assembly_rules` сейчас управляют как минимум `section_order`, `include_sections`, `exclude_sections`, `allowed_section_groups`, `include_writer_draft`, `include_traceability`.
   - `sections[]` в `template_payload` дополнительно поддерживают `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`.
 - `artifact_type` (по умолчанию `release_report`)
@@ -807,7 +813,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - tools `write_artifact`, `get_artifact`, `list_artifacts`;
   - схемы `backend/packages/schemas/mcp/artifact_writer.py`.
 - Template Library MCP:
-  - tools `upsert_template`, `publish_template`, `get_template`, `list_templates`;
+  - tools `upsert_template`, `publish_template`, `set_template_status`, `get_template`, `list_templates`;
   - схемы `backend/packages/schemas/mcp/template_library.py`.
 
 ## Knowledge Factory MVP

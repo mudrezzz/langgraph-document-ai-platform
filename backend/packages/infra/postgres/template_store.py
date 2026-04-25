@@ -47,6 +47,16 @@ class PostgresTemplateStore:
         status: TemplateStatus | None = None,
     ) -> str:
         resolved_status: TemplateStatus = status or "draft"
+        governance_metadata = _merge_governance_metadata(
+            existing_metadata=self._templates.get((template_spec.template_id, template_spec.version)).metadata
+            if self._use_fallback and (template_spec.template_id, template_spec.version) in self._templates
+            else None,
+            patch_metadata=metadata,
+            next_status=resolved_status,
+            reason="upsert",
+            actor="template-store",
+            append_history=False,
+        )
         if self._use_fallback:
             now_utc = datetime.now(timezone.utc)
             key = (template_spec.template_id, template_spec.version)
@@ -56,7 +66,7 @@ class PostgresTemplateStore:
                 version=template_spec.version,
                 status=resolved_status,
                 template_spec=template_spec,
-                metadata=dict(metadata or {}),
+                metadata=governance_metadata,
                 created_at=current.created_at if current is not None else now_utc,
                 updated_at=now_utc,
             )
@@ -88,7 +98,7 @@ class PostgresTemplateStore:
                         template_spec.template_id,
                         template_spec.version,
                         resolved_status,
-                        json.dumps(dict(metadata or {}), ensure_ascii=False),
+                        json.dumps(governance_metadata, ensure_ascii=False),
                         json.dumps(payload, ensure_ascii=False),
                     ),
                 )
@@ -100,17 +110,20 @@ class PostgresTemplateStore:
         version: str | None = None,
         *,
         published_only: bool = False,
+        allow_archived: bool = True,
     ) -> TemplateRecord:
         if self._use_fallback:
             if version is not None:
                 item = self._templates.get((template_id, version))
-                if item is None:
+                if item is None or (not allow_archived and item.status == "archived"):
                     raise KeyError(f"Template {template_id}:{version} не найден")
                 return item
 
             candidates = [item for key, item in self._templates.items() if key[0] == template_id]
             if published_only:
                 candidates = [item for item in candidates if item.status == "published"]
+            if not allow_archived:
+                candidates = [item for item in candidates if item.status != "archived"]
             if not candidates:
                 raise KeyError(f"Template {template_id} не найден")
             return sorted(
@@ -124,7 +137,7 @@ class PostgresTemplateStore:
             f"""
             SELECT template_id, version, status, metadata, payload, created_at, updated_at
             FROM {self._schema}.document_templates
-            WHERE template_id = %s AND version = %s
+            WHERE template_id = %s AND version = %s AND (%s = TRUE OR status <> 'archived')
             """
             if version is not None
             else f"""
@@ -132,11 +145,12 @@ class PostgresTemplateStore:
             FROM {self._schema}.document_templates
             WHERE template_id = %s
               AND (%s = FALSE OR status = 'published')
+              AND (%s = TRUE OR status <> 'archived')
             ORDER BY updated_at DESC, version DESC
             LIMIT 1
             """
         )
-        params = (template_id, version) if version is not None else (template_id, published_only)
+        params = (template_id, version, allow_archived) if version is not None else (template_id, published_only, allow_archived)
 
         with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
@@ -148,51 +162,133 @@ class PostgresTemplateStore:
         return _row_to_template_record(row)
 
     def publish_template(self, template_id: str, version: str) -> TemplateRecord:
+        return self.set_template_status(template_id, version, "published")
+
+    def set_template_status(
+        self,
+        template_id: str,
+        version: str,
+        status: TemplateStatus,
+        *,
+        reason: str | None = None,
+        actor: str | None = None,
+        metadata: dict | None = None,
+    ) -> TemplateRecord:
         if self._use_fallback:
             key = (template_id, version)
             current = self._templates.get(key)
             if current is None:
                 raise KeyError(f"Template {template_id}:{version} не найден")
             now_utc = datetime.now(timezone.utc)
-            for existing_key, existing_record in list(self._templates.items()):
-                if existing_key[0] != template_id or existing_key == key:
-                    continue
-                if existing_record.status != "published":
-                    continue
-                self._templates[existing_key] = existing_record.model_copy(
-                    update={
-                        "status": "draft",
-                        "updated_at": now_utc,
-                    }
-                )
-            published = current.model_copy(
+
+            if status == "published":
+                for existing_key, existing_record in list(self._templates.items()):
+                    if existing_key[0] != template_id or existing_key == key:
+                        continue
+                    if existing_record.status != "published":
+                        continue
+                    demoted_metadata = _merge_governance_metadata(
+                        existing_metadata=existing_record.metadata,
+                        patch_metadata=None,
+                        next_status="draft",
+                        reason=f"superseded_by_publish:{version}",
+                        actor=actor or "template-store",
+                        append_history=True,
+                    )
+                    self._templates[existing_key] = existing_record.model_copy(
+                        update={
+                            "status": "draft",
+                            "metadata": demoted_metadata,
+                            "updated_at": now_utc,
+                        }
+                    )
+
+            updated_metadata = _merge_governance_metadata(
+                existing_metadata=current.metadata,
+                patch_metadata=metadata,
+                next_status=status,
+                reason=reason,
+                actor=actor,
+                append_history=True,
+            )
+            updated = current.model_copy(
                 update={
-                    "status": "published",
+                    "status": status,
+                    "metadata": updated_metadata,
                     "updated_at": now_utc,
                 }
             )
-            self._templates[key] = published
-            return published
+            self._templates[key] = updated
+            return updated
 
         psycopg, dict_row = _import_psycopg()
         with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
-                    UPDATE {self._schema}.document_templates
-                    SET status = 'draft', updated_at = now()
-                    WHERE template_id = %s AND status = 'published' AND version <> %s
+                    SELECT template_id, version, status, metadata, payload, created_at, updated_at
+                    FROM {self._schema}.document_templates
+                    WHERE template_id = %s AND version = %s
                     """,
                     (template_id, version),
+                )
+                current_row = cur.fetchone()
+                if current_row is None:
+                    raise KeyError(f"Template {template_id}:{version} не найден")
+
+                if status == "published":
+                    cur.execute(
+                        f"""
+                        SELECT template_id, version, status, metadata, payload, created_at, updated_at
+                        FROM {self._schema}.document_templates
+                        WHERE template_id = %s AND status = 'published' AND version <> %s
+                        """,
+                        (template_id, version),
+                    )
+                    previous_rows = cur.fetchall()
+                    for previous_row in previous_rows:
+                        demoted_metadata = _merge_governance_metadata(
+                            existing_metadata=_json_payload(previous_row["metadata"]),
+                            patch_metadata=None,
+                            next_status="draft",
+                            reason=f"superseded_by_publish:{version}",
+                            actor=actor or "template-store",
+                            append_history=True,
+                        )
+                        cur.execute(
+                            f"""
+                            UPDATE {self._schema}.document_templates
+                            SET status = 'draft', metadata = %s::jsonb, updated_at = now()
+                            WHERE template_id = %s AND version = %s
+                            """,
+                            (
+                                json.dumps(demoted_metadata, ensure_ascii=False),
+                                str(previous_row["template_id"]),
+                                str(previous_row["version"]),
+                            ),
+                        )
+
+                updated_metadata = _merge_governance_metadata(
+                    existing_metadata=_json_payload(current_row["metadata"]),
+                    patch_metadata=metadata,
+                    next_status=status,
+                    reason=reason,
+                    actor=actor,
+                    append_history=True,
                 )
                 cur.execute(
                     f"""
                     UPDATE {self._schema}.document_templates
-                    SET status = 'published', updated_at = now()
+                    SET status = %s, metadata = %s::jsonb, updated_at = now()
                     WHERE template_id = %s AND version = %s
                     RETURNING template_id, version, status, metadata, payload, created_at, updated_at
                     """,
-                    (template_id, version),
+                    (
+                        status,
+                        json.dumps(updated_metadata, ensure_ascii=False),
+                        template_id,
+                        version,
+                    ),
                 )
                 row = cur.fetchone()
 
@@ -284,3 +380,42 @@ def _validate_page(*, limit: int, offset: int) -> None:
         raise ValueError("limit должен быть в диапазоне 1..200")
     if offset < 0:
         raise ValueError("offset должен быть >= 0")
+
+
+def _merge_governance_metadata(
+    *,
+    existing_metadata: dict[str, Any] | None,
+    patch_metadata: dict[str, Any] | None,
+    next_status: str,
+    reason: str | None,
+    actor: str | None,
+    append_history: bool,
+) -> dict[str, Any]:
+    merged = dict(existing_metadata or {})
+    if patch_metadata:
+        merged.update(dict(patch_metadata))
+
+    governance = dict(merged.get("governance") or {})
+    history = list(governance.get("status_history") or [])
+    timestamp = datetime.now(timezone.utc).isoformat()
+    governance.update(
+        {
+            "current_status": next_status,
+            "updated_at": timestamp,
+            "updated_by": actor or governance.get("updated_by") or "system",
+        }
+    )
+    if reason:
+        governance["reason"] = reason
+    if append_history:
+        history.append(
+            {
+                "status": next_status,
+                "at": timestamp,
+                "reason": reason,
+                "actor": actor or "system",
+            }
+        )
+    governance["status_history"] = history
+    merged["governance"] = governance
+    return merged

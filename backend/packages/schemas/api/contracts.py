@@ -240,7 +240,7 @@ class UpsertTemplateRequest(BaseModel):
     """Запрос на регистрацию или обновление reusable template."""
 
     version: str = "1"
-    status: Literal["draft", "published"] = "draft"
+    status: Literal["draft", "published", "deprecated", "archived"] = "draft"
     sections: list[dict] = Field(default_factory=list)
     validation_rules: list[dict] = Field(default_factory=list)
     assembly_rules: list[dict] = Field(default_factory=list)
@@ -253,12 +253,22 @@ class PublishTemplateRequest(BaseModel):
     version: str
 
 
+class SetTemplateStatusRequest(BaseModel):
+    """Запрос на explicit lifecycle transition reusable template."""
+
+    version: str
+    status: Literal["draft", "published", "deprecated", "archived"]
+    reason: str | None = None
+    actor: str | None = None
+    metadata: dict = Field(default_factory=dict)
+
+
 class TemplateResponse(BaseModel):
     """Ответ API с сохраненным template spec."""
 
     template_id: str
     version: str
-    status: Literal["draft", "published"] = "draft"
+    status: Literal["draft", "published", "deprecated", "archived"] = "draft"
     template_spec: dict = Field(default_factory=dict)
     metadata: dict = Field(default_factory=dict)
     created_at: datetime | None = None

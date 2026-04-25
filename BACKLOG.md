@@ -530,6 +530,16 @@ Seventeenth slice done:
 - targeted governance/API/MCP tests: `65 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `219 passed`.
 
+Eighteenth slice done:
+
+- template governance закрыт до production-compatible lifecycle: `draft|published|deprecated|archived`;
+- добавлен explicit `set_template_status` path в `TemplateLibraryApplicationService`, HTTP API (`POST /api/v1/templates/{template_id}/status`) и Template Library MCP;
+- fallback/PostgreSQL template store теперь сохраняют governance metadata/history в `metadata.governance` и продолжают поддерживать exclusive published invariant;
+- authoring default resolution теперь требует published template, explicit archived version запрещена, explicit deprecated version остается доступной;
+- расширены smoke/unit/integration tests для lifecycle transitions, archived guardrails и MCP governance path;
+- targeted governance/authoring/API/MCP tests: `122 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `232 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

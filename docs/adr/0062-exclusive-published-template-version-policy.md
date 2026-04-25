@@ -39,4 +39,4 @@
 
 - publish больше не хранит несколько параллельных active published branches;
 - rollback требует повторного publish нужной старой version;
-- richer governance с approval history, archived/deprecated states и promotion audit остается отдельным следующим slice.
+- lifecycle governance затем закрыт в ADR-0063: добавлены `deprecated|archived`, explicit status transitions и metadata-based audit.

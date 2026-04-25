@@ -49,4 +49,4 @@
 
 - policy пока intentionally минимальна: нет произвольных boolean expressions, nested rule engine или per-section rendering strategies;
 - traceability still derives source refs из existing contracts/evidence heuristics, а не из отдельного section planning graph;
-- более развитая template governance и richer authoring layout policy остаются следующими slice'ами.
+- richer authoring layout policy закрыт этим ADR, а template governance lifecycle затем закрыт в ADR-0063.

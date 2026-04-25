@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from application.errors import InvalidTemplateStatusTransitionError
 from application.template_library_service import TemplateListPage, TemplateRecord
 from infra.fastmcp.template_library_service import FastMcpTemplateLibraryService
 from schemas.documents.contracts import TemplateSpec
@@ -67,20 +68,46 @@ class _FakeTemplateLibraryService:
         return sorted(matching, key=lambda item: item.version, reverse=True)[0]
 
     def publish_template(self, template_id: str, version: str) -> TemplateRecord:
+        return self.set_template_status(template_id, version, "published")
+
+    def set_template_status(
+        self,
+        template_id: str,
+        version: str,
+        status: str,
+        *,
+        reason: str | None = None,
+        actor: str | None = None,
+        metadata: dict | None = None,
+    ) -> TemplateRecord:
         key = (template_id, version)
         current = self.storage.get(key)
         if current is None:
             raise KeyError(f"Template {template_id}:{version} не найден")
+        if current.status == "archived" and status != "archived":
+            raise InvalidTemplateStatusTransitionError("Переход статуса template archived -> active не разрешен")
+
         now = datetime.now(timezone.utc)
-        for existing_key, existing_record in list(self.storage.items()):
-            if existing_key[0] != template_id or existing_key == key:
-                continue
-            if existing_record.status != "published":
-                continue
-            self.storage[existing_key] = existing_record.model_copy(update={"status": "draft", "updated_at": now})
-        published = current.model_copy(update={"status": "published", "updated_at": now})
-        self.storage[key] = published
-        return published
+        if status == "published":
+            for existing_key, existing_record in list(self.storage.items()):
+                if existing_key[0] != template_id or existing_key == key:
+                    continue
+                if existing_record.status != "published":
+                    continue
+                self.storage[existing_key] = existing_record.model_copy(update={"status": "draft", "updated_at": now})
+
+        merged_metadata = dict(current.metadata)
+        if metadata:
+            merged_metadata.update(metadata)
+        governance = dict(merged_metadata.get("governance") or {})
+        history = list(governance.get("status_history") or [])
+        history.append({"status": status, "reason": reason, "actor": actor})
+        governance.update({"current_status": status, "reason": reason, "updated_by": actor, "status_history": history})
+        merged_metadata["governance"] = governance
+
+        updated = current.model_copy(update={"status": status, "metadata": merged_metadata, "updated_at": now})
+        self.storage[key] = updated
+        return updated
 
     def list_templates(
         self,
@@ -150,6 +177,7 @@ def test_fastmcp_template_library_service_metadata_contains_tools() -> None:
     assert metadata["service_name"] == "template-library-mcp"
     assert "upsert_template" in metadata["tool_names"]
     assert "publish_template" in metadata["tool_names"]
+    assert "set_template_status" in metadata["tool_names"]
     assert "get_template" in metadata["tool_names"]
     assert "list_templates" in metadata["tool_names"]
 
@@ -214,3 +242,71 @@ def test_fastmcp_template_library_service_publish_demotes_previous_published_ver
     assert second["status"] == "published"
     assert listed["total_returned"] == 1
     assert listed["items"][0]["version"] == "2"
+
+
+def test_fastmcp_template_library_service_set_template_status_supports_deprecate_and_archive() -> None:
+    fake_service = _FakeTemplateLibraryService()
+    mcp_service = FastMcpTemplateLibraryService(fake_service)  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    mcp_service.upsert_template(
+        {
+            "template_id": "status_report",
+            "version": "3",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        }
+    )
+
+    deprecated = mcp_service.set_template_status(
+        {
+            "template_id": "status_report",
+            "version": "3",
+            "status": "deprecated",
+            "reason": "legacy layout",
+            "actor": "qa",
+        }
+    )
+    archived = mcp_service.set_template_status(
+        {
+            "template_id": "status_report",
+            "version": "3",
+            "status": "archived",
+            "reason": "retired",
+            "actor": "qa",
+        }
+    )
+
+    assert deprecated["status"] == "deprecated"
+    assert deprecated["metadata"]["governance"]["current_status"] == "deprecated"
+    assert archived["status"] == "archived"
+    assert archived["metadata"]["governance"]["status_history"][-1]["status"] == "archived"
+
+
+def test_fastmcp_template_library_service_invalid_status_transition_raises_value_error() -> None:
+    fake_service = _FakeTemplateLibraryService()
+    mcp_service = FastMcpTemplateLibraryService(fake_service)  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    mcp_service.upsert_template(
+        {
+            "template_id": "status_report",
+            "version": "4",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        }
+    )
+    mcp_service.set_template_status(
+        {
+            "template_id": "status_report",
+            "version": "4",
+            "status": "archived",
+        }
+    )
+
+    with pytest.raises(ValueError, match="archived"):
+        mcp_service.set_template_status(
+            {
+                "template_id": "status_report",
+                "version": "4",
+                "status": "draft",
+            }
+        )

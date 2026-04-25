@@ -34,4 +34,4 @@
 
 - MCP boundary пока ограничен только CRUD-like read/write path без delete/archive/version-promotion semantics;
 - нет auth/RBAC и governance policy для template changes;
-- richer template governance все еще остается отдельным следующим slice.
+- template governance lifecycle closure выполнен в ADR-0063.

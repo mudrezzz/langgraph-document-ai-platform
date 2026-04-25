@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from application.errors import TemplateNotFoundError
+from application.errors import InvalidTemplateStatusTransitionError, TemplateNotFoundError
 from application.template_library_service import TemplateLibraryApplicationService
 from framework.mcp import BaseFastMcpService
 from schemas.mcp.template_library import (
@@ -12,6 +12,8 @@ from schemas.mcp.template_library import (
     TemplateLibraryMcpListTemplatesOutput,
     TemplateLibraryMcpPublishTemplateInput,
     TemplateLibraryMcpPublishTemplateOutput,
+    TemplateLibraryMcpSetTemplateStatusInput,
+    TemplateLibraryMcpSetTemplateStatusOutput,
     TemplateLibraryMcpTemplateItem,
     TemplateLibraryMcpUpsertTemplateInput,
     TemplateLibraryMcpUpsertTemplateOutput,
@@ -30,6 +32,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         self._tools = {
             "upsert_template": self.upsert_template,
             "publish_template": self.publish_template,
+            "set_template_status": self.set_template_status,
             "get_template": self.get_template,
             "list_templates": self.list_templates,
         }
@@ -50,11 +53,12 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
             validation_rules=validated.validation_rules,
             assembly_rules=validated.assembly_rules,
         )
-        self._template_library_service.upsert_template(compiled, metadata=validated.metadata)
-        if validated.status == "published":
-            saved = self._template_library_service.publish_template(validated.template_id, validated.version)
-        else:
-            saved = self._template_library_service.get_template(validated.template_id, validated.version)
+        self._template_library_service.upsert_template(
+            compiled,
+            metadata=validated.metadata,
+            status=validated.status,
+        )
+        saved = self._template_library_service.get_template(validated.template_id, validated.version)
         response = TemplateLibraryMcpUpsertTemplateOutput(
             template_id=saved.template_id,
             version=saved.version,
@@ -72,7 +76,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         validated = TemplateLibraryMcpPublishTemplateInput.model_validate(payload)
         try:
             published = self._template_library_service.publish_template(validated.template_id, validated.version)
-        except (TemplateNotFoundError, KeyError) as exc:
+        except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
             raise ValueError(str(exc)) from exc
 
         response = TemplateLibraryMcpPublishTemplateOutput(
@@ -83,6 +87,33 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
             metadata=published.metadata,
             created_at=published.created_at,
             updated_at=published.updated_at,
+        )
+        return response.model_dump(mode="json")
+
+    def set_template_status(self, payload: TemplateLibraryMcpSetTemplateStatusInput | dict[str, Any]) -> dict[str, Any]:
+        """Применяет lifecycle transition к reusable template."""
+
+        validated = TemplateLibraryMcpSetTemplateStatusInput.model_validate(payload)
+        try:
+            updated = self._template_library_service.set_template_status(
+                validated.template_id,
+                validated.version,
+                validated.status,
+                reason=validated.reason,
+                actor=validated.actor,
+                metadata=validated.metadata,
+            )
+        except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
+            raise ValueError(str(exc)) from exc
+
+        response = TemplateLibraryMcpSetTemplateStatusOutput(
+            template_id=updated.template_id,
+            version=updated.version,
+            status=updated.status,
+            template_spec=updated.template_spec.model_dump(mode="json"),
+            metadata=updated.metadata,
+            created_at=updated.created_at,
+            updated_at=updated.updated_at,
         )
         return response.model_dump(mode="json")
 
@@ -182,6 +213,28 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
         """MCP tool: publish_template."""
 
         return service.publish_template({"template_id": template_id, "version": version})
+
+    @server.tool()
+    def set_template_status(
+        template_id: str,
+        version: str,
+        status: str,
+        reason: str | None = None,
+        actor: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """MCP tool: set_template_status."""
+
+        return service.set_template_status(
+            {
+                "template_id": template_id,
+                "version": version,
+                "status": status,
+                "reason": reason,
+                "actor": actor,
+                "metadata": metadata or {},
+            }
+        )
 
     @server.tool()
     def get_template(template_id: str, version: str | None = None) -> dict[str, Any]:

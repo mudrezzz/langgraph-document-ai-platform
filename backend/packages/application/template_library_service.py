@@ -5,11 +5,19 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field
 
-from application.errors import TemplateNotFoundError
+from application.errors import InvalidTemplateStatusTransitionError, TemplateNotFoundError
 from domain_docs import TemplateCompiler
 from schemas.documents.contracts import TemplateSpec
 
-TemplateStatus = Literal["draft", "published"]
+TemplateStatus = Literal["draft", "published", "deprecated", "archived"]
+
+_ALLOWED_TEMPLATE_STATUSES = {"draft", "published", "deprecated", "archived"}
+_ALLOWED_TEMPLATE_TRANSITIONS: dict[str, set[str]] = {
+    "draft": {"draft", "published", "deprecated", "archived"},
+    "published": {"published", "draft", "deprecated", "archived"},
+    "deprecated": {"deprecated", "draft", "published", "archived"},
+    "archived": {"archived"},
+}
 
 
 class TemplateRecord(BaseModel):
@@ -51,11 +59,24 @@ class TemplateLibraryStore(Protocol):
         version: str | None = None,
         *,
         published_only: bool = False,
+        allow_archived: bool = True,
     ) -> TemplateRecord:
         """Load one template by id/version."""
 
     def publish_template(self, template_id: str, version: str) -> TemplateRecord:
         """Mark one template version as published."""
+
+    def set_template_status(
+        self,
+        template_id: str,
+        version: str,
+        status: TemplateStatus,
+        *,
+        reason: str | None = None,
+        actor: str | None = None,
+        metadata: dict | None = None,
+    ) -> TemplateRecord:
+        """Apply lifecycle transition to one template version."""
 
     def list_templates(
         self,
@@ -101,8 +122,29 @@ class TemplateLibraryApplicationService:
         metadata: dict | None = None,
         status: TemplateStatus | None = None,
     ) -> str:
-        resolved_status = _normalize_template_status(status) if status is not None else None
-        return self._store.upsert_template(template_spec, metadata=metadata, status=resolved_status)
+        existing: TemplateRecord | None = None
+        try:
+            existing = self._store.get_template(template_spec.template_id, template_spec.version)
+        except KeyError:
+            existing = None
+
+        requested_status = _normalize_template_status(status) if status is not None else None
+        persisted_status = existing.status if existing is not None else None
+        initial_status = persisted_status or "draft"
+        saved_template_id = self._store.upsert_template(
+            template_spec,
+            metadata=metadata,
+            status=initial_status,
+        )
+        if requested_status is not None and requested_status != initial_status:
+            self.set_template_status(
+                template_spec.template_id,
+                template_spec.version,
+                requested_status,
+                reason="upsert_requested_status",
+                actor="template-library-service",
+            )
+        return saved_template_id
 
     def get_template(
         self,
@@ -110,18 +152,52 @@ class TemplateLibraryApplicationService:
         version: str | None = None,
         *,
         published_only: bool = False,
+        allow_archived: bool = True,
     ) -> TemplateRecord:
         try:
-            return self._store.get_template(template_id, version, published_only=published_only)
+            return self._store.get_template(
+                template_id,
+                version,
+                published_only=published_only,
+                allow_archived=allow_archived,
+            )
         except KeyError as exc:
             requested = f"{template_id}:{version}" if version else template_id
             if published_only and version is None:
                 requested = f"published template {template_id}"
+            elif version is not None and not allow_archived:
+                requested = f"active template {template_id}:{version}"
             raise TemplateNotFoundError(f"Template {requested} не найден") from exc
 
     def publish_template(self, template_id: str, version: str) -> TemplateRecord:
+        return self.set_template_status(template_id, version, "published")
+
+    def set_template_status(
+        self,
+        template_id: str,
+        version: str,
+        status: TemplateStatus,
+        *,
+        reason: str | None = None,
+        actor: str | None = None,
+        metadata: dict | None = None,
+    ) -> TemplateRecord:
+        resolved_status = _normalize_template_status(status)
         try:
-            return self._store.publish_template(template_id, version)
+            current = self._store.get_template(template_id, version)
+        except KeyError as exc:
+            raise TemplateNotFoundError(f"Template {template_id}:{version} не найден") from exc
+
+        _validate_template_status_transition(current.status, resolved_status)
+        try:
+            return self._store.set_template_status(
+                template_id,
+                version,
+                resolved_status,
+                reason=reason,
+                actor=actor,
+                metadata=metadata,
+            )
         except KeyError as exc:
             raise TemplateNotFoundError(f"Template {template_id}:{version} не найден") from exc
 
@@ -131,8 +207,14 @@ class TemplateLibraryApplicationService:
         version: str | None = None,
         *,
         published_only: bool = False,
+        allow_archived: bool = True,
     ) -> TemplateSpec:
-        return self.get_template(template_id, version, published_only=published_only).template_spec
+        return self.get_template(
+            template_id,
+            version,
+            published_only=published_only,
+            allow_archived=allow_archived,
+        ).template_spec
 
     def list_templates(
         self,
@@ -159,18 +241,39 @@ class TemplateLibraryCatalogAdapter:
         self._template_library_service = template_library_service
 
     def get_template_spec(self, template_id: str, version: str | None = None) -> TemplateSpec | None:
+        if version is None:
+            try:
+                return self._template_library_service.get_template_spec(
+                    template_id,
+                    published_only=True,
+                    allow_archived=False,
+                )
+            except TemplateNotFoundError:
+                page = self._template_library_service.list_templates(limit=1, offset=0, template_id=template_id)
+                if page.total_returned > 0:
+                    raise TemplateNotFoundError(
+                        f"Template {template_id} не имеет published version для authoring"
+                    )
+                return None
+
         try:
-            return self._template_library_service.get_template_spec(
-                template_id,
-                version,
-                published_only=version is None,
-            )
+            record = self._template_library_service.get_template(template_id, version)
         except TemplateNotFoundError:
             return None
+        if record.status == "archived":
+            raise TemplateNotFoundError(f"Template {template_id}:{version} archived и недоступен для authoring")
+        return record.template_spec
 
 
 def _normalize_template_status(status: str) -> TemplateStatus:
     normalized = str(status).strip().lower()
-    if normalized not in {"draft", "published"}:
-        raise ValueError("status должен быть draft или published")
+    if normalized not in _ALLOWED_TEMPLATE_STATUSES:
+        raise ValueError("status должен быть draft, published, deprecated или archived")
     return normalized  # type: ignore[return-value]
+
+
+def _validate_template_status_transition(current_status: TemplateStatus, next_status: TemplateStatus) -> None:
+    if next_status not in _ALLOWED_TEMPLATE_TRANSITIONS[current_status]:
+        raise InvalidTemplateStatusTransitionError(
+            f"Переход статуса template {current_status} -> {next_status} не разрешен"
+        )

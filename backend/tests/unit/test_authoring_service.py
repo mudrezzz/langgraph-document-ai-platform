@@ -8,7 +8,7 @@ import pytest
 from application.authoring_service import AuthoringApplicationService, TaskArtifactLinkRecord
 from application.template_library_service import TemplateLibraryApplicationService
 from application.async_dispatcher import InlineAuthoringAsyncDispatcher
-from application.errors import InvalidTaskStateError
+from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
 from domain_docs import TemplateCompiler
 from domain_authoring import ResearchSummaryBuilder, WriterDraftService
@@ -1060,3 +1060,140 @@ def test_authoring_service_prefers_published_template_when_version_missing() -> 
     artifact = service.artifact(response.task_id)
     assert artifact.metadata["template_spec"]["version"] == "6"
     assert artifact.metadata["section_contracts"][0]["section_id"] == "published_section"
+
+
+def test_authoring_service_requires_published_template_when_version_missing() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    compiler = TemplateCompiler()
+    template_library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "10",
+                "sections": [{"section_id": "deprecated_only", "title": "Deprecated Only"}],
+            },
+        )
+    )
+    template_library.set_template_status("decision_memo", "10", "deprecated")
+
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    with pytest.raises(WorkflowExecutionError, match="published version"):
+        service.start(
+            StartAuthoringTaskRequest(
+                query="prepare decision memo using default published template",
+                artifact_type="decision_memo",
+                artifact_title="Missing Published Decision Memo",
+                artifact_format="markdown",
+                draft_strategy="deterministic",
+                task_context={
+                    "requester": "unit-test",
+                    "template_id": "decision_memo",
+                },
+            )
+        )
+
+
+def test_authoring_service_rejects_archived_template_version() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    compiler = TemplateCompiler()
+    template_library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "8",
+                "sections": [{"section_id": "archived_section", "title": "Archived Section"}],
+            },
+        )
+    )
+    template_library.set_template_status("decision_memo", "8", "archived")
+
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    with pytest.raises(WorkflowExecutionError, match="archived"):
+        service.start(
+            StartAuthoringTaskRequest(
+                query="prepare decision memo using archived template",
+                artifact_type="decision_memo",
+                artifact_title="Archived Decision Memo",
+                artifact_format="markdown",
+                draft_strategy="deterministic",
+                task_context={
+                    "requester": "unit-test",
+                    "template_id": "decision_memo",
+                    "template_version": "8",
+                },
+            )
+        )
+
+
+def test_authoring_service_allows_explicit_deprecated_template_version() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    compiler = TemplateCompiler()
+    template_library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "9",
+                "sections": [{"section_id": "deprecated_section", "title": "Deprecated Section"}],
+            },
+        )
+    )
+    template_library.set_template_status("decision_memo", "9", "deprecated")
+
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare decision memo using deprecated template",
+            artifact_type="decision_memo",
+            artifact_title="Deprecated Decision Memo",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "decision_memo",
+                "template_version": "9",
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.metadata["template_spec"]["version"] == "9"
+    assert artifact.metadata["section_contracts"][0]["section_id"] == "deprecated_section"
