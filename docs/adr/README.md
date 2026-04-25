@@ -65,3 +65,4 @@
 - `0053-artifact-exporter-baseline-for-template-aware-authoring.md`
 - `0054-outline-approval-hitl-point.md`
 - `0055-section-authoring-workflow-baseline.md`
+- `0056-document-assembly-workflow-baseline.md`

@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-24
+Дата обновления: 2026-04-25
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -457,6 +457,16 @@ Tenth slice done:
 - добавлен ADR-0055 и unit tests для invoke/resume workflow path;
 - targeted section workflow tests: `66 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `191 passed`.
+
+Eleventh slice done:
+
+- добавлен baseline `DocumentAssemblyWorkflow` поверх existing `DocumentAssembler` и `ArtifactExporter`;
+- workflow использует typed `AssemblyWorkflowState` и multi-node path `assemble_document -> export_artifact -> finalize_document`;
+- `AuthoringApplicationService` теперь проводит final assembly/export через workflow boundary, без изменения внешних API;
+- `build_domain_authoring_services()` теперь отдает и `DocumentAssemblyWorkflow` как часть domain authoring wiring;
+- добавлен ADR-0056 и unit tests для document assembly workflow и injected workflow path;
+- targeted assembly workflow tests: `34 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `193 passed`.
 
 Demo update:
 

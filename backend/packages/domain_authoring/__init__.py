@@ -5,7 +5,7 @@ from domain_authoring.outline import OutlinePlanner
 from domain_authoring.research import ResearchSummaryBuilder
 from domain_authoring.review import SectionReviewService
 from domain_authoring.section_authoring import SectionAuthoringService
-from domain_authoring.workflows import SectionAuthoringWorkflow
+from domain_authoring.workflows import DocumentAssemblyWorkflow, SectionAuthoringWorkflow
 from domain_authoring.writer import WriterDraftService
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "OutlinePlanner",
     "ResearchSummaryBuilder",
     "SectionReviewService",
+    "DocumentAssemblyWorkflow",
     "SectionAuthoringWorkflow",
     "WriterDraftService",
 ]

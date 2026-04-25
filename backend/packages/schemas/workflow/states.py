@@ -40,10 +40,21 @@ class SectionAuthoringState(BaseModel):
 class AssemblyWorkflowState(BaseModel):
     """Состояние детерминированной сборки итогового документа."""
 
+    task_context: dict = Field(default_factory=dict)
+    query: str = ""
+    artifact_type: str = "release_report"
+    artifact_title: str | None = None
+    artifact_format: str = "markdown"
+    workflow_mode: str = "multi_step"
+    research_summary: str | None = None
+    writer_draft: str | None = None
+    review_result: dict = Field(default_factory=dict)
     template_spec: dict = Field(default_factory=dict)
     section_artifacts: list[SectionArtifact] = Field(default_factory=list)
+    section_traceability: list[dict] = Field(default_factory=list)
     chapter_summaries: list[str] = Field(default_factory=list)
     consistency_report: dict | None = None
+    assembled_content: str | None = None
     final_document: dict | None = None
     export_result: dict | None = None
 

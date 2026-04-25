@@ -4,6 +4,7 @@ from domain_docs import TemplateCompiler
 from domain_authoring import (
     ArtifactExporter,
     DocumentAssembler,
+    DocumentAssemblyWorkflow,
     OutlinePlanner,
     ResearchSummaryBuilder,
     SectionAuthoringService,
@@ -277,6 +278,80 @@ def test_template_compiler_and_catalog_support_assembly_rules() -> None:
 
     assert template_spec.assembly_rules[0]["section_order"] == ["risks", "decision"]
     assert template_spec.assembly_rules[0]["include_writer_draft"] is False
+
+
+def test_document_assembly_workflow_builds_final_document_and_export_payload() -> None:
+    workflow = DocumentAssemblyWorkflow()
+    template_spec = TemplateCompiler().compile(
+        template_id="decision_memo",
+        template_payload={
+            "sections": [
+                {"section_id": "executive_summary", "title": "Executive Summary"},
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "decision_json",
+                    "mode": "section_order",
+                    "section_order": ["executive_summary"],
+                    "include_writer_draft": False,
+                    "include_traceability": True,
+                }
+            ],
+        },
+    )
+    section_artifact = SectionAuthoringService().author_section(
+        SectionPacket(
+            section_contract=SectionContractBuilder().build_contracts_from_template(
+                template_id="decision_memo",
+                evidence_pack=_build_evidence_pack(),
+                review_status="completed",
+                template_payload={
+                    "sections": [
+                        {
+                            "section_id": "executive_summary",
+                            "title": "Executive Summary",
+                            "objective": "Summarize decision.",
+                        }
+                    ]
+                },
+            )[1][0],
+            query="prepare decision memo",
+            project_context={"project_id": "demo"},
+            evidence_pack=_build_evidence_pack(),
+            research_summary="Research summary",
+        )
+    )
+
+    result = workflow.invoke(
+        {
+            "task_context": {"task_id": "task-assembly-1", "correlation_id": "corr-assembly-1"},
+            "query": "prepare decision memo",
+            "artifact_type": "decision_memo",
+            "artifact_title": "Decision Memo",
+            "artifact_format": "json",
+            "workflow_mode": "multi_step",
+            "research_summary": "Research summary",
+            "writer_draft": "Writer draft",
+            "review_result": {"status": "completed", "recommendation": "go", "notes": "Ready.", "issues": []},
+            "template_spec": template_spec.model_dump(mode="json"),
+            "section_artifacts": [section_artifact],
+            "section_traceability": [
+                {
+                    "section_id": "executive_summary",
+                    "title": "Executive Summary",
+                    "review_status": "completed",
+                    "source_refs": [{"doc_id": "REQ-1", "version": "1", "block_id": "B-1"}],
+                }
+            ],
+        }
+    )
+
+    assert result.assembled_content is not None
+    assert "# Decision Memo" in result.assembled_content
+    assert isinstance(result.export_result, dict)
+    assert result.export_result["format"] == "json"
+    assert result.final_document["format"] == "json"
+    assert '"sections"' in result.final_document["content"]
 
 
 def test_document_assembler_builds_multistep_report() -> None:

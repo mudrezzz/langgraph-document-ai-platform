@@ -595,6 +595,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлен `SectionAuthoringService`, который строит deterministic `section_artifacts` и `SectionDigest` из section packets.
   - добавлен baseline `SectionAuthoringWorkflow` (`write_section -> review_section -> finalize_section`), а `AuthoringApplicationService` строит `section_artifacts` через workflow boundary.
   - resume path workflow поддерживает baseline section-level feedback rewrite hook без изменения внешних API.
+  - добавлен baseline `DocumentAssemblyWorkflow` (`assemble_document -> export_artifact -> finalize_document`), а final assembly/export теперь тоже идут через workflow boundary.
   - добавлен `TemplateCompiler`, а authoring поддерживает template-aware section contracts через `task_context.template_id/template_payload`.
   - deterministic assembly теперь template-aware и может собирать итоговый документ из `TemplateSpec` + `section_artifacts`.
   - добавлены baseline `TemplateCatalog` и `assembly_rules` в `TemplateSpec`.

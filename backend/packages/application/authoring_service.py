@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
 from domain_authoring import (
+    ArtifactExportResult,
     ArtifactExporter,
+    DocumentAssemblyWorkflow,
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
@@ -46,7 +48,7 @@ from schemas.api.contracts import (
 from schemas.authoring.contracts import SectionArtifact, SectionContract
 from schemas.documents.contracts import TemplateSpec
 from schemas.rag.contracts import EvidencePack, SourceRef
-from schemas.workflow.states import AuthoringTaskState, SectionAuthoringState
+from schemas.workflow.states import AssemblyWorkflowState, AuthoringTaskState, SectionAuthoringState
 
 
 class TaskArtifactLinkRecord(BaseModel):
@@ -116,6 +118,7 @@ class AuthoringApplicationService:
         section_review_service: SectionReviewService | None = None,
         document_assembler: DocumentAssembler | None = None,
         artifact_exporter: ArtifactExporter | None = None,
+        document_assembly_workflow: DocumentAssemblyWorkflow | None = None,
         research_summary_builder: ResearchSummaryBuilder | None = None,
         writer_draft_service: WriterDraftService | None = None,
         section_contract_builder: SectionContractBuilder | None = None,
@@ -138,6 +141,10 @@ class AuthoringApplicationService:
         self._section_review_service = section_review_service or SectionReviewService()
         self._document_assembler = document_assembler or DocumentAssembler()
         self._artifact_exporter = artifact_exporter or ArtifactExporter()
+        self._document_assembly_workflow = document_assembly_workflow or DocumentAssemblyWorkflow(
+            document_assembler=self._document_assembler,
+            artifact_exporter=self._artifact_exporter,
+        )
         self._research_summary_builder = research_summary_builder or ResearchSummaryBuilder()
         self._writer_draft_service = writer_draft_service or WriterDraftService()
         self._section_contract_builder = section_contract_builder or SectionContractBuilder()
@@ -844,22 +851,13 @@ class AuthoringApplicationService:
                 metadata={"decision": request.decision, "iteration": processing_state.hitl_iteration},
             )
         )
-        assembled_content = self._assemble_document(
+        assembly_result = self._run_document_assembly_workflow(
             query=processing_state.query,
-            research_summary=processing_state.research_summary or "",
-            writer_draft=updated_draft,
-            review_result=updated_review_result,
-            section_traceability=section_traceability,
-            workflow_mode=processing_state.workflow_mode,
-            template_spec=template_spec,
-            section_artifacts=section_artifacts,
-        )
-        export_result = self._export_artifact(
             artifact_type=processing_state.artifact_type,
             artifact_title=processing_state.artifact_title,
             artifact_format=processing_state.artifact_format,
-            assembled_content=assembled_content,
-            query=processing_state.query,
+            workflow_mode=processing_state.workflow_mode,
+            task_context=processing_state.task_context,
             research_summary=processing_state.research_summary or "",
             writer_draft=updated_draft,
             review_result=updated_review_result,
@@ -867,7 +865,8 @@ class AuthoringApplicationService:
             section_artifacts=section_artifacts,
             section_traceability=section_traceability,
         )
-        final_content = export_result.content
+        export_result = assembly_result["export_result"]
+        final_content = assembly_result["final_content"]
         completed_actions = self._update_hitl_action(
             processing_state.hitl_actions,
             action_id=action_id,
@@ -952,22 +951,13 @@ class AuthoringApplicationService:
         draft_result: DraftGenerationResult,
         initial_state: AuthoringTaskState,
     ) -> StartTaskResponse:
-        assembled_content = self._assemble_document(
+        assembly_result = self._run_document_assembly_workflow(
             query=request.query,
-            research_summary=research_summary,
-            writer_draft=writer_draft,
-            review_result=review_result,
-            section_traceability=section_traceability,
-            workflow_mode=request.workflow_mode,
-            template_spec=template_spec,
-            section_artifacts=section_artifacts,
-        )
-        export_result = self._export_artifact(
             artifact_type=request.artifact_type,
             artifact_title=request.artifact_title,
             artifact_format=request.artifact_format,
-            assembled_content=assembled_content,
-            query=request.query,
+            workflow_mode=request.workflow_mode,
+            task_context=initial_state.task_context,
             research_summary=research_summary,
             writer_draft=writer_draft,
             review_result=review_result,
@@ -975,7 +965,8 @@ class AuthoringApplicationService:
             section_artifacts=section_artifacts,
             section_traceability=section_traceability,
         )
-        final_content = export_result.content
+        export_result = assembly_result["export_result"]
+        final_content = assembly_result["final_content"]
         steps.append(
             AuthoringStepResult(
                 step="assembly",
@@ -1493,57 +1484,51 @@ class AuthoringApplicationService:
             artifacts.append(result.final_section_artifact)
         return artifacts
 
-    def _assemble_document(
+    def _run_document_assembly_workflow(
         self,
         *,
         query: str,
-        research_summary: str,
-        writer_draft: str,
-        review_result: dict[str, Any],
-        section_traceability: list[dict[str, Any]],
-        workflow_mode: str,
-        template_spec: TemplateSpec | None = None,
-        section_artifacts: list[SectionArtifact] | None = None,
-    ) -> str:
-        return self._document_assembler.assemble_document(
-            query=query,
-            research_summary=research_summary,
-            writer_draft=writer_draft,
-            review_result=review_result,
-            section_traceability=section_traceability,
-            workflow_mode=workflow_mode,
-            template_spec=template_spec,
-            section_artifacts=section_artifacts,
-        )
-
-    def _export_artifact(
-        self,
-        *,
         artifact_type: str,
         artifact_title: str | None,
         artifact_format: str,
-        assembled_content: str,
-        query: str,
+        workflow_mode: str,
+        task_context: dict[str, Any],
         research_summary: str,
         writer_draft: str,
         review_result: dict[str, Any],
         template_spec: TemplateSpec,
         section_artifacts: list[SectionArtifact],
         section_traceability: list[dict[str, Any]],
-    ):
-        return self._artifact_exporter.export(
+    ) -> dict[str, Any]:
+        state = AssemblyWorkflowState(
+            task_context={
+                "task_id": str(task_context.get("task_id", "")).strip(),
+                "correlation_id": str(task_context.get("correlation_id", "")).strip(),
+                "template_id": template_spec.template_id,
+            },
+            query=query,
             artifact_type=artifact_type,
             artifact_title=artifact_title,
             artifact_format=artifact_format,
-            assembled_content=assembled_content,
-            query=query,
+            workflow_mode=workflow_mode,
             research_summary=research_summary,
             writer_draft=writer_draft,
             review_result=review_result,
-            template_spec=template_spec,
+            template_spec=template_spec.model_dump(mode="json"),
             section_artifacts=section_artifacts,
             section_traceability=section_traceability,
         )
+        result = AssemblyWorkflowState.model_validate(self._document_assembly_workflow.invoke(state))
+        if not isinstance(result.final_document, dict):
+            raise WorkflowExecutionError("DocumentAssemblyWorkflow не вернул final_document")
+        export_payload = result.export_result if isinstance(result.export_result, dict) else {}
+        return {
+            "final_content": str(result.final_document.get("content", "")),
+            "format": str(result.final_document.get("format", artifact_format)),
+            "assembled_content": str(result.assembled_content or result.final_document.get("assembled_content", "")),
+            "export_result": ArtifactExportResult.model_validate(export_payload),
+            "final_document": result.final_document,
+        }
 
     def _build_llm_prompt(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
         return self._writer_draft_service.build_llm_prompt(

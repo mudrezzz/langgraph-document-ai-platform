@@ -109,6 +109,35 @@ class _TrackingResearchSummaryBuilder(ResearchSummaryBuilder):
         return "Tracked research summary"
 
 
+class _TrackingDocumentAssemblyWorkflow:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    def invoke(self, payload: Any):
+        data = payload.model_dump(mode="json") if hasattr(payload, "model_dump") else dict(payload)
+        self.calls.append(data)
+        return {
+            **data,
+            "assembled_content": "# Tracked Assembly\n\nTracked content",
+            "export_result": {
+                "content": "# Tracked Assembly\n\nTracked content",
+                "format": "markdown",
+                "metadata": {
+                    "export_format_requested": data.get("artifact_format"),
+                    "export_format_resolved": "markdown",
+                    "assembly_workflow": "tracked",
+                },
+            },
+            "final_document": {
+                "content": "# Tracked Assembly\n\nTracked content",
+                "format": "markdown",
+                "metadata": {
+                    "assembly_workflow": "tracked",
+                },
+            },
+        }
+
+
 class _TrackingWriterDraftService(WriterDraftService):
     def __init__(self) -> None:
         self.draft_calls: list[dict[str, Any]] = []
@@ -525,6 +554,39 @@ def test_authoring_service_uses_injected_writer_service_for_llm_prompt() -> None
     assert writer_service.prompt_calls[0]["research_summary"] == "Tracked research summary"
     assert artifact.metadata["draft_generation_mode"] == "llm"
     assert "Tracked model output." in artifact.content
+
+
+def test_authoring_service_uses_injected_document_assembly_workflow() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    tracking_workflow = _TrackingDocumentAssemblyWorkflow()
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        document_assembly_workflow=tracking_workflow,  # type: ignore[arg-type]
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="workflow assembled draft",
+            artifact_type="release_report",
+            artifact_title="Tracked Assembly Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={"requester": "unit-test"},
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert len(tracking_workflow.calls) == 1
+    assert tracking_workflow.calls[0]["artifact_title"] == "Tracked Assembly Draft"
+    assert tracking_workflow.calls[0]["section_artifacts"]
+    assert artifact.metadata["assembly_workflow"] == "tracked"
+    assert "Tracked content" in artifact.content
 
 
 def test_authoring_service_hitl_wait_state_exposes_outline_snapshot() -> None:

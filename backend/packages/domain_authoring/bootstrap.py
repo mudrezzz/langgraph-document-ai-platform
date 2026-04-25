@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from domain_authoring import (
     ArtifactExporter,
+    DocumentAssemblyWorkflow,
     DocumentAssembler,
     OutlinePlanner,
     ResearchSummaryBuilder,
-    SectionContractBuilder,
     SectionAuthoringService,
     SectionAuthoringWorkflow,
+    SectionContractBuilder,
     SectionReviewService,
     WriterDraftService,
 )
@@ -23,6 +24,7 @@ def build_domain_authoring_services() -> tuple[
     SectionContractBuilder,
     SectionAuthoringService,
     SectionAuthoringWorkflow,
+    DocumentAssemblyWorkflow,
 ]:
     """Builds the current domain_authoring service set for application wiring."""
 
@@ -38,6 +40,10 @@ def build_domain_authoring_services() -> tuple[
         section_authoring_service=section_authoring_service,
         section_review_service=section_review_service,
     )
+    document_assembly_workflow = DocumentAssemblyWorkflow(
+        document_assembler=document_assembler,
+        artifact_exporter=artifact_exporter,
+    )
 
     return (
         outline_planner,
@@ -49,4 +55,5 @@ def build_domain_authoring_services() -> tuple[
         section_contract_builder,
         section_authoring_service,
         section_authoring_workflow,
+        document_assembly_workflow,
     )

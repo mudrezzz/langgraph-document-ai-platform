@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
+from domain_authoring.assembly import DocumentAssembler
+from domain_authoring.exporter import ArtifactExportResult, ArtifactExporter
 from domain_authoring.review import SectionReviewService
 from domain_authoring.section_authoring import SectionAuthoringService
 from framework.workflows import BaseWorkflow, WorkflowExecutionContext, WorkflowNodeSpec
 from schemas.authoring.contracts import SectionArtifact, SectionPacket
-from schemas.workflow.states import SectionAuthoringState
+from schemas.documents.contracts import TemplateSpec
+from schemas.workflow.states import AssemblyWorkflowState, SectionAuthoringState
 
 
 class SectionAuthoringWorkflow(BaseWorkflow):
@@ -144,3 +149,110 @@ class SectionAuthoringWorkflow(BaseWorkflow):
         if state.final_section_artifact is None:
             raise ValueError("SectionAuthoringWorkflow не сформировал final_section_artifact")
         return state.final_section_artifact
+
+
+class DocumentAssemblyWorkflow(BaseWorkflow):
+    """Baseline workflow for final deterministic document assembly and export."""
+
+    def __init__(
+        self,
+        *,
+        document_assembler: DocumentAssembler | None = None,
+        artifact_exporter: ArtifactExporter | None = None,
+        use_langgraph_runtime: bool = True,
+        checkpointer: object | None = None,
+        node_event_sink=None,
+    ) -> None:
+        super().__init__(
+            use_langgraph_runtime=use_langgraph_runtime,
+            checkpointer=checkpointer,
+            node_event_sink=node_event_sink,
+        )
+        self._document_assembler = document_assembler or DocumentAssembler()
+        self._artifact_exporter = artifact_exporter or ArtifactExporter()
+        self.compile()
+
+    def state_schema(self) -> type[AssemblyWorkflowState]:
+        return AssemblyWorkflowState
+
+    def workflow_nodes(self, *, is_resume: bool):
+        first_node = "reassemble_document" if is_resume else "assemble_document"
+        first_handler = self._assemble_document if not is_resume else self._reassemble_document
+        return [
+            WorkflowNodeSpec(name=first_node, handler=first_handler),
+            WorkflowNodeSpec(name="export_artifact", handler=self._export_artifact),
+            WorkflowNodeSpec(name="finalize_document", handler=self._finalize_document),
+        ]
+
+    def _assemble_document(self, state: BaseModel, context: WorkflowExecutionContext) -> BaseModel:
+        validated = AssemblyWorkflowState.model_validate(state)
+        template_spec = self._template_spec(validated)
+        assembled_content = self._document_assembler.assemble_document(
+            query=validated.query,
+            research_summary=validated.research_summary or "",
+            writer_draft=validated.writer_draft or "",
+            review_result=dict(validated.review_result),
+            section_traceability=list(validated.section_traceability),
+            workflow_mode=validated.workflow_mode,
+            template_spec=template_spec,
+            section_artifacts=list(validated.section_artifacts),
+        )
+        return validated.model_copy(
+            update={
+                "assembled_content": assembled_content,
+                "final_document": {
+                    "assembled_content": assembled_content,
+                    "assembly_node": context.node_name,
+                },
+            }
+        )
+
+    def _reassemble_document(self, state: BaseModel, context: WorkflowExecutionContext) -> BaseModel:
+        return self._assemble_document(state, context)
+
+    def _export_artifact(self, state: BaseModel, context: WorkflowExecutionContext) -> BaseModel:
+        validated = AssemblyWorkflowState.model_validate(state)
+        template_spec = self._template_spec(validated)
+        export_result = self._artifact_exporter.export(
+            artifact_type=validated.artifact_type,
+            artifact_title=validated.artifact_title,
+            artifact_format=validated.artifact_format,
+            assembled_content=validated.assembled_content or "",
+            query=validated.query,
+            research_summary=validated.research_summary or "",
+            writer_draft=validated.writer_draft or "",
+            review_result=dict(validated.review_result),
+            template_spec=template_spec,
+            section_artifacts=list(validated.section_artifacts),
+            section_traceability=list(validated.section_traceability),
+        )
+        export_payload = export_result.model_dump(mode="json")
+        export_payload["metadata"] = {
+            **dict(export_result.metadata),
+            "workflow_node": context.node_name,
+        }
+        return validated.model_copy(update={"export_result": export_payload})
+
+    def _finalize_document(self, state: BaseModel, context: WorkflowExecutionContext) -> BaseModel:
+        validated = AssemblyWorkflowState.model_validate(state)
+        export_result = ArtifactExportResult.model_validate(validated.export_result or {})
+        final_document = {
+            "content": export_result.content,
+            "format": export_result.format,
+            "metadata": {
+                **dict(export_result.metadata),
+                "workflow_node": context.node_name,
+                "assembled_content": validated.assembled_content or "",
+            },
+        }
+        return validated.model_copy(update={"final_document": final_document})
+
+    def _template_spec(self, state: AssemblyWorkflowState) -> TemplateSpec:
+        payload = state.template_spec if isinstance(state.template_spec, dict) and state.template_spec else {
+            "template_id": "release_readiness",
+            "version": "1",
+            "sections": [],
+            "validation_rules": [],
+            "assembly_rules": [],
+        }
+        return TemplateSpec.model_validate(payload)
