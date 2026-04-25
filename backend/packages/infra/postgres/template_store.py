@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from application.template_library_service import TemplateRecord
+from application.template_library_service import TemplateRecord, TemplateStatus
 from infra.postgres.config import PostgresSettings, validate_identifier
 from schemas.documents.contracts import TemplateSpec
 
@@ -39,7 +39,14 @@ class PostgresTemplateStore:
         fallback_enabled = settings.allow_fallback_persistence if use_fallback_if_unset is None else use_fallback_if_unset
         return cls(dsn=settings.dsn, schema=settings.schema, use_fallback_if_unset=fallback_enabled)
 
-    def upsert_template(self, template_spec: TemplateSpec, *, metadata: dict | None = None) -> str:
+    def upsert_template(
+        self,
+        template_spec: TemplateSpec,
+        *,
+        metadata: dict | None = None,
+        status: TemplateStatus | None = None,
+    ) -> str:
+        resolved_status: TemplateStatus = status or "draft"
         if self._use_fallback:
             now_utc = datetime.now(timezone.utc)
             key = (template_spec.template_id, template_spec.version)
@@ -47,6 +54,7 @@ class PostgresTemplateStore:
             self._templates[key] = TemplateRecord(
                 template_id=template_spec.template_id,
                 version=template_spec.version,
+                status=resolved_status,
                 template_spec=template_spec,
                 metadata=dict(metadata or {}),
                 created_at=current.created_at if current is not None else now_utc,
@@ -64,12 +72,14 @@ class PostgresTemplateStore:
                     INSERT INTO {self._schema}.document_templates (
                         template_id,
                         version,
+                        status,
                         metadata,
                         payload
                     )
-                    VALUES (%s, %s, %s::jsonb, %s::jsonb)
+                    VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)
                     ON CONFLICT (template_id, version)
                     DO UPDATE SET
+                        status = EXCLUDED.status,
                         metadata = EXCLUDED.metadata,
                         payload = EXCLUDED.payload,
                         updated_at = now()
@@ -77,13 +87,20 @@ class PostgresTemplateStore:
                     (
                         template_spec.template_id,
                         template_spec.version,
+                        resolved_status,
                         json.dumps(dict(metadata or {}), ensure_ascii=False),
                         json.dumps(payload, ensure_ascii=False),
                     ),
                 )
         return template_spec.template_id
 
-    def get_template(self, template_id: str, version: str | None = None) -> TemplateRecord:
+    def get_template(
+        self,
+        template_id: str,
+        version: str | None = None,
+        *,
+        published_only: bool = False,
+    ) -> TemplateRecord:
         if self._use_fallback:
             if version is not None:
                 item = self._templates.get((template_id, version))
@@ -92,6 +109,8 @@ class PostgresTemplateStore:
                 return item
 
             candidates = [item for key, item in self._templates.items() if key[0] == template_id]
+            if published_only:
+                candidates = [item for item in candidates if item.status == "published"]
             if not candidates:
                 raise KeyError(f"Template {template_id} не найден")
             return sorted(
@@ -103,20 +122,21 @@ class PostgresTemplateStore:
         psycopg, dict_row = _import_psycopg()
         query = (
             f"""
-            SELECT template_id, version, metadata, payload, created_at, updated_at
+            SELECT template_id, version, status, metadata, payload, created_at, updated_at
             FROM {self._schema}.document_templates
             WHERE template_id = %s AND version = %s
             """
             if version is not None
             else f"""
-            SELECT template_id, version, metadata, payload, created_at, updated_at
+            SELECT template_id, version, status, metadata, payload, created_at, updated_at
             FROM {self._schema}.document_templates
             WHERE template_id = %s
+              AND (%s = FALSE OR status = 'published')
             ORDER BY updated_at DESC, version DESC
             LIMIT 1
             """
         )
-        params = (template_id, version) if version is not None else (template_id,)
+        params = (template_id, version) if version is not None else (template_id, published_only)
 
         with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
@@ -127,12 +147,46 @@ class PostgresTemplateStore:
             raise KeyError(f"Template {template_id}:{version or 'latest'} не найден")
         return _row_to_template_record(row)
 
+    def publish_template(self, template_id: str, version: str) -> TemplateRecord:
+        if self._use_fallback:
+            key = (template_id, version)
+            current = self._templates.get(key)
+            if current is None:
+                raise KeyError(f"Template {template_id}:{version} не найден")
+            published = current.model_copy(
+                update={
+                    "status": "published",
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            )
+            self._templates[key] = published
+            return published
+
+        psycopg, dict_row = _import_psycopg()
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE {self._schema}.document_templates
+                    SET status = 'published', updated_at = now()
+                    WHERE template_id = %s AND version = %s
+                    RETURNING template_id, version, status, metadata, payload, created_at, updated_at
+                    """,
+                    (template_id, version),
+                )
+                row = cur.fetchone()
+
+        if row is None:
+            raise KeyError(f"Template {template_id}:{version} не найден")
+        return _row_to_template_record(row)
+
     def list_templates(
         self,
         *,
         limit: int = 50,
         offset: int = 0,
         template_id: str | None = None,
+        status: TemplateStatus | None = None,
     ) -> list[TemplateRecord]:
         _validate_page(limit=limit, offset=offset)
 
@@ -144,19 +198,27 @@ class PostgresTemplateStore:
             )
             if template_id:
                 ordered = [item for item in ordered if item.template_id == template_id]
+            if status is not None:
+                ordered = [item for item in ordered if item.status == status]
             return ordered[offset : offset + limit]
 
-        where_clause = "template_id = %s" if template_id else "1=1"
-        params: list[object] = [limit, offset]
+        filters: list[str] = []
+        params: list[object] = []
         if template_id:
-            params = [template_id, limit, offset]
+            filters.append("template_id = %s")
+            params.append(template_id)
+        if status is not None:
+            filters.append("status = %s")
+            params.append(status)
+        where_clause = " AND ".join(filters) if filters else "1=1"
+        params.extend([limit, offset])
 
         psycopg, dict_row = _import_psycopg()
         with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
-                    SELECT template_id, version, metadata, payload, created_at, updated_at
+                    SELECT template_id, version, status, metadata, payload, created_at, updated_at
                     FROM {self._schema}.document_templates
                     WHERE {where_clause}
                     ORDER BY updated_at DESC, template_id DESC, version DESC
@@ -174,6 +236,7 @@ def _row_to_template_record(row: dict[str, Any]) -> TemplateRecord:
     return TemplateRecord(
         template_id=str(row["template_id"]),
         version=str(row["version"]),
+        status=str(row.get("status") or "draft"),
         template_spec=TemplateSpec.model_validate(_json_payload(row["payload"])),
         metadata=dict(_json_payload(row["metadata"]) or {}),
         created_at=row.get("created_at"),

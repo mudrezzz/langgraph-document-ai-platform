@@ -922,3 +922,59 @@ def test_authoring_service_prefers_inline_template_payload_over_library() -> Non
     artifact = service.artifact(response.task_id)
     assert artifact.metadata["template_spec"]["version"] == "9"
     assert artifact.metadata["section_contracts"][0]["section_id"] == "inline_section"
+
+
+def test_authoring_service_prefers_published_template_when_version_missing() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    compiler = TemplateCompiler()
+    template_library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "7",
+                "sections": [{"section_id": "draft_only", "title": "Draft Only"}],
+            },
+        )
+    )
+    template_library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "6",
+                "sections": [{"section_id": "published_section", "title": "Published Section"}],
+            },
+        )
+    )
+    template_library.publish_template("decision_memo", "6")
+
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare decision memo using published template",
+            artifact_type="decision_memo",
+            artifact_title="Published Decision Memo",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "decision_memo",
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.metadata["template_spec"]["version"] == "6"
+    assert artifact.metadata["section_contracts"][0]["section_id"] == "published_section"

@@ -10,6 +10,8 @@ from schemas.mcp.template_library import (
     TemplateLibraryMcpGetTemplateOutput,
     TemplateLibraryMcpListTemplatesInput,
     TemplateLibraryMcpListTemplatesOutput,
+    TemplateLibraryMcpPublishTemplateInput,
+    TemplateLibraryMcpPublishTemplateOutput,
     TemplateLibraryMcpTemplateItem,
     TemplateLibraryMcpUpsertTemplateInput,
     TemplateLibraryMcpUpsertTemplateOutput,
@@ -27,6 +29,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
     def register_tools(self) -> None:
         self._tools = {
             "upsert_template": self.upsert_template,
+            "publish_template": self.publish_template,
             "get_template": self.get_template,
             "list_templates": self.list_templates,
         }
@@ -48,14 +51,38 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
             assembly_rules=validated.assembly_rules,
         )
         self._template_library_service.upsert_template(compiled, metadata=validated.metadata)
-        saved = self._template_library_service.get_template(validated.template_id, validated.version)
+        if validated.status == "published":
+            saved = self._template_library_service.publish_template(validated.template_id, validated.version)
+        else:
+            saved = self._template_library_service.get_template(validated.template_id, validated.version)
         response = TemplateLibraryMcpUpsertTemplateOutput(
             template_id=saved.template_id,
             version=saved.version,
+            status=saved.status,
             template_spec=saved.template_spec.model_dump(mode="json"),
             metadata=saved.metadata,
             created_at=saved.created_at,
             updated_at=saved.updated_at,
+        )
+        return response.model_dump(mode="json")
+
+    def publish_template(self, payload: TemplateLibraryMcpPublishTemplateInput | dict[str, Any]) -> dict[str, Any]:
+        """Публикует конкретную version reusable template."""
+
+        validated = TemplateLibraryMcpPublishTemplateInput.model_validate(payload)
+        try:
+            published = self._template_library_service.publish_template(validated.template_id, validated.version)
+        except (TemplateNotFoundError, KeyError) as exc:
+            raise ValueError(str(exc)) from exc
+
+        response = TemplateLibraryMcpPublishTemplateOutput(
+            template_id=published.template_id,
+            version=published.version,
+            status=published.status,
+            template_spec=published.template_spec.model_dump(mode="json"),
+            metadata=published.metadata,
+            created_at=published.created_at,
+            updated_at=published.updated_at,
         )
         return response.model_dump(mode="json")
 
@@ -71,6 +98,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         response = TemplateLibraryMcpGetTemplateOutput(
             template_id=loaded.template_id,
             version=loaded.version,
+            status=loaded.status,
             template_spec=loaded.template_spec.model_dump(mode="json"),
             metadata=loaded.metadata,
             created_at=loaded.created_at,
@@ -90,12 +118,14 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
             limit=validated.limit,
             offset=validated.offset,
             template_id=validated.template_id,
+            status=validated.status,
         )
         response = TemplateLibraryMcpListTemplatesOutput(
             items=[
                 TemplateLibraryMcpTemplateItem(
                     template_id=item.template_id,
                     version=item.version,
+                    status=item.status,
                     template_spec=item.template_spec.model_dump(mode="json"),
                     metadata=item.metadata,
                     created_at=item.created_at,
@@ -127,6 +157,7 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
     def upsert_template(
         template_id: str,
         version: str = "1",
+        status: str = "draft",
         sections: list[dict[str, Any]] | None = None,
         validation_rules: list[dict[str, Any]] | None = None,
         assembly_rules: list[dict[str, Any]] | None = None,
@@ -138,6 +169,7 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
             {
                 "template_id": template_id,
                 "version": version,
+                "status": status,
                 "sections": sections or [],
                 "validation_rules": validation_rules or [],
                 "assembly_rules": assembly_rules or [],
@@ -146,15 +178,28 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
         )
 
     @server.tool()
+    def publish_template(template_id: str, version: str) -> dict[str, Any]:
+        """MCP tool: publish_template."""
+
+        return service.publish_template({"template_id": template_id, "version": version})
+
+    @server.tool()
     def get_template(template_id: str, version: str | None = None) -> dict[str, Any]:
         """MCP tool: get_template."""
 
         return service.get_template({"template_id": template_id, "version": version})
 
     @server.tool()
-    def list_templates(limit: int = 20, offset: int = 0, template_id: str | None = None) -> dict[str, Any]:
+    def list_templates(
+        limit: int = 20,
+        offset: int = 0,
+        template_id: str | None = None,
+        status: str | None = None,
+    ) -> dict[str, Any]:
         """MCP tool: list_templates."""
 
-        return service.list_templates({"limit": limit, "offset": offset, "template_id": template_id})
+        return service.list_templates(
+            {"limit": limit, "offset": offset, "template_id": template_id, "status": status}
+        )
 
     return server

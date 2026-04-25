@@ -26,6 +26,7 @@ def main() -> None:
         {
             "template_id": args.template_id,
             "version": args.version,
+            "status": "draft",
             "sections": [
                 {
                     "section_id": "overview",
@@ -46,13 +47,18 @@ def main() -> None:
             "metadata": {"owner": "smoke-test"},
         }
     )
+    published = service.publish_template({"template_id": args.template_id, "version": args.version})
     loaded = service.get_template({"template_id": args.template_id, "version": args.version})
-    listed = service.list_templates({"limit": args.limit, "offset": args.offset, "template_id": args.template_id})
+    listed = service.list_templates(
+        {"limit": args.limit, "offset": args.offset, "template_id": args.template_id, "status": "published"}
+    )
 
     result = {
         "upserted_template_id": upserted["template_id"],
         "upserted_version": upserted["version"],
+        "published_status": published["status"],
         "loaded_template_id": loaded["template_id"],
+        "loaded_status": loaded["status"],
         "loaded_section_id": loaded["template_spec"]["sections"][0]["section_id"],
         "list_total_returned": listed["total_returned"],
         "list_contains_template": any(item["template_id"] == args.template_id for item in listed["items"]),

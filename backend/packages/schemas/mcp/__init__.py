@@ -29,6 +29,8 @@ from schemas.mcp.template_library import (
     TemplateLibraryMcpGetTemplateOutput,
     TemplateLibraryMcpListTemplatesInput,
     TemplateLibraryMcpListTemplatesOutput,
+    TemplateLibraryMcpPublishTemplateInput,
+    TemplateLibraryMcpPublishTemplateOutput,
     TemplateLibraryMcpTemplateItem,
     TemplateLibraryMcpUpsertTemplateInput,
     TemplateLibraryMcpUpsertTemplateOutput,
@@ -60,6 +62,8 @@ __all__ = [
     "TemplateLibraryMcpGetTemplateInput",
     "TemplateLibraryMcpGetTemplateOutput",
     "TemplateLibraryMcpListTemplatesInput",
+    "TemplateLibraryMcpPublishTemplateInput",
+    "TemplateLibraryMcpPublishTemplateOutput",
     "TemplateLibraryMcpTemplateItem",
     "TemplateLibraryMcpListTemplatesOutput",
 ]

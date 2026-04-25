@@ -95,8 +95,9 @@
   - скрипты `run_artifact_writer_mcp.sh/.ps1` и `smoke_artifact_writer_mcp.sh/.ps1`.
 - добавлен Template Library MCP boundary:
   - `apps/mcp_template_library/main.py`;
-  - `FastMcpTemplateLibraryService` с tool-ами `upsert_template`, `get_template`, `list_templates`;
+  - `FastMcpTemplateLibraryService` с tool-ами `upsert_template`, `publish_template`, `get_template`, `list_templates`;
   - скрипты `run_template_library_mcp.sh/.ps1` и `smoke_template_library_mcp.sh/.ps1`.
+  - reusable templates получили baseline governance status `draft|published`, а authoring по умолчанию резолвит published template, если `template_version` явно не задан.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -632,7 +633,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлены baseline `TemplateCatalog` и `assembly_rules` в `TemplateSpec`.
   - добавлена persisted template library (`TemplateLibraryApplicationService` + `PostgresTemplateStore`), а authoring теперь умеет резолвить reusable templates по `template_id/template_version` без обязательного inline `template_payload`.
   - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
-  - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/get_template/list_templates` FastMCP tools.
+  - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/publish_template/get_template/list_templates` FastMCP tools.
+  - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь берет published template.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
@@ -660,13 +662,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 ## Контракт Template Library API
 
 - `PUT /api/v1/templates/{template_id}`
-  - body: `version`, `sections`, `validation_rules`, `assembly_rules`, `metadata`;
-  - сохраняет или обновляет reusable template version.
+  - body: `version`, `status`, `sections`, `validation_rules`, `assembly_rules`, `metadata`;
+  - сохраняет или обновляет reusable template version;
+  - по умолчанию новая версия создается как `draft`.
+- `POST /api/v1/templates/{template_id}/publish`
+  - body: `version`;
+  - переводит конкретную reusable template version в статус `published`.
 - `GET /api/v1/templates/{template_id}`
   - query: `version` (опционально);
   - возвращает конкретную или последнюю доступную версию шаблона.
 - `GET /api/v1/templates`
-  - query: `limit`, `offset`, `template_id` (опционально);
+  - query: `limit`, `offset`, `template_id`, `status` (опционально);
   - возвращает страницу сохраненных шаблонов.
 
 ## Контракт POST /api/v1/tasks/authoring/start
@@ -678,7 +684,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `task_context`
   - поддерживает `template_id`, `template_version` и `template_payload` для template-aware authoring section contracts.
   - `template_payload` имеет наивысший приоритет и может содержать `assembly_rules`.
-  - если `template_payload` не передан, authoring пытается загрузить reusable template из persisted library по `template_id/template_version`.
+  - если `template_payload` не передан и `template_version` задан, authoring пытается загрузить эту reusable template version из persisted library.
+  - если `template_payload` не передан и `template_version` не задан, authoring пытается загрузить последнюю `published` reusable template version.
   - `assembly_rules` сейчас управляют как минимум `section_order`, `include_writer_draft`, `include_traceability`.
 - `artifact_type` (по умолчанию `release_report`)
 - `artifact_title` (опционально)
@@ -792,7 +799,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - tools `write_artifact`, `get_artifact`, `list_artifacts`;
   - схемы `backend/packages/schemas/mcp/artifact_writer.py`.
 - Template Library MCP:
-  - tools `upsert_template`, `get_template`, `list_templates`;
+  - tools `upsert_template`, `publish_template`, `get_template`, `list_templates`;
   - схемы `backend/packages/schemas/mcp/template_library.py`.
 
 ## Knowledge Factory MVP

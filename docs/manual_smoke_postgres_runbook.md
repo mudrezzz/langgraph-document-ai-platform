@@ -338,6 +338,7 @@ bash backend/scripts/smoke_template_library_mcp.sh
 Что увидеть в JSON:
 
 - `upserted_template_id` и `loaded_template_id` заполнены;
+- `published_status=published` и `loaded_status=published`;
 - `loaded_section_id=overview`;
 - `list_total_returned >= 1`;
 - `list_contains_template=true`.
@@ -345,8 +346,9 @@ bash backend/scripts/smoke_template_library_mcp.sh
 Как интерпретировать:
 
 - это подтверждает, что persisted template library доступна через MCP service boundary, а не только через HTTP API или внутренний authoring wiring;
-- `upsert_template` прогоняет payload через existing `TemplateCompiler`, затем сохраняет compiled `TemplateSpec`;
-- `get_template` и `list_templates` читают те же persisted template records, что использует authoring path.
+- `upsert_template` прогоняет payload через existing `TemplateCompiler`, затем сохраняет compiled `TemplateSpec` как `draft`;
+- `publish_template` переводит нужную version в `published`;
+- `get_template` и `list_templates(status=published)` читают те же persisted template records, что использует authoring path.
 
 ## 13.2. (Опционально) Проверка Template Library MCP runtime
 
@@ -357,7 +359,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_template_library_mcp.sh
 Что увидеть:
 
 - MCP-сервис `template-library-mcp` стартует без ошибки импорта;
-- доступны tools `upsert_template`, `get_template`, `list_templates`;
+- доступны tools `upsert_template`, `publish_template`, `get_template`, `list_templates`;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
 ## 13.3. Smoke Knowledge Indexing

@@ -248,6 +248,34 @@ def test_template_store_fallback_roundtrip_and_latest_version() -> None:
     assert listed.total_returned == 2
 
 
+def test_template_store_supports_publish_and_published_latest_resolution() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="board_memo",
+            template_payload={"version": "1", "sections": [{"section_id": "draft", "title": "Draft"}]},
+        )
+    )
+    library.upsert_template(
+        compiler.compile(
+            template_id="board_memo",
+            template_payload={"version": "2", "sections": [{"section_id": "live", "title": "Live"}]},
+        )
+    )
+    library.publish_template("board_memo", "2")
+
+    published_latest = library.get_template("board_memo", published_only=True)
+    published_only_list = library.list_templates(template_id="board_memo", status="published")
+
+    assert published_latest.version == "2"
+    assert published_latest.status == "published"
+    assert published_only_list.total_returned == 1
+    assert published_only_list.items[0].version == "2"
+
+
 def test_template_library_service_compile_template_normalizes_payload() -> None:
     library = TemplateLibraryApplicationService(
         store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)

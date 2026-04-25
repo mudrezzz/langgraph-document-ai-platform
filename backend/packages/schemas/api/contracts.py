@@ -240,10 +240,17 @@ class UpsertTemplateRequest(BaseModel):
     """Запрос на регистрацию или обновление reusable template."""
 
     version: str = "1"
+    status: Literal["draft", "published"] = "draft"
     sections: list[dict] = Field(default_factory=list)
     validation_rules: list[dict] = Field(default_factory=list)
     assembly_rules: list[dict] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
+
+
+class PublishTemplateRequest(BaseModel):
+    """Запрос на публикацию конкретной версии reusable template."""
+
+    version: str
 
 
 class TemplateResponse(BaseModel):
@@ -251,6 +258,7 @@ class TemplateResponse(BaseModel):
 
     template_id: str
     version: str
+    status: Literal["draft", "published"] = "draft"
     template_spec: dict = Field(default_factory=dict)
     metadata: dict = Field(default_factory=dict)
     created_at: datetime | None = None

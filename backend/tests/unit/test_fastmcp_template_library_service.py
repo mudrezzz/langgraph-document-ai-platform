@@ -31,13 +31,20 @@ class _FakeTemplateLibraryService:
             assembly_rules=list(assembly_rules or []),
         )
 
-    def upsert_template(self, template_spec: TemplateSpec, *, metadata: dict | None = None) -> str:
+    def upsert_template(
+        self,
+        template_spec: TemplateSpec,
+        *,
+        metadata: dict | None = None,
+        status: str | None = None,
+    ) -> str:
         now = datetime.now(timezone.utc)
         key = (template_spec.template_id, template_spec.version)
         existing = self.storage.get(key)
         self.storage[key] = TemplateRecord(
             template_id=template_spec.template_id,
             version=template_spec.version,
+            status=status or (existing.status if existing is not None else "draft"),
             template_spec=template_spec,
             metadata=dict(metadata or {}),
             created_at=existing.created_at if existing is not None else now,
@@ -45,7 +52,7 @@ class _FakeTemplateLibraryService:
         )
         return template_spec.template_id
 
-    def get_template(self, template_id: str, version: str | None = None) -> TemplateRecord:
+    def get_template(self, template_id: str, version: str | None = None, *, published_only: bool = False) -> TemplateRecord:
         if version is not None:
             key = (template_id, version)
             if key not in self.storage:
@@ -53,9 +60,20 @@ class _FakeTemplateLibraryService:
             return self.storage[key]
 
         matching = [record for (stored_template_id, _), record in self.storage.items() if stored_template_id == template_id]
+        if published_only:
+            matching = [record for record in matching if record.status == "published"]
         if not matching:
             raise KeyError(f"Template {template_id} не найден")
         return sorted(matching, key=lambda item: item.version, reverse=True)[0]
+
+    def publish_template(self, template_id: str, version: str) -> TemplateRecord:
+        key = (template_id, version)
+        current = self.storage.get(key)
+        if current is None:
+            raise KeyError(f"Template {template_id}:{version} не найден")
+        published = current.model_copy(update={"status": "published", "updated_at": datetime.now(timezone.utc)})
+        self.storage[key] = published
+        return published
 
     def list_templates(
         self,
@@ -63,10 +81,13 @@ class _FakeTemplateLibraryService:
         limit: int = 50,
         offset: int = 0,
         template_id: str | None = None,
+        status: str | None = None,
     ) -> TemplateListPage:
         records = list(self.storage.values())
         if template_id is not None:
             records = [item for item in records if item.template_id == template_id]
+        if status is not None:
+            records = [item for item in records if item.status == status]
         ordered = sorted(records, key=lambda item: (item.template_id, item.version), reverse=True)
         window = ordered[offset : offset + limit]
         return TemplateListPage(items=window, limit=limit, offset=offset, total_returned=len(window))
@@ -106,6 +127,7 @@ def test_fastmcp_template_library_service_upsert_get_list() -> None:
 
     assert upserted["template_id"] == "board_memo"
     assert upserted["version"] == "3"
+    assert upserted["status"] == "draft"
     assert upserted["metadata"]["owner"] == "unit-test"
     assert loaded["template_spec"]["sections"][0]["section_id"] == "decision"
     assert listed["total_returned"] == 1
@@ -120,6 +142,7 @@ def test_fastmcp_template_library_service_metadata_contains_tools() -> None:
 
     assert metadata["service_name"] == "template-library-mcp"
     assert "upsert_template" in metadata["tool_names"]
+    assert "publish_template" in metadata["tool_names"]
     assert "get_template" in metadata["tool_names"]
     assert "list_templates" in metadata["tool_names"]
 
@@ -131,3 +154,23 @@ def test_fastmcp_template_library_service_get_not_found_raises_value_error() -> 
     with pytest.raises(ValueError, match="missing-template"):
         mcp_service.get_template({"template_id": "missing-template"})
 
+
+def test_fastmcp_template_library_service_publish_and_filter_by_status() -> None:
+    fake_service = _FakeTemplateLibraryService()
+    mcp_service = FastMcpTemplateLibraryService(fake_service)  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    mcp_service.upsert_template(
+        {
+            "template_id": "status_report",
+            "version": "1",
+            "status": "draft",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        }
+    )
+    published = mcp_service.publish_template({"template_id": "status_report", "version": "1"})
+    listed = mcp_service.list_templates({"limit": 10, "offset": 0, "status": "published"})
+
+    assert published["status"] == "published"
+    assert listed["total_returned"] == 1
+    assert listed["items"][0]["template_id"] == "status_report"

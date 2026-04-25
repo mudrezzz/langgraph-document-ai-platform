@@ -141,6 +141,7 @@ def test_template_api_upsert_get_and_list_flow(client: TestClient) -> None:
     upsert_payload = upsert.json()
     assert upsert_payload["template_id"] == "board_memo"
     assert upsert_payload["version"] == "3"
+    assert upsert_payload["status"] == "draft"
     assert upsert_payload["metadata"]["owner"] == "integration-test"
     assert upsert_payload["template_spec"]["sections"][0]["section_id"] == "decision"
 
@@ -155,8 +156,38 @@ def test_template_api_upsert_get_and_list_flow(client: TestClient) -> None:
     assert listed_payload["items"][0]["template_id"] == "board_memo"
 
 
+def test_template_api_publish_and_filter_flow(client: TestClient) -> None:
+    upsert = client.put(
+        "/api/v1/templates/decision_memo",
+        json={
+            "version": "5",
+            "status": "draft",
+            "sections": [{"section_id": "overview", "title": "Overview"}],
+        },
+    )
+    assert upsert.status_code == 200
+    assert upsert.json()["status"] == "draft"
+
+    publish = client.post("/api/v1/templates/decision_memo/publish", json={"version": "5"})
+    assert publish.status_code == 200
+    assert publish.json()["status"] == "published"
+
+    listed = client.get("/api/v1/templates?template_id=decision_memo&status=published")
+    assert listed.status_code == 200
+    listed_payload = listed.json()
+    assert listed_payload["total_returned"] == 1
+    assert listed_payload["items"][0]["status"] == "published"
+
+
 def test_template_api_get_returns_404_for_missing_template(client: TestClient) -> None:
     response = client.get("/api/v1/templates/missing-template")
+
+    assert response.status_code == 404
+    assert "не найден" in response.json()["detail"]
+
+
+def test_template_api_publish_returns_404_for_missing_template(client: TestClient) -> None:
+    response = client.post("/api/v1/templates/missing-template/publish", json={"version": "1"})
 
     assert response.status_code == 404
     assert "не найден" in response.json()["detail"]
@@ -731,6 +762,53 @@ def test_authoring_endpoint_loads_template_from_persisted_library(client: TestCl
     assert payload["metadata"]["template_spec"]["version"] == "11"
     assert payload["metadata"]["section_contracts"][0]["section_id"] == "executive_summary"
     assert "## Executive Summary" in payload["content"]
+
+
+def test_authoring_endpoint_uses_latest_published_template_when_version_missing(client: TestClient) -> None:
+    container = get_container()
+    draft_spec = container.authoring_service._section_contract_builder.get_template_spec(
+        template_id="decision_memo",
+        template_payload={
+            "version": "12",
+            "sections": [{"section_id": "draft_only", "title": "Draft Only"}],
+        },
+    )
+    published_spec = container.authoring_service._section_contract_builder.get_template_spec(
+        template_id="decision_memo",
+        template_payload={
+            "version": "10",
+            "sections": [{"section_id": "published_section", "title": "Published Section"}],
+        },
+    )
+    container.template_library_service.upsert_template(draft_spec)
+    container.template_library_service.upsert_template(published_spec)
+    container.template_library_service.publish_template("decision_memo", "10")
+
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь decision memo по published template",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "requester": "integration-template-library-published-test",
+                "template_id": "decision_memo",
+            },
+            "artifact_type": "decision_memo",
+            "artifact_title": "Integration Published Decision Memo",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+
+    artifact = client.get(f"/api/v1/tasks/{task_id}/artifact")
+    assert artifact.status_code == 200
+    payload = artifact.json()
+    assert payload["metadata"]["template_spec"]["version"] == "10"
+    assert payload["metadata"]["section_contracts"][0]["section_id"] == "published_section"
 
 def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:
     retrieval_task_id = _create_task(client)

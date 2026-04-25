@@ -23,6 +23,7 @@ from schemas.api.contracts import (
     StartKnowledgeIndexingTaskRequest,
     StartRetrievalTaskRequest,
     StartTaskResponse,
+    PublishTemplateRequest,
     TaskArtifactResponse,
     TaskEventsResponse,
     TaskEventsSummaryResponse,
@@ -59,10 +60,14 @@ def upsert_template(
         assembly_rules=request.assembly_rules,
     )
     container.template_library_service.upsert_template(template_spec, metadata=request.metadata)
-    saved = container.template_library_service.get_template(template_id, request.version)
+    if request.status == "published":
+        saved = container.template_library_service.publish_template(template_id, request.version)
+    else:
+        saved = container.template_library_service.get_template(template_id, request.version)
     return TemplateResponse(
         template_id=saved.template_id,
         version=saved.version,
+        status=saved.status,
         template_spec=saved.template_spec.model_dump(mode="json"),
         metadata=saved.metadata,
         created_at=saved.created_at,
@@ -86,10 +91,35 @@ def get_template(
     return TemplateResponse(
         template_id=loaded.template_id,
         version=loaded.version,
+        status=loaded.status,
         template_spec=loaded.template_spec.model_dump(mode="json"),
         metadata=loaded.metadata,
         created_at=loaded.created_at,
         updated_at=loaded.updated_at,
+    )
+
+
+@app.post("/api/v1/templates/{template_id}/publish", response_model=TemplateResponse)
+def publish_template(
+    template_id: str,
+    request: PublishTemplateRequest,
+    container: ApiContainer = Depends(get_container),
+) -> TemplateResponse:
+    """Публикует конкретную reusable template version."""
+
+    try:
+        published = container.template_library_service.publish_template(template_id, request.version)
+    except TemplateNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return TemplateResponse(
+        template_id=published.template_id,
+        version=published.version,
+        status=published.status,
+        template_spec=published.template_spec.model_dump(mode="json"),
+        metadata=published.metadata,
+        created_at=published.created_at,
+        updated_at=published.updated_at,
     )
 
 
@@ -98,6 +128,7 @@ def list_templates(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     template_id: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
     container: ApiContainer = Depends(get_container),
 ) -> TemplateListResponse:
     """Возвращает страницу reusable templates из template library."""
@@ -106,12 +137,14 @@ def list_templates(
         limit=limit,
         offset=offset,
         template_id=template_id,
+        status=status_filter,
     )
     return TemplateListResponse(
         items=[
             TemplateResponse(
                 template_id=item.template_id,
                 version=item.version,
+                status=item.status,
                 template_spec=item.template_spec.model_dump(mode="json"),
                 metadata=item.metadata,
                 created_at=item.created_at,

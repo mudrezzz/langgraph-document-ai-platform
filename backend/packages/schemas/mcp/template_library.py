@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -11,6 +11,7 @@ class TemplateLibraryMcpUpsertTemplateInput(BaseModel):
 
     template_id: str
     version: str = "1"
+    status: Literal["draft", "published"] = "draft"
     sections: list[dict[str, Any]] = Field(default_factory=list)
     validation_rules: list[dict[str, Any]] = Field(default_factory=list)
     assembly_rules: list[dict[str, Any]] = Field(default_factory=list)
@@ -22,6 +23,7 @@ class TemplateLibraryMcpTemplateItem(BaseModel):
 
     template_id: str
     version: str
+    status: Literal["draft", "published"] = "draft"
     template_spec: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime | None = None
@@ -49,6 +51,18 @@ class TemplateLibraryMcpListTemplatesInput(BaseModel):
     limit: int = Field(default=20, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
     template_id: str | None = None
+    status: Literal["draft", "published"] | None = None
+
+
+class TemplateLibraryMcpPublishTemplateInput(BaseModel):
+    """Контракт входа MCP tool для публикации версии reusable template."""
+
+    template_id: str
+    version: str
+
+
+class TemplateLibraryMcpPublishTemplateOutput(TemplateLibraryMcpTemplateItem):
+    """Контракт ответа MCP tool после публикации reusable template."""
 
 
 class TemplateLibraryMcpListTemplatesOutput(BaseModel):

@@ -498,6 +498,17 @@ Fourteenth slice done:
 - targeted template MCP/API tests: `40 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `205 passed`.
 
+Fifteenth slice done:
+
+- добавлен baseline template governance status `draft|published` для persisted template library;
+- добавлен `publish_template` path в `TemplateLibraryApplicationService`, HTTP API и Template Library MCP;
+- authoring без явного `template_version` теперь резолвит последнюю `published` template version, сохраняя приоритет inline `template_payload` и explicit version lookup;
+- добавлена миграция `0011_template_status_governance.sql` и расширены fallback/PostgreSQL template store read models;
+- добавлены unit/integration tests для publish flow, published-only resolution и authoring default behavior;
+- добавлен ADR-0060 и обновлены README/SAO/runbook/scripts docs;
+- targeted governance tests: `80 passed`;
+- local suite without external flags: `208 passed, 3 skipped`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

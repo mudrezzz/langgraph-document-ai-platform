@@ -150,7 +150,7 @@
 - Template Library MCP boundary:
   - app entrypoint `apps/mcp_template_library/main.py`;
   - сервис `FastMcpTemplateLibraryService`;
-  - MCP tools: `upsert_template`, `get_template`, `list_templates`;
+  - MCP tools: `upsert_template`, `publish_template`, `get_template`, `list_templates`;
   - сервис использует existing `TemplateLibraryApplicationService` без отдельного template-specific runtime stack.
 - Authoring application flow:
   - `AuthoringApplicationService`;
@@ -167,6 +167,7 @@
   - baseline `TemplateCatalog` и `TemplateSpec.assembly_rules` подготовлены для reusable template library path; assembly rules уже управляют section order, writer-draft visibility и traceability visibility;
   - добавлена persisted template library через `TemplateLibraryApplicationService` и `PostgresTemplateStore`, а authoring умеет резолвить versioned templates по `template_id/template_version`;
   - template library получила public API boundary для upsert/get/list reusable templates;
+  - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь резолвит последнюю published version;
   - добавлен baseline `ArtifactExporter`, который отделяет assembly от финального rendering и уже поддерживает `markdown|json`;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
@@ -260,7 +261,8 @@
   - `docs/adr/0054-outline-approval-hitl-point.md`;
   - `docs/adr/0055-section-authoring-workflow-baseline.md`;
   - `docs/adr/0056-document-assembly-workflow-baseline.md`.
-  - `docs/adr/0059-template-library-mcp-boundary.md`.
+  - `docs/adr/0059-template-library-mcp-boundary.md`;
+  - `docs/adr/0060-template-library-governance-status-baseline.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -268,7 +270,7 @@
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
-- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API и MCP boundary для templates, но rich assembly policies и template governance пока не завершены;
+- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary и минимальный draft/published governance для templates, но rich assembly policies и расширенная template governance пока не завершены;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
