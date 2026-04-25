@@ -246,3 +246,21 @@ def test_template_store_fallback_roundtrip_and_latest_version() -> None:
     assert latest.metadata["owner"] == "unit-test"
     assert v1.version == "1"
     assert listed.total_returned == 2
+
+
+def test_template_library_service_compile_template_normalizes_payload() -> None:
+    library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+
+    compiled = library.compile_template(
+        template_id="status_report",
+        version="5",
+        sections=[{"section_id": "overview", "title": "Overview"}],
+        assembly_rules=[{"rule_id": "overview_first", "section_order": ["overview"]}],
+    )
+
+    assert compiled.template_id == "status_report"
+    assert compiled.version == "5"
+    assert compiled.sections[0]["section_id"] == "overview"
+    assert compiled.assembly_rules[0]["rule_id"] == "overview_first"

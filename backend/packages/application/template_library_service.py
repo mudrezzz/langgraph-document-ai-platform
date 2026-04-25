@@ -6,6 +6,7 @@ from typing import Protocol
 from pydantic import BaseModel, Field
 
 from application.errors import TemplateNotFoundError
+from domain_docs import TemplateCompiler
 from schemas.documents.contracts import TemplateSpec
 
 
@@ -51,8 +52,28 @@ class TemplateLibraryStore(Protocol):
 class TemplateLibraryApplicationService:
     """Application boundary for persisted template library operations."""
 
-    def __init__(self, store: TemplateLibraryStore) -> None:
+    def __init__(self, store: TemplateLibraryStore, *, template_compiler: TemplateCompiler | None = None) -> None:
         self._store = store
+        self._template_compiler = template_compiler or TemplateCompiler()
+
+    def compile_template(
+        self,
+        *,
+        template_id: str,
+        version: str = "1",
+        sections: list[dict] | None = None,
+        validation_rules: list[dict] | None = None,
+        assembly_rules: list[dict] | None = None,
+    ) -> TemplateSpec:
+        return self._template_compiler.compile(
+            template_id=template_id,
+            template_payload={
+                "version": version,
+                "sections": list(sections or []),
+                "validation_rules": list(validation_rules or []),
+                "assembly_rules": list(assembly_rules or []),
+            },
+        )
 
     def upsert_template(self, template_spec: TemplateSpec, *, metadata: dict | None = None) -> str:
         return self._store.upsert_template(template_spec, metadata=metadata)

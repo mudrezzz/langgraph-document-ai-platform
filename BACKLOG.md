@@ -478,6 +478,16 @@ Twelfth slice done:
 - targeted template library tests: `89 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `199 passed`.
 
+Thirteenth slice done:
+
+- добавлен public template management API boundary: `PUT /api/v1/templates/{template_id}`, `GET /api/v1/templates/{template_id}`, `GET /api/v1/templates`;
+- добавлены typed API contracts для upsert/get/list reusable templates;
+- `TemplateLibraryApplicationService` получил compile helper для API path, без обхода existing `TemplateCompiler`;
+- persisted template library теперь доступна не только внутреннему authoring path, но и как управляемая service boundary;
+- добавлены integration tests для template API flow и 404 path;
+- targeted template API tests: `54 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `202 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

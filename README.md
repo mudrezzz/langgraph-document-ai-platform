@@ -600,6 +600,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - deterministic assembly теперь template-aware и может собирать итоговый документ из `TemplateSpec` + `section_artifacts`.
   - добавлены baseline `TemplateCatalog` и `assembly_rules` в `TemplateSpec`.
   - добавлена persisted template library (`TemplateLibraryApplicationService` + `PostgresTemplateStore`), а authoring теперь умеет резолвить reusable templates по `template_id/template_version` без обязательного inline `template_payload`.
+  - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
@@ -623,6 +624,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `canonical_doc_ids` — опциональное ограничение canonical retrieval конкретными `doc_id`.
 
 Приоритет источников: `knowledge_source=canonical` -> `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
+
+## Контракт Template Library API
+
+- `PUT /api/v1/templates/{template_id}`
+  - body: `version`, `sections`, `validation_rules`, `assembly_rules`, `metadata`;
+  - сохраняет или обновляет reusable template version.
+- `GET /api/v1/templates/{template_id}`
+  - query: `version` (опционально);
+  - возвращает конкретную или последнюю доступную версию шаблона.
+- `GET /api/v1/templates`
+  - query: `limit`, `offset`, `template_id` (опционально);
+  - возвращает страницу сохраненных шаблонов.
 
 ## Контракт POST /api/v1/tasks/authoring/start
 

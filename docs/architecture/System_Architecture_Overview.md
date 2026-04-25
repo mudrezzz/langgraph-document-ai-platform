@@ -161,6 +161,7 @@
   - final assembly теперь умеет использовать `TemplateSpec` + `section_artifacts` для template-driven documents;
   - baseline `TemplateCatalog` и `TemplateSpec.assembly_rules` подготовлены для reusable template library path; assembly rules уже управляют section order, writer-draft visibility и traceability visibility;
   - добавлена persisted template library через `TemplateLibraryApplicationService` и `PostgresTemplateStore`, а authoring умеет резолвить versioned templates по `template_id/template_version`;
+  - template library получила public API boundary для upsert/get/list reusable templates;
   - добавлен baseline `ArtifactExporter`, который отделяет assembly от финального rendering и уже поддерживает `markdown|json`;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
@@ -258,7 +259,7 @@
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
-- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, но rich assembly policies, template governance и отдельные public template management endpoints пока не завершены;
+- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline и public template management API, но rich assembly policies, template governance и MCP boundary для templates пока не завершены;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;

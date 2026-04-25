@@ -67,3 +67,4 @@
 - `0055-section-authoring-workflow-baseline.md`
 - `0056-document-assembly-workflow-baseline.md`
 - `0057-persisted-template-library-baseline.md`
+- `0058-template-management-api-boundary.md`

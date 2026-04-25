@@ -111,6 +111,57 @@ def test_health_endpoint_returns_ok(client: TestClient) -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_template_api_upsert_get_and_list_flow(client: TestClient) -> None:
+    upsert = client.put(
+        "/api/v1/templates/board_memo",
+        json={
+            "version": "3",
+            "sections": [
+                {
+                    "section_id": "decision",
+                    "title": "Decision",
+                    "objective": "Summarize board decision.",
+                    "required_keywords": ["approval", "decision"],
+                }
+            ],
+            "assembly_rules": [
+                {
+                    "rule_id": "board_summary_only",
+                    "mode": "section_order",
+                    "section_order": ["decision"],
+                    "include_writer_draft": False,
+                    "include_traceability": True,
+                }
+            ],
+            "metadata": {"owner": "integration-test"},
+        },
+    )
+
+    assert upsert.status_code == 200
+    upsert_payload = upsert.json()
+    assert upsert_payload["template_id"] == "board_memo"
+    assert upsert_payload["version"] == "3"
+    assert upsert_payload["metadata"]["owner"] == "integration-test"
+    assert upsert_payload["template_spec"]["sections"][0]["section_id"] == "decision"
+
+    get_by_version = client.get("/api/v1/templates/board_memo?version=3")
+    assert get_by_version.status_code == 200
+    assert get_by_version.json()["version"] == "3"
+
+    listed = client.get("/api/v1/templates?template_id=board_memo")
+    assert listed.status_code == 200
+    listed_payload = listed.json()
+    assert listed_payload["total_returned"] == 1
+    assert listed_payload["items"][0]["template_id"] == "board_memo"
+
+
+def test_template_api_get_returns_404_for_missing_template(client: TestClient) -> None:
+    response = client.get("/api/v1/templates/missing-template")
+
+    assert response.status_code == 404
+    assert "не найден" in response.json()["detail"]
+
+
 def test_start_endpoint_returns_task_id(client: TestClient) -> None:
     response = client.post(
         "/api/v1/tasks/retrieval/start",

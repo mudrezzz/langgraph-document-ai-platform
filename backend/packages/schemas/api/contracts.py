@@ -234,3 +234,33 @@ class TaskArtifactResponse(BaseModel):
     format: str
     metadata: dict = Field(default_factory=dict)
     traceability: TaskArtifactTraceabilityResponse
+
+
+class UpsertTemplateRequest(BaseModel):
+    """Запрос на регистрацию или обновление reusable template."""
+
+    version: str = "1"
+    sections: list[dict] = Field(default_factory=list)
+    validation_rules: list[dict] = Field(default_factory=list)
+    assembly_rules: list[dict] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+
+
+class TemplateResponse(BaseModel):
+    """Ответ API с сохраненным template spec."""
+
+    template_id: str
+    version: str
+    template_spec: dict = Field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class TemplateListResponse(BaseModel):
+    """Страница reusable templates."""
+
+    items: list[TemplateResponse] = Field(default_factory=list)
+    limit: int
+    offset: int
+    total_returned: int

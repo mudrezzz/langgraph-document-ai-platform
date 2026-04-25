@@ -9,6 +9,7 @@ from application.errors import (
     InvalidTaskStateError,
     TaskArtifactLinkNotFoundError,
     TaskNotFoundError,
+    TemplateNotFoundError,
     WorkflowExecutionError,
 )
 from apps.api.dependencies import ApiContainer, get_container
@@ -27,6 +28,9 @@ from schemas.api.contracts import (
     TaskEventsSummaryResponse,
     TaskHistoryResponse,
     TaskStatusResponse,
+    TemplateListResponse,
+    TemplateResponse,
+    UpsertTemplateRequest,
 )
 
 app = FastAPI(title="LangGraph Document AI API", version="0.1.0")
@@ -37,6 +41,88 @@ def healthcheck() -> dict:
     """Проверка доступности API сервиса."""
 
     return {"status": "ok"}
+
+
+@app.put("/api/v1/templates/{template_id}", response_model=TemplateResponse)
+def upsert_template(
+    template_id: str,
+    request: UpsertTemplateRequest,
+    container: ApiContainer = Depends(get_container),
+) -> TemplateResponse:
+    """Создает или обновляет reusable template в template library."""
+
+    template_spec = container.template_library_service.compile_template(
+        template_id=template_id,
+        version=request.version,
+        sections=request.sections,
+        validation_rules=request.validation_rules,
+        assembly_rules=request.assembly_rules,
+    )
+    container.template_library_service.upsert_template(template_spec, metadata=request.metadata)
+    saved = container.template_library_service.get_template(template_id, request.version)
+    return TemplateResponse(
+        template_id=saved.template_id,
+        version=saved.version,
+        template_spec=saved.template_spec.model_dump(mode="json"),
+        metadata=saved.metadata,
+        created_at=saved.created_at,
+        updated_at=saved.updated_at,
+    )
+
+
+@app.get("/api/v1/templates/{template_id}", response_model=TemplateResponse)
+def get_template(
+    template_id: str,
+    version: str | None = Query(default=None),
+    container: ApiContainer = Depends(get_container),
+) -> TemplateResponse:
+    """Возвращает reusable template по id и опциональной версии."""
+
+    try:
+        loaded = container.template_library_service.get_template(template_id, version)
+    except TemplateNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+    return TemplateResponse(
+        template_id=loaded.template_id,
+        version=loaded.version,
+        template_spec=loaded.template_spec.model_dump(mode="json"),
+        metadata=loaded.metadata,
+        created_at=loaded.created_at,
+        updated_at=loaded.updated_at,
+    )
+
+
+@app.get("/api/v1/templates", response_model=TemplateListResponse)
+def list_templates(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    template_id: str | None = Query(default=None),
+    container: ApiContainer = Depends(get_container),
+) -> TemplateListResponse:
+    """Возвращает страницу reusable templates из template library."""
+
+    page = container.template_library_service.list_templates(
+        limit=limit,
+        offset=offset,
+        template_id=template_id,
+    )
+    return TemplateListResponse(
+        items=[
+            TemplateResponse(
+                template_id=item.template_id,
+                version=item.version,
+                template_spec=item.template_spec.model_dump(mode="json"),
+                metadata=item.metadata,
+                created_at=item.created_at,
+                updated_at=item.updated_at,
+            )
+            for item in page.items
+        ],
+        limit=page.limit,
+        offset=page.offset,
+        total_returned=page.total_returned,
+    )
 
 
 @app.post("/api/v1/tasks/retrieval/start", response_model=StartTaskResponse)
