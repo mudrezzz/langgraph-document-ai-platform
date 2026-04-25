@@ -27,3 +27,7 @@ class ArtifactNotFoundError(KeyError):
 
 class TaskArtifactLinkNotFoundError(KeyError):
     """Связь task -> artifact не найдена."""
+
+
+class TemplateNotFoundError(KeyError):
+    """Шаблон не найден в template library."""

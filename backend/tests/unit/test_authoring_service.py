@@ -5,11 +5,14 @@ from typing import Any
 import pytest
 
 from application.authoring_service import AuthoringApplicationService, TaskArtifactLinkRecord
+from application.template_library_service import TemplateLibraryApplicationService
 from application.async_dispatcher import InlineAuthoringAsyncDispatcher
 from application.errors import InvalidTaskStateError
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
+from domain_docs import TemplateCompiler
 from domain_authoring import ResearchSummaryBuilder, WriterDraftService
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
+from infra.postgres.template_store import PostgresTemplateStore
 from schemas.api.contracts import (
     EvidencePackResponse,
     StartAuthoringTaskRequest,
@@ -807,3 +810,115 @@ def test_authoring_artifact_endpoint_rejects_non_authoring_task() -> None:
 
     with pytest.raises(InvalidTaskStateError, match="authoring_pack"):
         _ = service.artifact(retrieval_task.task_id)
+
+
+def test_authoring_service_loads_template_from_library_when_payload_missing() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    template_library.upsert_template(
+        TemplateCompiler().compile(
+            template_id="decision_memo",
+            template_payload={
+                "version": "7",
+                "sections": [
+                    {
+                        "section_id": "executive_summary",
+                        "title": "Executive Summary",
+                        "objective": "Summarize executive decision.",
+                        "required_keywords": ["approval", "decision"],
+                    }
+                ],
+                "assembly_rules": [
+                    {
+                        "rule_id": "decision_order",
+                        "mode": "section_order",
+                        "section_order": ["executive_summary"],
+                        "include_writer_draft": False,
+                        "include_traceability": True,
+                    }
+                ],
+            },
+        ),
+        metadata={"owner": "unit-test"},
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare decision memo from library",
+            artifact_type="decision_memo",
+            artifact_title="Library Decision Memo",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "decision_memo",
+                "template_version": "7",
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.metadata["template_spec"]["version"] == "7"
+    assert artifact.metadata["section_contracts"][0]["section_id"] == "executive_summary"
+    assert "## Executive Summary" in artifact.content
+
+
+def test_authoring_service_prefers_inline_template_payload_over_library() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    template_library = TemplateLibraryApplicationService(
+        store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    )
+    template_library.upsert_template(
+        TemplateCompiler().compile(
+            template_id="board_memo",
+            template_payload={
+                "version": "4",
+                "sections": [{"section_id": "library_section", "title": "Library Section"}],
+            },
+        )
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        template_library_service=template_library,
+    )
+
+    response = service.start(
+        StartAuthoringTaskRequest(
+            query="prepare board memo with override",
+            artifact_type="board_memo",
+            artifact_title="Override Board Memo",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            task_context={
+                "requester": "unit-test",
+                "template_id": "board_memo",
+                "template_version": "4",
+                "template_payload": {
+                    "version": "9",
+                    "sections": [{"section_id": "inline_section", "title": "Inline Section"}],
+                },
+            },
+        )
+    )
+
+    artifact = service.artifact(response.task_id)
+    assert artifact.metadata["template_spec"]["version"] == "9"
+    assert artifact.metadata["section_contracts"][0]["section_id"] == "inline_section"

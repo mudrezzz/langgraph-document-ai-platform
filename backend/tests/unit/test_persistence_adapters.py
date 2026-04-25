@@ -5,12 +5,15 @@ import os
 import pytest
 
 from apps.api.dependencies import ApiContainer
+from application.template_library_service import TemplateLibraryApplicationService
+from domain_docs import TemplateCompiler
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
 from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
+from infra.postgres.template_store import PostgresTemplateStore
 
 
 def test_checkpoint_store_fallback_roundtrip() -> None:
@@ -213,3 +216,33 @@ def test_env_does_not_force_real_db_mode() -> None:
             os.environ.pop("APP_DB_DSN", None)
         else:
             os.environ["APP_DB_DSN"] = previous
+
+
+def test_template_store_fallback_roundtrip_and_latest_version() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={"version": "1", "sections": [{"section_id": "overview", "title": "Overview"}]},
+        )
+    )
+    library.upsert_template(
+        compiler.compile(
+            template_id="decision_memo",
+            template_payload={"version": "2", "sections": [{"section_id": "decision", "title": "Decision"}]},
+        ),
+        metadata={"owner": "unit-test"},
+    )
+
+    latest = library.get_template("decision_memo")
+    v1 = library.get_template("decision_memo", "1")
+    listed = library.list_templates(template_id="decision_memo")
+
+    assert latest.version == "2"
+    assert latest.template_spec.sections[0]["section_id"] == "decision"
+    assert latest.metadata["owner"] == "unit-test"
+    assert v1.version == "1"
+    assert listed.total_returned == 2

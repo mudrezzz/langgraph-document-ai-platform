@@ -24,16 +24,31 @@ class SectionContractBuilder:
         evidence_pack: EvidencePack,
         review_status: str,
         template_payload: dict | None = None,
+        template_version: str | None = None,
     ) -> tuple[TemplateSpec, list[SectionContract]]:
-        template_spec = self._resolve_template_spec(template_id=template_id, template_payload=template_payload)
+        template_spec = self._resolve_template_spec(
+            template_id=template_id,
+            template_payload=template_payload,
+            template_version=template_version,
+        )
         return template_spec, self._contracts_from_spec(
             template_spec=template_spec,
             evidence_pack=evidence_pack,
             review_status=review_status,
         )
 
-    def get_template_spec(self, *, template_id: str, template_payload: dict | None = None) -> TemplateSpec:
-        return self._resolve_template_spec(template_id=template_id, template_payload=template_payload)
+    def get_template_spec(
+        self,
+        *,
+        template_id: str,
+        template_payload: dict | None = None,
+        template_version: str | None = None,
+    ) -> TemplateSpec:
+        return self._resolve_template_spec(
+            template_id=template_id,
+            template_payload=template_payload,
+            template_version=template_version,
+        )
 
     def build_release_readiness_contracts(
         self,
@@ -86,18 +101,27 @@ class SectionContractBuilder:
             )
         return contracts
 
-    def _resolve_template_spec(self, *, template_id: str, template_payload: dict | None = None) -> TemplateSpec:
+    def _resolve_template_spec(
+        self,
+        *,
+        template_id: str,
+        template_payload: dict | None = None,
+        template_version: str | None = None,
+    ) -> TemplateSpec:
         if template_payload is not None:
             return self._template_compiler.compile(
                 template_id=template_id,
                 template_payload=template_payload,
             )
 
-        catalog_spec = self._template_catalog.get_template_spec(template_id)
+        catalog_spec = self._template_catalog.get_template_spec(template_id, template_version)
         if catalog_spec is not None:
             return catalog_spec
 
-        return self._template_compiler.compile(template_id=template_id, template_payload=None)
+        compiled = self._template_compiler.compile(template_id=template_id, template_payload=None)
+        if template_version is not None:
+            return compiled.model_copy(update={"version": str(template_version)})
+        return compiled
 
     def _dedup_source_refs(self, evidence_pack: EvidencePack) -> list[dict[str, str]]:
         deduped: list[dict[str, str]] = []

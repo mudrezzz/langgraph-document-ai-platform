@@ -10,6 +10,7 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
+from application.template_library_service import TemplateLibraryApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from schemas.api.contracts import StartAuthoringTaskRequest, SubmitHitlReviewRequest
@@ -23,6 +24,7 @@ from infra.postgres.canonical_document_store import PostgresCanonicalDocumentSto
 from infra.postgres.hitl_action_store import PostgresHitlActionStore
 from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
+from infra.postgres.template_store import PostgresTemplateStore
 from infra.postgres.task_registry import PostgresTaskRegistry
 from infra.vllm.chat_gateway import VllmChatModelGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
@@ -190,6 +192,10 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        template_store = PostgresTemplateStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         vector_store = PgVectorStoreAdapter.from_settings(
             settings,
             use_fallback_if_unset=use_fallback,
@@ -199,6 +205,7 @@ class ApiContainer:
         llm_runtime_config = _build_llm_runtime_config()
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
         canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
+        template_library_service = TemplateLibraryApplicationService(store=template_store)
         retrieval_service = RetrievalApplicationService(
             task_service=task_service,
             canonical_document_service=canonical_document_service,
@@ -211,6 +218,7 @@ class ApiContainer:
         self.task_service = task_service
         self.document_service = DocumentApplicationService(repository=document_repository)
         self.canonical_document_service = canonical_document_service
+        self.template_library_service = template_library_service
         self.embedding_gateway = embedding_gateway
         self.rerank_gateway = rerank_gateway
         self.vector_store = vector_store
@@ -235,6 +243,7 @@ class ApiContainer:
             llm_model_name=llm_runtime_config.model_name,
             hitl_max_iterations=_env_int("APP_HITL_MAX_ITERATIONS", 2),
             hitl_wait_timeout_sec=_env_int("APP_HITL_WAIT_TIMEOUT_SEC", 1800),
+            template_library_service=template_library_service,
         )
         self.authoring_dispatcher = _build_authoring_dispatcher(authoring_service=self.authoring_service)
 

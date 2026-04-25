@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from domain_docs import TemplateCompiler
+from application.template_library_service import TemplateLibraryApplicationService, TemplateLibraryCatalogAdapter
+from domain_docs import InMemoryTemplateCatalog, TemplateCompiler
+from infra.postgres.template_store import PostgresTemplateStore
 from domain_authoring import (
     ArtifactExporter,
     DocumentAssembler,
@@ -655,3 +657,63 @@ def test_section_review_service_updates_non_informational_section_statuses() -> 
 
     assert updated[0]["review_status"] == "approved"
     assert updated[1]["review_status"] == "informational"
+
+
+def test_inmemory_template_catalog_resolves_requested_version() -> None:
+    catalog = InMemoryTemplateCatalog(
+        templates={
+            ("decision_memo", "1"): {
+                "version": "1",
+                "sections": [{"section_id": "overview", "title": "Overview"}],
+            },
+            ("decision_memo", "2"): {
+                "version": "2",
+                "sections": [{"section_id": "decision", "title": "Decision"}],
+            },
+        }
+    )
+
+    latest = catalog.get_template_spec("decision_memo")
+    v1 = catalog.get_template_spec("decision_memo", "1")
+
+    assert latest is not None
+    assert latest.version == "2"
+    assert latest.sections[0]["section_id"] == "decision"
+    assert v1 is not None
+    assert v1.version == "1"
+    assert v1.sections[0]["section_id"] == "overview"
+
+
+def test_section_contract_builder_uses_persisted_template_library_when_payload_missing() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+    spec = compiler.compile(
+        template_id="decision_memo",
+        template_payload={
+            "version": "3",
+            "sections": [
+                {
+                    "section_id": "executive_summary",
+                    "title": "Executive Summary",
+                    "objective": "Summarize the decision.",
+                    "required_keywords": ["approval", "decision"],
+                }
+            ],
+        },
+    )
+    library.upsert_template(spec, metadata={"owner": "unit-test"})
+
+    builder = SectionContractBuilder(
+        template_catalog=TemplateLibraryCatalogAdapter(library),
+    )
+    template_spec, contracts = builder.build_contracts_from_template(
+        template_id="decision_memo",
+        template_version="3",
+        evidence_pack=_build_evidence_pack(),
+        review_status="completed",
+    )
+
+    assert template_spec.version == "3"
+    assert contracts[0].section_id == "executive_summary"
+    assert contracts[0].metadata["template_id"] == "decision_memo"

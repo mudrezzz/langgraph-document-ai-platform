@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from application.async_dispatcher import AuthoringAsyncDispatcher
 from application.artifact_service import ArtifactApplicationService
+from application.template_library_service import TemplateLibraryApplicationService, TemplateLibraryCatalogAdapter
 from domain_authoring import (
     ArtifactExportResult,
     ArtifactExporter,
@@ -122,6 +123,7 @@ class AuthoringApplicationService:
         research_summary_builder: ResearchSummaryBuilder | None = None,
         writer_draft_service: WriterDraftService | None = None,
         section_contract_builder: SectionContractBuilder | None = None,
+        template_library_service: TemplateLibraryApplicationService | None = None,
         section_authoring_service: SectionAuthoringService | None = None,
         section_authoring_workflow: SectionAuthoringWorkflow | None = None,
     ) -> None:
@@ -147,7 +149,12 @@ class AuthoringApplicationService:
         )
         self._research_summary_builder = research_summary_builder or ResearchSummaryBuilder()
         self._writer_draft_service = writer_draft_service or WriterDraftService()
-        self._section_contract_builder = section_contract_builder or SectionContractBuilder()
+        self._template_library_service = template_library_service
+        self._section_contract_builder = section_contract_builder or SectionContractBuilder(
+            template_catalog=TemplateLibraryCatalogAdapter(template_library_service)
+            if template_library_service is not None
+            else None,
+        )
         self._section_authoring_service = section_authoring_service or SectionAuthoringService()
         self._section_authoring_workflow = section_authoring_workflow or SectionAuthoringWorkflow(
             section_authoring_service=self._section_authoring_service,
@@ -1443,12 +1450,15 @@ class AuthoringApplicationService:
         review_result: dict[str, Any],
     ) -> tuple[TemplateSpec, list[SectionContract]]:
         template_id = str(task_context.get("template_id") or "release_readiness").strip() or "release_readiness"
+        template_version_raw = task_context.get("template_version")
+        template_version = str(template_version_raw).strip() if template_version_raw is not None else None
         template_payload = task_context.get("template_payload")
         return self._section_contract_builder.build_contracts_from_template(
             template_id=template_id,
             evidence_pack=evidence_pack,
             review_status=str(review_result.get("status", "not_reviewed")),
             template_payload=template_payload if isinstance(template_payload, dict) else None,
+            template_version=template_version or None,
         )
 
     def _build_section_artifacts(

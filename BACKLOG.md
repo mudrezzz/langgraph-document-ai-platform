@@ -468,6 +468,16 @@ Eleventh slice done:
 - targeted assembly workflow tests: `34 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `193 passed`.
 
+Twelfth slice done:
+
+- добавлена persisted template library: `TemplateLibraryApplicationService`, `PostgresTemplateStore` и миграция `0010_document_templates.sql`;
+- `TemplateCatalog` и `SectionContractBuilder` теперь поддерживают `template_version`, сохраняя приоритет inline `template_payload`;
+- `AuthoringApplicationService` теперь может резолвить шаблоны из persisted library по `task_context.template_id/template_version`;
+- `ApiContainer` wires template library в authoring path без изменения внешних API;
+- добавлены unit/integration tests для fallback store, versioned template resolution и authoring через persisted template library;
+- targeted template library tests: `89 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `199 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

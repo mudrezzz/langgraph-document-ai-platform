@@ -66,3 +66,4 @@
 - `0054-outline-approval-hitl-point.md`
 - `0055-section-authoring-workflow-baseline.md`
 - `0056-document-assembly-workflow-baseline.md`
+- `0057-persisted-template-library-baseline.md`

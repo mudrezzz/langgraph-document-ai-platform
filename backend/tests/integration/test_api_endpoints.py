@@ -622,6 +622,65 @@ def test_task_artifact_endpoint_returns_json_artifact_when_requested(client: Tes
     assert '"traceability"' not in payload["content"]
 
 
+
+
+def test_authoring_endpoint_loads_template_from_persisted_library(client: TestClient) -> None:
+    container = get_container()
+    container.template_library_service.upsert_template(
+        container.authoring_service._section_contract_builder.get_template_spec(
+            template_id="decision_memo",
+            template_payload={
+                "version": "11",
+                "sections": [
+                    {
+                        "section_id": "executive_summary",
+                        "title": "Executive Summary",
+                        "objective": "Summarize the board-ready decision.",
+                        "required_keywords": ["approval", "decision"],
+                    }
+                ],
+                "assembly_rules": [
+                    {
+                        "rule_id": "decision_summary_only",
+                        "mode": "section_order",
+                        "section_order": ["executive_summary"],
+                        "include_writer_draft": False,
+                        "include_traceability": True,
+                    }
+                ],
+            },
+        ),
+        metadata={"seeded_by": "integration-test"},
+    )
+
+    response = client.post(
+        "/api/v1/tasks/authoring/start",
+        json={
+            "query": "подготовь decision memo из template library",
+            "filters": {"project_id": "p1"},
+            "task_context": {
+                "requester": "integration-template-library-test",
+                "template_id": "decision_memo",
+                "template_version": "11",
+            },
+            "artifact_type": "decision_memo",
+            "artifact_title": "Integration Decision Memo Library",
+            "artifact_format": "markdown",
+            "draft_strategy": "deterministic",
+            "workflow_mode": "multi_step",
+        },
+    )
+
+    assert response.status_code == 200
+    task_id = response.json()["task_id"]
+
+    artifact = client.get(f"/api/v1/tasks/{task_id}/artifact")
+    assert artifact.status_code == 200
+    payload = artifact.json()
+    assert payload["metadata"]["template_spec"]["version"] == "11"
+    assert payload["metadata"]["section_contracts"][0]["section_id"] == "executive_summary"
+    assert "## Executive Summary" in payload["content"]
+
 def test_task_artifact_endpoint_returns_409_for_non_authoring_task(client: TestClient) -> None:
     retrieval_task_id = _create_task(client)
 
