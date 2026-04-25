@@ -42,6 +42,8 @@
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
+- `run_template_library_mcp.sh` — запуск Template Library MCP runtime (`upsert_template/get_template/list_templates`).
+- `smoke_template_library_mcp.sh` — ручной smoke Template Library MCP service через `smoke_template_library_mcp.py`.
 - `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.
   - поддерживает `--draft-strategy auto|deterministic|llm`;
   - поддерживает `--workflow-mode single_pass|multi_step`;
@@ -88,9 +90,14 @@ bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 bash backend/scripts/run_repository_mcp.sh
 # либо:
 bash backend/scripts/run_artifact_writer_mcp.sh
+# либо:
+bash backend/scripts/run_template_library_mcp.sh
 
 # Artifact Writer MCP smoke:
 bash backend/scripts/smoke_artifact_writer_mcp.sh
+
+# Template Library MCP smoke:
+bash backend/scripts/smoke_template_library_mcp.sh
 
 # Authoring API smoke:
 bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step
@@ -138,6 +145,8 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `smoke_canonical_retrieval.ps1`
 - `run_artifact_writer_mcp.ps1`
 - `smoke_artifact_writer_mcp.ps1`
+- `run_template_library_mcp.ps1`
+- `smoke_template_library_mcp.ps1`
 - `smoke_authoring_api.ps1`
 - `demo_release_authoring_traceability_case.ps1`
 - `smoke_authoring_async_api.ps1`

@@ -488,6 +488,16 @@ Thirteenth slice done:
 - targeted template API tests: `54 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `202 passed`.
 
+Fourteenth slice done:
+
+- добавлен Template Library MCP boundary: `FastMcpTemplateLibraryService`, `apps/mcp_template_library/main.py` и typed MCP schemas `schemas.mcp.template_library`;
+- MCP tools `upsert_template/get_template/list_templates` переиспользуют existing `TemplateLibraryApplicationService` и `TemplateCompiler`, без отдельной template-specific архитектуры;
+- добавлены runtime/smoke scripts `run_template_library_mcp.sh/.ps1` и `smoke_template_library_mcp.sh/.ps1`;
+- добавлены unit tests для Template Library MCP metadata, upsert/get/list flow и missing-template error mapping;
+- добавлен ADR-0059 и обновлены README/SAO/runbook под новый MCP boundary;
+- targeted template MCP/API tests: `40 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `205 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

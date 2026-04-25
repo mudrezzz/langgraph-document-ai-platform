@@ -147,6 +147,11 @@
   - app entrypoint `apps/mcp_artifact_writer/main.py`;
   - сервис `FastMcpArtifactWriterService`;
   - MCP tools: `write_artifact`, `get_artifact`, `list_artifacts`.
+- Template Library MCP boundary:
+  - app entrypoint `apps/mcp_template_library/main.py`;
+  - сервис `FastMcpTemplateLibraryService`;
+  - MCP tools: `upsert_template`, `get_template`, `list_templates`;
+  - сервис использует existing `TemplateLibraryApplicationService` без отдельного template-specific runtime stack.
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
@@ -200,6 +205,9 @@
 - добавлены MCP scripts для artifact writer контура:
   - `backend/scripts/run_artifact_writer_mcp.sh/.ps1`;
   - `backend/scripts/smoke_artifact_writer_mcp.sh/.ps1` + `smoke_artifact_writer_mcp.py`.
+- добавлены MCP scripts для template library контура:
+  - `backend/scripts/run_template_library_mcp.sh/.ps1`;
+  - `backend/scripts/smoke_template_library_mcp.sh/.ps1` + `smoke_template_library_mcp.py`.
 - добавлены authoring API scripts:
   - `backend/scripts/smoke_authoring_api.sh/.ps1` + `smoke_authoring_api.py`;
   - `backend/scripts/demo_release_authoring_traceability_case.sh/.ps1`.
@@ -252,14 +260,15 @@
   - `docs/adr/0054-outline-approval-hitl-point.md`;
   - `docs/adr/0055-section-authoring-workflow-baseline.md`;
   - `docs/adr/0056-document-assembly-workflow-baseline.md`.
+  - `docs/adr/0059-template-library-mcp-boundary.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
-- MCP-контур включает Retrieval/Repository/Artifact Writer MCP, но пока без unified auth/rate-limit/observability политик;
+- MCP-контур включает Retrieval/Repository/Artifact Writer/Template Library MCP, но пока без unified auth/rate-limit/observability политик;
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
-- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline и public template management API, но rich assembly policies, template governance и MCP boundary для templates пока не завершены;
+- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API и MCP boundary для templates, но rich assembly policies и template governance пока не завершены;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;

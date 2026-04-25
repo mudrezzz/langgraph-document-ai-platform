@@ -93,6 +93,10 @@
   - `FastMcpArtifactWriterService` с tool-ами `write_artifact`, `get_artifact`, `list_artifacts`;
   - `PostgresArtifactStore` + миграция `backend/migrations/0006_artifact_store.sql`;
   - скрипты `run_artifact_writer_mcp.sh/.ps1` и `smoke_artifact_writer_mcp.sh/.ps1`.
+- добавлен Template Library MCP boundary:
+  - `apps/mcp_template_library/main.py`;
+  - `FastMcpTemplateLibraryService` с tool-ами `upsert_template`, `get_template`, `list_templates`;
+  - скрипты `run_template_library_mcp.sh/.ps1` и `smoke_template_library_mcp.sh/.ps1`.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -190,6 +194,7 @@ backend/
     mcp_artifact_writer/
     mcp_repository/
     mcp_retrieval/
+    mcp_template_library/
     worker/
   examples/
     cases/
@@ -354,38 +359,64 @@ pip install fastmcp
 bash ./backend/scripts/run_artifact_writer_mcp.sh
 ```
 
-17. Запуск Artifact Writer MCP (Windows):
+19. Запуск Artifact Writer MCP (Windows):
 
 ```powershell
 pip install fastmcp
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_artifact_writer_mcp.ps1
 ```
 
-18. Smoke Artifact Writer MCP (Linux):
+20. Smoke Artifact Writer MCP (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_artifact_writer_mcp.sh
 ```
 
-19. Smoke Artifact Writer MCP (Windows):
+21. Smoke Artifact Writer MCP (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_artifact_writer_mcp.ps1
 ```
 
-20. Smoke Authoring API (Linux):
+22. Запуск Template Library MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_template_library_mcp.sh
+```
+
+23. Запуск Template Library MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_template_library_mcp.ps1
+```
+
+24. Smoke Template Library MCP (Linux):
+
+```bash
+bash ./backend/scripts/smoke_template_library_mcp.sh
+```
+
+25. Smoke Template Library MCP (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_template_library_mcp.ps1
+```
+
+26. Smoke Authoring API (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
 ```
 
-21. Smoke Authoring API (Windows):
+27. Smoke Authoring API (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030 -WorkflowMode multi_step
 ```
 
-22. Smoke Authoring API c обязательной LLM-генерацией (Linux):
+28. Smoke Authoring API c обязательной LLM-генерацией (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -393,25 +424,25 @@ APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
-23. Demo Authoring + Traceability (Linux):
+29. Demo Authoring + Traceability (Linux):
 
 ```bash
 bash ./backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.1 --port 8040
 ```
 
-24. Demo Authoring + Traceability (Windows):
+30. Demo Authoring + Traceability (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_authoring_traceability_case.ps1 -HostName 127.0.0.1 -Port 8040
 ```
 
-25. Поднять Redis + Celery worker (Linux):
+31. Поднять Redis + Celery worker (Linux):
 
 ```bash
 bash ./backend/scripts/async_up.sh
 ```
 
-26. Smoke Async Authoring API + HITL (Linux):
+32. Smoke Async Authoring API + HITL (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -422,7 +453,7 @@ APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
 
-27. Demo Async Authoring + HITL (Linux):
+33. Demo Async Authoring + HITL (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -433,31 +464,31 @@ APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision-sequence needs_changes,approve
 ```
 
-28. Остановить Redis + Celery worker (Linux):
+34. Остановить Redis + Celery worker (Linux):
 
 ```bash
 bash ./backend/scripts/async_down.sh
 ```
 
-29. Smoke Knowledge Indexing (Linux):
+35. Smoke Knowledge Indexing (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 ```
 
-30. Smoke Knowledge Indexing (Windows):
+36. Smoke Knowledge Indexing (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1 -BuildBinaryDemoDocs
 ```
 
-31. Smoke Canonical Retrieval (Linux):
+37. Smoke Canonical Retrieval (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
-32. Smoke Canonical Retrieval (Windows):
+38. Smoke Canonical Retrieval (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1 -BuildBinaryDemoDocs
@@ -601,6 +632,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлены baseline `TemplateCatalog` и `assembly_rules` в `TemplateSpec`.
   - добавлена persisted template library (`TemplateLibraryApplicationService` + `PostgresTemplateStore`), а authoring теперь умеет резолвить reusable templates по `template_id/template_version` без обязательного inline `template_payload`.
   - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
+  - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/get_template/list_templates` FastMCP tools.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
 - `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
@@ -759,6 +791,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - Artifact Writer MCP:
   - tools `write_artifact`, `get_artifact`, `list_artifacts`;
   - схемы `backend/packages/schemas/mcp/artifact_writer.py`.
+- Template Library MCP:
+  - tools `upsert_template`, `get_template`, `list_templates`;
+  - схемы `backend/packages/schemas/mcp/template_library.py`.
 
 ## Knowledge Factory MVP
 

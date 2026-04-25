@@ -8,7 +8,8 @@
 cd /root/langgraph-document-ai-platform
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ./backend uvicorn pytest
+pip install -e ./backend
+pip install uvicorn pytest
 chmod +x backend/scripts/*.sh
 ```
 
@@ -17,6 +18,22 @@ chmod +x backend/scripts/*.sh
 - команды завершаются без ошибок;
 - в проекте есть `./.venv` (smoke/demo теперь автоматически предпочитает этот python).
 - backend editable install подтягивает зависимости parser boundary, включая `python-docx` и `PyMuPDF`.
+
+Если editable install все же падает на package discovery, используйте fallback без editable mode:
+
+```bash
+pip install -r <(python - <<'PY'
+import tomllib
+from pathlib import Path
+
+data = tomllib.loads(Path('backend/pyproject.toml').read_text())
+for item in data['project']['dependencies']:
+    print(item)
+PY
+)
+pip install uvicorn pytest
+export PYTHONPATH="$(pwd)/backend:$(pwd)/backend/packages"
+```
 
 Опционально для MCP:
 
@@ -308,7 +325,42 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_artifact_writer_mcp.sh
 - MCP-сервис `artifact-writer-mcp` стартует без ошибки импорта;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
-## 13.1. Smoke Knowledge Indexing
+## 13.1. Smoke Template Library MCP (reusable templates)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_template_library_mcp.sh
+```
+
+Что увидеть в JSON:
+
+- `upserted_template_id` и `loaded_template_id` заполнены;
+- `loaded_section_id=overview`;
+- `list_total_returned >= 1`;
+- `list_contains_template=true`.
+
+Как интерпретировать:
+
+- это подтверждает, что persisted template library доступна через MCP service boundary, а не только через HTTP API или внутренний authoring wiring;
+- `upsert_template` прогоняет payload через existing `TemplateCompiler`, затем сохраняет compiled `TemplateSpec`;
+- `get_template` и `list_templates` читают те же persisted template records, что использует authoring path.
+
+## 13.2. (Опционально) Проверка Template Library MCP runtime
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_template_library_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис `template-library-mcp` стартует без ошибки импорта;
+- доступны tools `upsert_template`, `get_template`, `list_templates`;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
+## 13.3. Smoke Knowledge Indexing
 
 Этот smoke проверяет реальный вход demo-кейса:
 
@@ -354,7 +406,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - derived content blocks сохраняются в `app.knowledge_blocks`;
 - embedding vectors для content blocks пишутся в `app.embeddings`.
 
-## 13.2. Smoke Knowledge Indexing API Task Lifecycle
+## 13.4. Smoke Knowledge Indexing API Task Lifecycle
 
 Этот smoke проверяет тот же indexing путь через FastAPI task endpoint:
 

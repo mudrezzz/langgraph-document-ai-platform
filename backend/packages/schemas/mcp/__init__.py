@@ -24,6 +24,15 @@ from schemas.mcp.retrieval import (
     RetrievalMcpSearchInput,
     RetrievalMcpSearchOutput,
 )
+from schemas.mcp.template_library import (
+    TemplateLibraryMcpGetTemplateInput,
+    TemplateLibraryMcpGetTemplateOutput,
+    TemplateLibraryMcpListTemplatesInput,
+    TemplateLibraryMcpListTemplatesOutput,
+    TemplateLibraryMcpTemplateItem,
+    TemplateLibraryMcpUpsertTemplateInput,
+    TemplateLibraryMcpUpsertTemplateOutput,
+)
 
 __all__ = [
     "ArtifactWriterMcpWriteArtifactInput",
@@ -46,4 +55,11 @@ __all__ = [
     "RetrievalMcpSearchOutput",
     "RetrievalMcpLookupSourceInput",
     "RetrievalMcpLookupSourceOutput",
+    "TemplateLibraryMcpUpsertTemplateInput",
+    "TemplateLibraryMcpUpsertTemplateOutput",
+    "TemplateLibraryMcpGetTemplateInput",
+    "TemplateLibraryMcpGetTemplateOutput",
+    "TemplateLibraryMcpListTemplatesInput",
+    "TemplateLibraryMcpTemplateItem",
+    "TemplateLibraryMcpListTemplatesOutput",
 ]

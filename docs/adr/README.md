@@ -68,3 +68,4 @@
 - `0056-document-assembly-workflow-baseline.md`
 - `0057-persisted-template-library-baseline.md`
 - `0058-template-management-api-boundary.md`
+- `0059-template-library-mcp-boundary.md`
