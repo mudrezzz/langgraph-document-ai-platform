@@ -71,7 +71,14 @@ class _FakeTemplateLibraryService:
         current = self.storage.get(key)
         if current is None:
             raise KeyError(f"Template {template_id}:{version} не найден")
-        published = current.model_copy(update={"status": "published", "updated_at": datetime.now(timezone.utc)})
+        now = datetime.now(timezone.utc)
+        for existing_key, existing_record in list(self.storage.items()):
+            if existing_key[0] != template_id or existing_key == key:
+                continue
+            if existing_record.status != "published":
+                continue
+            self.storage[existing_key] = existing_record.model_copy(update={"status": "draft", "updated_at": now})
+        published = current.model_copy(update={"status": "published", "updated_at": now})
         self.storage[key] = published
         return published
 
@@ -174,3 +181,36 @@ def test_fastmcp_template_library_service_publish_and_filter_by_status() -> None
     assert published["status"] == "published"
     assert listed["total_returned"] == 1
     assert listed["items"][0]["template_id"] == "status_report"
+
+
+def test_fastmcp_template_library_service_publish_demotes_previous_published_version() -> None:
+    fake_service = _FakeTemplateLibraryService()
+    mcp_service = FastMcpTemplateLibraryService(fake_service)  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    mcp_service.upsert_template(
+        {
+            "template_id": "status_report",
+            "version": "1",
+            "sections": [{"section_id": "overview_v1", "title": "Overview V1"}],
+        }
+    )
+    mcp_service.upsert_template(
+        {
+            "template_id": "status_report",
+            "version": "2",
+            "sections": [{"section_id": "overview_v2", "title": "Overview V2"}],
+        }
+    )
+
+    mcp_service.publish_template({"template_id": "status_report", "version": "1"})
+    mcp_service.publish_template({"template_id": "status_report", "version": "2"})
+
+    first = mcp_service.get_template({"template_id": "status_report", "version": "1"})
+    second = mcp_service.get_template({"template_id": "status_report", "version": "2"})
+    listed = mcp_service.list_templates({"limit": 10, "offset": 0, "template_id": "status_report", "status": "published"})
+
+    assert first["status"] == "draft"
+    assert second["status"] == "published"
+    assert listed["total_returned"] == 1
+    assert listed["items"][0]["version"] == "2"

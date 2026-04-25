@@ -276,6 +276,37 @@ def test_template_store_supports_publish_and_published_latest_resolution() -> No
     assert published_only_list.items[0].version == "2"
 
 
+def test_template_store_publish_demotes_previous_published_version() -> None:
+    store = PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)
+    library = TemplateLibraryApplicationService(store=store)
+    compiler = TemplateCompiler()
+
+    library.upsert_template(
+        compiler.compile(
+            template_id="ops_memo",
+            template_payload={"version": "1", "sections": [{"section_id": "v1", "title": "Version 1"}]},
+        )
+    )
+    library.upsert_template(
+        compiler.compile(
+            template_id="ops_memo",
+            template_payload={"version": "2", "sections": [{"section_id": "v2", "title": "Version 2"}]},
+        )
+    )
+
+    library.publish_template("ops_memo", "1")
+    library.publish_template("ops_memo", "2")
+
+    first = library.get_template("ops_memo", "1")
+    second = library.get_template("ops_memo", "2")
+    published_only_list = library.list_templates(template_id="ops_memo", status="published")
+
+    assert first.status == "draft"
+    assert second.status == "published"
+    assert published_only_list.total_returned == 1
+    assert published_only_list.items[0].version == "2"
+
+
 def test_template_library_service_compile_template_normalizes_payload() -> None:
     library = TemplateLibraryApplicationService(
         store=PostgresTemplateStore(dsn=None, use_fallback_if_unset=True)

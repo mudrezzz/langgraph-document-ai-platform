@@ -179,6 +179,43 @@ def test_template_api_publish_and_filter_flow(client: TestClient) -> None:
     assert listed_payload["items"][0]["status"] == "published"
 
 
+def test_template_api_publish_demotes_previous_published_version(client: TestClient) -> None:
+    upsert_v1 = client.put(
+        "/api/v1/templates/decision_memo",
+        json={
+            "version": "5",
+            "sections": [{"section_id": "overview_v1", "title": "Overview V1"}],
+        },
+    )
+    upsert_v2 = client.put(
+        "/api/v1/templates/decision_memo",
+        json={
+            "version": "6",
+            "sections": [{"section_id": "overview_v2", "title": "Overview V2"}],
+        },
+    )
+    assert upsert_v1.status_code == 200
+    assert upsert_v2.status_code == 200
+
+    publish_v1 = client.post("/api/v1/templates/decision_memo/publish", json={"version": "5"})
+    publish_v2 = client.post("/api/v1/templates/decision_memo/publish", json={"version": "6"})
+
+    assert publish_v1.status_code == 200
+    assert publish_v2.status_code == 200
+
+    loaded_v1 = client.get("/api/v1/templates/decision_memo?version=5")
+    loaded_v2 = client.get("/api/v1/templates/decision_memo?version=6")
+    listed = client.get("/api/v1/templates?template_id=decision_memo&status=published")
+
+    assert loaded_v1.status_code == 200
+    assert loaded_v2.status_code == 200
+    assert loaded_v1.json()["status"] == "draft"
+    assert loaded_v2.json()["status"] == "published"
+    assert listed.status_code == 200
+    assert listed.json()["total_returned"] == 1
+    assert listed.json()["items"][0]["version"] == "6"
+
+
 def test_template_api_get_returns_404_for_missing_template(client: TestClient) -> None:
     response = client.get("/api/v1/templates/missing-template")
 

@@ -635,6 +635,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - добавлен public template management API: reusable templates теперь можно сохранять и читать через `PUT/GET /api/v1/templates...`.
   - добавлен Template Library MCP boundary: persisted templates теперь доступны и через `upsert_template/publish_template/get_template/list_templates` FastMCP tools.
   - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь берет published template.
+  - publish semantics стали exclusive: при публикации новой version предыдущая published-version того же `template_id` автоматически demote-ится обратно в `draft`.
   - `TemplateCompiler` и authoring assembly получили richer template assembly policy baseline:
     - section-level `required`, `include_if_has_evidence`, `include_if_review_status`, `section_group`;
     - assembly-level `include_sections`, `exclude_sections`, `allowed_section_groups`.
@@ -672,7 +673,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - по умолчанию новая версия создается как `draft`.
 - `POST /api/v1/templates/{template_id}/publish`
   - body: `version`;
-  - переводит конкретную reusable template version в статус `published`.
+  - переводит конкретную reusable template version в статус `published`;
+  - автоматически demote-ит другие published versions того же `template_id` обратно в `draft`.
 - `GET /api/v1/templates/{template_id}`
   - query: `version` (опционально);
   - возвращает конкретную или последнюю доступную версию шаблона.

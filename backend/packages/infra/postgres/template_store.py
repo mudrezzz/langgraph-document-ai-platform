@@ -153,10 +153,22 @@ class PostgresTemplateStore:
             current = self._templates.get(key)
             if current is None:
                 raise KeyError(f"Template {template_id}:{version} не найден")
+            now_utc = datetime.now(timezone.utc)
+            for existing_key, existing_record in list(self._templates.items()):
+                if existing_key[0] != template_id or existing_key == key:
+                    continue
+                if existing_record.status != "published":
+                    continue
+                self._templates[existing_key] = existing_record.model_copy(
+                    update={
+                        "status": "draft",
+                        "updated_at": now_utc,
+                    }
+                )
             published = current.model_copy(
                 update={
                     "status": "published",
-                    "updated_at": datetime.now(timezone.utc),
+                    "updated_at": now_utc,
                 }
             )
             self._templates[key] = published
@@ -165,6 +177,14 @@ class PostgresTemplateStore:
         psycopg, dict_row = _import_psycopg()
         with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
             with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    UPDATE {self._schema}.document_templates
+                    SET status = 'draft', updated_at = now()
+                    WHERE template_id = %s AND status = 'published' AND version <> %s
+                    """,
+                    (template_id, version),
+                )
                 cur.execute(
                     f"""
                     UPDATE {self._schema}.document_templates

@@ -37,5 +37,5 @@
 Минусы:
 
 - lifecycle пока предельно простой: нет archived/deprecated states, promotion history и approval chain;
-- publish не запрещает иметь несколько published versions одного template_id;
+- detail publish policy для active published-version дальше уточнен в ADR-0062;
 - richer governance policy остается следующим возможным slice.

@@ -521,6 +521,15 @@ Sixteenth slice done:
 - targeted authoring/domain tests: `44 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `216 passed`.
 
+Seventeenth slice done:
+
+- template library publish semantics стали exclusive: для одного `template_id` теперь допускается только одна active `published` version;
+- `publish_template` автоматически demote-ит предыдущую published version обратно в `draft` в fallback и PostgreSQL store path;
+- HTTP API, MCP и authoring default published-resolution продолжают работать через тот же `TemplateLibraryApplicationService` без изменения публичных контрактов;
+- добавлен ADR-0062 и расширены unit/integration tests для publish demotion semantics;
+- targeted governance/API/MCP tests: `65 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `219 passed`.
+
 Demo update:
 
 - generated artifact должен собираться section-by-section;

@@ -169,7 +169,7 @@
   - `OutlinePlanner` теперь строит template-aware section traceability и для custom templates, поэтому traceability больше не привязана только к release-readiness default layout;
   - добавлена persisted template library через `TemplateLibraryApplicationService` и `PostgresTemplateStore`, а authoring умеет резолвить versioned templates по `template_id/template_version`;
   - template library получила public API boundary для upsert/get/list reusable templates;
-  - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь резолвит последнюю published version;
+  - template library получила baseline governance status `draft|published`, а authoring без явного `template_version` теперь резолвит последнюю published version; publish semantics при этом exclusive, то есть новый publish автоматически demote-ит прошлую published version того же `template_id`;
   - добавлен baseline `ArtifactExporter`, который отделяет assembly от финального rendering и уже поддерживает `markdown|json`;
   - persistence link `task -> artifact` через `PostgresTaskArtifactRegistry`;
   - опциональная реальная LLM-генерация draft через OpenRouter gateway;
@@ -266,6 +266,7 @@
   - `docs/adr/0059-template-library-mcp-boundary.md`;
   - `docs/adr/0060-template-library-governance-status-baseline.md`.
   - `docs/adr/0061-rich-template-assembly-policy-baseline.md`.
+  - `docs/adr/0062-exclusive-published-template-version-policy.md`.
 
 ## 3. Архитектурные ограничения текущей версии
 
@@ -273,7 +274,7 @@
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
-- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary и минимальный draft/published governance для templates, но расширенная template governance пока не завершена;
+- `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary и exclusive published-version policy для templates, но расширенная template governance пока не завершена;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async контур есть только для authoring (остальные long-running задачи пока в sync path);
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
