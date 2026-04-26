@@ -14,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-
 def _docker_available() -> bool:
     if shutil.which("docker") is None:
         return False
@@ -23,7 +22,6 @@ def _docker_available() -> bool:
         return result.returncode == 0
     except Exception:
         return False
-
 
 def _request(method: str, url: str, payload: dict | None = None) -> tuple[int, dict]:
     data = None
@@ -43,12 +41,10 @@ def _request(method: str, url: str, payload: dict | None = None) -> tuple[int, d
     except urllib.error.URLError:
         return 0, {}
 
-
 def _pick_free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
-
 
 @pytest.fixture(scope="module")
 def celery_async_server_base_url() -> str:
@@ -147,6 +143,8 @@ def celery_async_server_base_url() -> str:
     env["APP_CELERY_BROKER_URL"] = f"redis://127.0.0.1:{redis_port}/0"
     env["APP_CELERY_RESULT_BACKEND"] = f"redis://127.0.0.1:{redis_port}/0"
     env["APP_CELERY_QUEUE"] = "authoring"
+    env["APP_CELERY_INDEXING_QUEUE"] = "knowledge-indexing"
+    env["APP_CELERY_RETRIEVAL_QUEUE"] = "retrieval"
 
     process = subprocess.Popen(
         [
@@ -217,7 +215,6 @@ def celery_async_server_base_url() -> str:
             check=False,
         )
 
-
 def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: str) -> None:
     base_url = celery_async_server_base_url
 
@@ -285,6 +282,60 @@ def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: 
     actions_code, actions_payload = _request("GET", f"{base_url}/api/v1/hitl/actions?task_id={task_id}")
     assert actions_code == 200
     assert actions_payload["total_returned"] >= 1
+
+
+def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: str) -> None:
+    base_url = celery_async_server_base_url
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+
+    start_code, start_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/knowledge-indexing/start_async",
+        payload={
+            "source_paths": [str(dataset_dir)],
+            "task_context": {"requester": "e2e-celery-knowledge-indexing"},
+        },
+    )
+    assert start_code == 200
+    assert start_payload["status"] == "queued"
+    task_id = start_payload["task_id"]
+
+    status_payload: dict = {}
+    for _ in range(120):
+        status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if status_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.5)
+
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["execution_mode"] == "async"
+    assert status_payload["details"]["documents_total"] == 6
+    assert status_payload["details"]["stored_blocks_total"] >= 8
+
+    summary_payload: dict = {}
+    for _ in range(20):
+        summary_code, summary_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/tasks/events/summary?task_id={task_id}&task_type=knowledge_indexing",
+        )
+        assert summary_code == 200
+        transitions = summary_payload["transitions"]
+        if any(item["from_status"] == "queued" and item["to_status"] == "running" for item in transitions):
+            break
+        time.sleep(0.5)
+
+    transitions = summary_payload["transitions"]
+    assert any(item["from_status"] == "queued" and item["to_status"] == "running" for item in transitions)
+    assert summary_payload["total_events"] >= 2
 
 
 def test_e2e_async_authoring_with_celery_iterative_hitl(celery_async_server_base_url: str) -> None:
@@ -393,3 +444,56 @@ def test_e2e_async_authoring_with_celery_iterative_hitl(celery_async_server_base
     decisions = {item["decision"] for item in actions_payload["items"]}
     assert "needs_changes" in decisions
     assert "approve" in decisions
+
+def test_e2e_async_retrieval_with_celery(celery_async_server_base_url: str) -> None:
+    base_url = celery_async_server_base_url
+
+    start_code, start_payload = _request(
+        "POST",
+        f"{base_url}/api/v1/tasks/retrieval/start_async",
+        payload={
+            "query": "что блокирует релиз и какие approvals pending",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology", "security", "operations", "governance"],
+            },
+            "task_context": {
+                "requester": "e2e-celery-retrieval",
+                "case_dataset_id": "saa_release_readiness",
+            },
+        },
+    )
+    assert start_code == 200
+    assert start_payload["status"] == "queued"
+    task_id = start_payload["task_id"]
+
+    status_payload: dict = {}
+    for _ in range(120):
+        status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        assert status_code == 200
+        if status_payload["status"] in {"completed", "failed"}:
+            break
+        time.sleep(0.5)
+
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["execution_mode"] == "async"
+    assert status_payload["details"]["knowledge_source"] == "case_dataset"
+
+    evidence_code, evidence_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}/evidence")
+    assert evidence_code == 200
+    assert len(evidence_payload["evidence_pack"]["selected_blocks"]) >= 1
+
+    summary_payload: dict = {}
+    for _ in range(20):
+        summary_code, summary_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/tasks/events/summary?task_id={task_id}&task_type=retrieval_pack",
+        )
+        assert summary_code == 200
+        if summary_payload["total_events"] >= 2:
+            break
+        time.sleep(0.5)
+
+    transitions = summary_payload["transitions"]
+    assert any(item["from_status"] == "queued" and item["to_status"] == "running" for item in transitions)
+    assert summary_payload["total_events"] >= 2

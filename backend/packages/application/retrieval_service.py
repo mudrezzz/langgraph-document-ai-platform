@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from application.async_dispatcher import RetrievalAsyncDispatcher
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.errors import InvalidTaskStateError, WorkflowExecutionError
 from application.task_service import TaskApplicationService
@@ -66,12 +67,83 @@ class RetrievalApplicationService:
 
     def start(self, request: StartRetrievalTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="retrieval_pack")
+        return self.run_existing_task(task_id=task.task_id, request=request)
 
-        task_context = {**request.task_context, "task_id": task.task_id}
+    def start_async(
+        self,
+        request: StartRetrievalTaskRequest,
+        *,
+        dispatcher: RetrievalAsyncDispatcher,
+    ) -> StartTaskResponse:
+        task = self._task_service.create_task(
+            task_type="retrieval_pack",
+            initial_status="queued",
+            initial_node="queued",
+            details={
+                "execution_mode": "async",
+                "knowledge_source": request.task_context.get("knowledge_source", "case_dataset"),
+            },
+        )
+        effective_context = {**request.task_context, "task_id": task.task_id}
+
+        try:
+            dispatch_id = dispatcher.enqueue_retrieval_start(
+                task_id=task.task_id,
+                request_payload={
+                    "query": request.query,
+                    "filters": request.filters.model_dump(mode="json"),
+                    "task_context": effective_context,
+                },
+            )
+        except Exception as exc:
+            self._task_service.update_task(
+                task.task_id,
+                status="failed",
+                current_node="failed",
+                details={"error": str(exc), "execution_mode": "async"},
+            )
+            raise WorkflowExecutionError(f"Не удалось поставить retrieval задачу в async очередь: {exc}") from exc
+
+        current = self._task_service.get_task(task.task_id)
+        next_status = current.status if current.status != "queued" else "queued"
+        next_node = current.current_node if current.status != "queued" else "queued"
+        self._task_service.update_task(
+            task.task_id,
+            status=next_status,
+            current_node=next_node,
+            details={
+                **current.details,
+                "dispatch_id": dispatch_id,
+                "execution_mode": "async",
+                "knowledge_source": effective_context.get("knowledge_source", "case_dataset"),
+            },
+        )
+        return StartTaskResponse(task_id=task.task_id, status="queued")
+
+    def run_existing_task(self, *, task_id: str, request: StartRetrievalTaskRequest) -> StartTaskResponse:
+        current = self._task_service.get_task(task_id)
+        if current.task_type != "retrieval_pack":
+            raise InvalidTaskStateError(
+                f"Ожидался task_type=retrieval_pack для run_existing_task, получен {current.task_type}"
+            )
+
+        task_context = {**request.task_context, "task_id": task_id}
+        knowledge_source = task_context.get("knowledge_source")
+
+        self._task_service.update_task(
+            task_id,
+            status="running",
+            current_node="start",
+            details={
+                **current.details,
+                "execution_mode": current.details.get("execution_mode", "sync"),
+                "knowledge_source": knowledge_source or current.details.get("knowledge_source", "case_dataset"),
+            },
+        )
+
         case_dataset_id = task_context.get("case_dataset_id")
         case_dataset_path = task_context.get("case_dataset_path")
         case_dataset_dir = task_context.get("case_dataset_dir")
-        knowledge_source = task_context.get("knowledge_source")
         canonical_doc_ids = _normalize_doc_ids(task_context.get("canonical_doc_ids"))
         workflow = self._build_workflow(
             case_dataset_id=case_dataset_id,
@@ -87,22 +159,28 @@ class RetrievalApplicationService:
             task_context=task_context,
         )
 
-        # Ветка interrupt: фиксируем checkpoint и ожидаем resume-решение от человека.
         if bool(task_context.get("force_interrupt", False)):
-            self._task_service.save_checkpoint(task.task_id, initial_state.model_dump(mode="json"))
+            self._task_service.save_checkpoint(task_id, initial_state.model_dump(mode="json"))
             self._task_service.update_task(
-                task.task_id,
+                task_id,
                 status="interrupted",
                 current_node="human_gate",
-                details={"reason": "forced_interrupt", "resume_required": True},
+                details={
+                    **current.details,
+                    "reason": "forced_interrupt",
+                    "resume_required": True,
+                    "execution_mode": current.details.get("execution_mode", "sync"),
+                    "knowledge_source": knowledge_source or current.details.get("knowledge_source", "case_dataset"),
+                    "dispatch_id": current.details.get("dispatch_id"),
+                },
             )
-            return StartTaskResponse(task_id=task.task_id, status="interrupted")
+            return StartTaskResponse(task_id=task_id, status="interrupted")
 
         try:
             result_state = workflow.invoke(initial_state)
         except Exception as exc:
             self._task_service.fail_task(
-                task_id=task.task_id,
+                task_id=task_id,
                 state_payload=initial_state.model_dump(mode="json"),
                 error_message=str(exc),
             )
@@ -120,15 +198,17 @@ class RetrievalApplicationService:
             ),
             "knowledge_source": knowledge_source or "case_dataset",
             "retrieval_backend": "pgvector" if knowledge_source == "canonical" and self._vector_store else "in_memory",
+            "execution_mode": current.details.get("execution_mode", "sync"),
+            "dispatch_id": current.details.get("dispatch_id"),
         }
 
         self._task_service.complete_task(
-            task_id=task.task_id,
+            task_id=task_id,
             state_payload=result_state.model_dump(mode="json"),
             details=details,
         )
 
-        return StartTaskResponse(task_id=task.task_id, status="completed")
+        return StartTaskResponse(task_id=task_id, status="completed")
 
     def status(self, task_id: str) -> TaskStatusResponse:
         task = self._task_service.get_task(task_id)

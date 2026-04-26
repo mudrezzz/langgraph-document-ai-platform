@@ -338,3 +338,39 @@ def test_postgres_task_registry_fallback_task_events_summary() -> None:
     transitions = {(item.from_status, item.to_status): item.total for item in summary.transitions}
     assert transitions[(None, "running")] == 2
     assert transitions[("running", "completed")] == 1
+
+
+def test_postgres_task_registry_fallback_task_events_summary_counts_queued_running_completed() -> None:
+    registry = PostgresTaskRegistry(dsn=None, use_fallback_if_unset=True)
+
+    registry.save(
+        TaskRecord(
+            task_id="task-queued",
+            task_type="retrieval_pack",
+            status="queued",
+            current_node="queued",
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="task-queued",
+            task_type="retrieval_pack",
+            status="running",
+            current_node="start",
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="task-queued",
+            task_type="retrieval_pack",
+            status="completed",
+            current_node="completed",
+        )
+    )
+
+    summary = registry.summarize_task_events(task_id="task-queued", task_type="retrieval_pack")
+
+    transitions = {(item.from_status, item.to_status): item.total for item in summary.transitions}
+    assert transitions[(None, "queued")] == 1
+    assert transitions[("queued", "running")] == 1
+    assert transitions[("running", "completed")] == 1

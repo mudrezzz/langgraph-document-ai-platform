@@ -24,6 +24,8 @@ services:
       APP_CELERY_BROKER_URL: redis://redis:6379/0
       APP_CELERY_RESULT_BACKEND: redis://redis:6379/0
       APP_CELERY_QUEUE: authoring
+      APP_CELERY_INDEXING_QUEUE: knowledge-indexing
+      APP_CELERY_RETRIEVAL_QUEUE: retrieval
       APP_DB_DSN: ${APP_WORKER_DB_DSN:-postgresql://app:app@host.docker.internal:55432/langgraph}
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -31,4 +33,4 @@ services:
       - ..:/workspace
     working_dir: /workspace/backend
     command: >
-      bash -lc "celery -A apps.worker.celery_app:celery_app worker --loglevel=INFO --queues=authoring"
+      bash -lc "celery -A apps.worker.celery_app:celery_app worker --loglevel=INFO --queues=authoring,knowledge-indexing,retrieval"

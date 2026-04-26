@@ -10,6 +10,8 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
         "psycopg[binary]" \
         celery \
         redis \
+        python-docx \
+        PyMuPDF \
         uvicorn
 
 ENV PYTHONUNBUFFERED=1

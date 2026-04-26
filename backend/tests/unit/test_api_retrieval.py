@@ -1,5 +1,7 @@
+import pytest
 from fastapi.testclient import TestClient
 
+from apps.api.dependencies import get_container
 from apps.api.main import app
 
 
@@ -63,3 +65,30 @@ def test_retrieval_api_not_found() -> None:
     response = client.get("/api/v1/tasks/missing-task")
 
     assert response.status_code == 404
+
+
+def test_retrieval_api_start_async_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ASYNC_PROVIDER", "inline")
+    get_container.cache_clear()
+    client = TestClient(app)
+
+    start_response = client.post(
+        "/api/v1/tasks/retrieval/start_async",
+        json={
+            "query": "evidence pack retrieval async",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology"],
+            },
+            "task_context": {"requester": "unit-test"},
+        },
+    )
+
+    assert start_response.status_code == 200
+    assert start_response.json()["status"] == "queued"
+    task_id = start_response.json()["task_id"]
+
+    status_response = client.get(f"/api/v1/tasks/{task_id}")
+    assert status_response.status_code == 200
+    assert status_response.json()["status"] == "completed"
+    assert status_response.json()["details"]["execution_mode"] == "async"

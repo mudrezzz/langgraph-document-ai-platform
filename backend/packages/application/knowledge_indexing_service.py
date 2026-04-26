@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from application.async_dispatcher import KnowledgeIndexingAsyncDispatcher
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.errors import WorkflowExecutionError
 from application.task_service import TaskApplicationService
@@ -9,7 +10,7 @@ from domain_docs.indexing.bootstrap import build_knowledge_indexing_workflow
 from domain_docs.parsing import CanonicalDocumentParser
 from framework.models.interfaces import IEmbeddingGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
-from schemas.api.contracts import StartTaskResponse
+from schemas.api.contracts import StartKnowledgeIndexingTaskRequest, StartTaskResponse
 from schemas.documents.contracts import CanonicalDocument
 from schemas.workflow.states import KnowledgeIndexingState
 
@@ -80,6 +81,108 @@ class KnowledgeIndexingApplicationService:
             details=_build_task_details(result),
         )
         return StartTaskResponse(task_id=task.task_id, status="completed")
+
+    def start_task_async(
+        self,
+        request: StartKnowledgeIndexingTaskRequest,
+        *,
+        dispatcher: KnowledgeIndexingAsyncDispatcher,
+    ) -> StartTaskResponse:
+        if self._task_service is None:
+            raise WorkflowExecutionError("Knowledge indexing async lifecycle требует TaskApplicationService")
+
+        task = self._task_service.create_task(
+            task_type="knowledge_indexing",
+            initial_status="queued",
+            initial_node="queued",
+            details={
+                "execution_mode": "async",
+                "source_paths_total": len(request.source_paths),
+            },
+        )
+        effective_context = {**request.task_context, "task_id": task.task_id}
+
+        try:
+            dispatch_id = dispatcher.enqueue_knowledge_indexing_start(
+                task_id=task.task_id,
+                request_payload={
+                    "source_paths": [str(path) for path in request.source_paths],
+                    "task_context": effective_context,
+                },
+            )
+        except Exception as exc:
+            self._task_service.update_task(
+                task.task_id,
+                status="failed",
+                current_node="failed",
+                details={"error": str(exc), "execution_mode": "async"},
+            )
+            raise WorkflowExecutionError(f"Не удалось поставить knowledge indexing задачу в async очередь: {exc}") from exc
+
+        current = self._task_service.get_task(task.task_id)
+        next_status = current.status if current.status != "queued" else "queued"
+        next_node = current.current_node if current.status != "queued" else "queued"
+        self._task_service.update_task(
+            task.task_id,
+            status=next_status,
+            current_node=next_node,
+            details={
+                **current.details,
+                "dispatch_id": dispatch_id,
+                "execution_mode": "async",
+                "source_paths_total": len(request.source_paths),
+            },
+        )
+        return StartTaskResponse(task_id=task.task_id, status="queued")
+
+    def run_existing_task(self, *, task_id: str, request: StartKnowledgeIndexingTaskRequest) -> StartTaskResponse:
+        if self._task_service is None:
+            raise WorkflowExecutionError("Knowledge indexing task lifecycle требует TaskApplicationService")
+
+        current = self._task_service.get_task(task_id)
+        if current.task_type != "knowledge_indexing":
+            raise WorkflowExecutionError(
+                f"Ожидался task_type=knowledge_indexing для run_existing_task, получен {current.task_type}"
+            )
+
+        self._task_service.update_task(
+            task_id,
+            status="running",
+            current_node="start",
+            details={
+                **current.details,
+                "source_paths_total": len(request.source_paths),
+                "execution_mode": current.details.get("execution_mode", "sync"),
+            },
+        )
+
+        effective_context = {**request.task_context, "task_id": task_id}
+        initial_payload = {
+            "task_context": effective_context,
+            "source_paths": [str(path) for path in request.source_paths],
+        }
+
+        try:
+            result = self.index_paths(request.source_paths, task_context=effective_context)
+        except Exception as exc:
+            self._task_service.fail_task(
+                task_id=task_id,
+                state_payload=initial_payload,
+                error_message=str(exc),
+            )
+            raise WorkflowExecutionError(str(exc)) from exc
+
+        details = {
+            **_build_task_details(result),
+            "execution_mode": current.details.get("execution_mode", "sync"),
+            "dispatch_id": current.details.get("dispatch_id"),
+        }
+        self._task_service.complete_task(
+            task_id=task_id,
+            state_payload=_build_state_payload(result=result, task_context=effective_context, paths=request.source_paths),
+            details=details,
+        )
+        return StartTaskResponse(task_id=task_id, status="completed")
 
     def index_paths(self, paths: list[str | Path], *, task_context: dict | None = None) -> KnowledgeIndexingResult:
         documents: list[CanonicalDocument] = []
@@ -171,7 +274,6 @@ class KnowledgeIndexingApplicationService:
                 indexed += 1
         return indexed
 
-
 def _build_state_payload(
     *,
     result: KnowledgeIndexingResult,
@@ -188,7 +290,6 @@ def _build_state_payload(
         "embeddings_indexed": result.embeddings_indexed,
     }
 
-
 def _build_task_details(result: KnowledgeIndexingResult) -> dict:
     return {
         "documents_total": len(result.documents),
@@ -202,7 +303,6 @@ def _build_task_details(result: KnowledgeIndexingResult) -> dict:
         "quality_summary": result.quality_summary,
         "quality_gate_status": result.quality_summary.get("gate_status", "passed"),
     }
-
 
 def _build_quality_summary(documents: list[CanonicalDocument], quality_flags: list[str]) -> dict:
     flagged_doc_ids: set[str] = set()
@@ -227,7 +327,6 @@ def _build_quality_summary(documents: list[CanonicalDocument], quality_flags: li
         "blocking_flags": blocking_flags,
         "warning_flags": warning_flags,
     }
-
 
 def _split_quality_flag(flag: str) -> tuple[str | None, str]:
     if ":" not in flag:

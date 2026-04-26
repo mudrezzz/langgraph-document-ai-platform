@@ -19,12 +19,16 @@
 
 ## Основной скрипт демо
 
-- Linux: `backend/scripts/demo_release_go_no_go_case.sh`
-- Windows: `backend/scripts/demo_release_go_no_go_case.ps1`
+- Sync demo Linux: `backend/scripts/demo_release_go_no_go_case.sh`
+- Sync demo Windows: `backend/scripts/demo_release_go_no_go_case.ps1`
+- Async demo Linux: `backend/scripts/demo_release_go_no_go_async_case.sh`
+
+Async demo использует тот же `release_packet.md`, но запускает retrieval через `POST /api/v1/tasks/retrieval/start_async` и позволяет руками увидеть `queued -> completed` lifecycle на том же кейсе.
 
 ## Выходные артефакты
 
 - `output/release_packet_dataset.generated.json`
 - `output/release_readiness_report.md`
+- `output/release_readiness_report_async.md`
 
 Файлы `output/*.generated.json` и `output/*.md` считаются runtime-артефактами и не коммитятся в git.

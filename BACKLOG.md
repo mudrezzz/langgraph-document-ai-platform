@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-25
+Дата обновления: 2026-04-26
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -344,7 +344,7 @@ Next increment:
 
 ## Increment 28: Domain Authoring Extraction
 
-Статус: In Progress.
+Статус: Done.
 
 Цель: вынести authoring из крупного application service в отдельный доменный слой.
 
@@ -552,7 +552,13 @@ Definition of Done:
 - authoring domain testable отдельно от FastAPI;
 - итоговый документ собирается deterministic assembly.
 
+Next increment:
+
+- начать `Increment 29: Unified Execution Plane + Observability`.
+
 ## Increment 29: Unified Execution Plane + Observability
+
+Статус: In Progress.
 
 Цель: сделать async execution и observability общими для всех long-running workflows.
 
@@ -583,6 +589,35 @@ Definition of Done:
 - все long-running workflows могут выполняться через единый execution plane;
 - audit/read-model слой пригоден для dashboard;
 - production troubleshooting возможен без чтения raw checkpoint payload.
+
+First slice done:
+
+- async execution plane расширен с authoring на `knowledge_indexing` через existing dispatcher/Celery wiring, без новой параллельной архитектуры;
+- добавлены `KnowledgeIndexingAsyncDispatcher`, `InlineKnowledgeIndexingAsyncDispatcher`, `CeleryKnowledgeIndexingAsyncDispatcher`;
+- `KnowledgeIndexingApplicationService` поддерживает `start_task_async(...)` и `run_existing_task(...)`;
+- добавлен endpoint `POST /api/v1/tasks/knowledge-indexing/start_async`;
+- worker app получил task `run_knowledge_indexing_task`, отдельную queue `knowledge-indexing` и env `APP_CELERY_INDEXING_QUEUE`;
+- worker dispatcher normalizes host `source_paths` в `/workspace/...` для docker-compose bind mount;
+- `Dockerfile.worker` подтянут до parser-compatible dependency set (`python-docx`, `PyMuPDF`), чтобы async indexing покрывал `.docx/.pdf` fixtures так же, как sync path;
+- добавлены unit/integration/e2e tests для async indexing path и Celery dispatcher path normalization.
+
+Second slice done:
+
+- retrieval lifecycle переведен на тот же async execution plane без breaking change для sync endpoint `POST /api/v1/tasks/retrieval/start`;
+- добавлены `RetrievalAsyncDispatcher`, `InlineRetrievalAsyncDispatcher`, `CeleryRetrievalAsyncDispatcher`;
+- `RetrievalApplicationService` поддерживает `start_async(...)` и `run_existing_task(...)`;
+- добавлен endpoint `POST /api/v1/tasks/retrieval/start_async`;
+- worker app получил task `run_retrieval_task`, отдельную queue `retrieval` и env `APP_CELERY_RETRIEVAL_QUEUE`;
+- docker-compose async worker теперь слушает очереди `authoring`, `knowledge-indexing`, `retrieval`;
+- добавлены unit/integration/e2e tests для async retrieval path;
+- добавлены manual acceptance scripts `smoke_retrieval_async_api.sh/.py` и `demo_release_go_no_go_async_case.sh/.py`;
+- targeted tests: `71 passed`;
+- targeted Docker/Celery e2e: `4 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `246 passed`.
+
+Next slice:
+
+- закрыть observability/structured logging/correlation слой поверх unified execution path.
 
 ## Increment 30: MCP + Production Boundary
 

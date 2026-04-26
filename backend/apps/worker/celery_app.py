@@ -21,6 +21,12 @@ celery_app = Celery(
 
 celery_app.conf.update(
     task_default_queue=_env("APP_CELERY_QUEUE", "authoring"),
+    task_routes={
+        "apps.worker.tasks.run_authoring_task": {"queue": _env("APP_CELERY_QUEUE", "authoring")},
+        "apps.worker.tasks.run_authoring_hitl_action": {"queue": _env("APP_CELERY_QUEUE", "authoring")},
+        "apps.worker.tasks.run_knowledge_indexing_task": {"queue": _env("APP_CELERY_INDEXING_QUEUE", "knowledge-indexing")},
+        "apps.worker.tasks.run_retrieval_task": {"queue": _env("APP_CELERY_RETRIEVAL_QUEUE", "retrieval")},
+    },
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     task_track_started=True,

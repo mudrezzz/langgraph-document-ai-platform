@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-25
-Статус: Increment 28
+Дата обновления: 2026-04-26
+Статус: Increment 29
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 28)
+## 2. Текущая реализация (Increment 29)
 
 Реализовано:
 
@@ -50,7 +50,7 @@
   - `KnowledgeIndexingWorkflow`;
   - `CanonicalDocumentApplicationService`;
   - `PostgresCanonicalDocumentStore`;
-  - API endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
+  - API endpoints `POST /api/v1/tasks/retrieval/start`, `POST /api/v1/tasks/retrieval/start_async`, `POST /api/v1/tasks/knowledge-indexing/start` и `POST /api/v1/tasks/knowledge-indexing/start_async`;
   - smoke `backend/scripts/smoke_knowledge_indexing.sh/.ps1`;
   - API task smoke `backend/scripts/smoke_knowledge_indexing_api.sh/.ps1`;
   - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`;
@@ -115,6 +115,13 @@
 - аудит переходов статусов:
   - таблица `app.task_events`;
   - событие при создании задачи и при каждой смене `status`.
+- unified async execution slices:
+  - existing async dispatcher plane больше не ограничен authoring и теперь покрывает `knowledge_indexing` и `retrieval`;
+  - `KnowledgeIndexingApplicationService` поддерживает queued execution через `start_task_async(...)` и worker-side `run_existing_task(...)`;
+  - `RetrievalApplicationService` поддерживает queued execution через `start_async(...)` и worker-side `run_existing_task(...)`;
+  - Celery worker app слушает очереди `authoring`, `knowledge-indexing` и `retrieval`;
+  - worker runtime normalizes host `source_paths` в `/workspace/...` для docker-compose bind mount только для indexing path;
+  - Docker/Celery e2e подтверждает async path `queued -> running -> completed` для canonical indexing и retrieval.
 - production checkpointer для LangGraph:
   - `PostgresLangGraphCheckpointer` реализует `BaseCheckpointSaver`;
   - runtime storage в таблицах `app.langgraph_checkpoints`, `app.langgraph_checkpoint_blobs`, `app.langgraph_checkpoint_writes`;
@@ -292,6 +299,6 @@
 
 ## 5. План следующего инкремента
 
-1. Начать Increment 27: Production Retrieval Fabric.
-2. Перейти к следующему slice Increment 27 после smoke/test closure или закрывать инкремент целиком.
-3. Подготовить handoff к `Increment 28: Domain Authoring Extraction`.
+1. Расширить unified execution plane на retrieval и quality-evaluation paths.
+2. Добавить correlation IDs и structured JSON logging в execution/read-model слой.
+3. Подготовить observability aggregates по `task_events` и reviewer/HITL activity.

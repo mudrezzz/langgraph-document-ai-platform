@@ -4,7 +4,14 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
-from application.async_dispatcher import AuthoringAsyncDispatcher, InlineAuthoringAsyncDispatcher
+from application.async_dispatcher import (
+    AuthoringAsyncDispatcher,
+    InlineAuthoringAsyncDispatcher,
+    InlineKnowledgeIndexingAsyncDispatcher,
+    InlineRetrievalAsyncDispatcher,
+    KnowledgeIndexingAsyncDispatcher,
+    RetrievalAsyncDispatcher,
+)
 from application.authoring_service import AuthoringApplicationService
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.artifact_service import ArtifactApplicationService
@@ -13,9 +20,18 @@ from application.knowledge_indexing_service import KnowledgeIndexingApplicationS
 from application.template_library_service import TemplateLibraryApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
-from schemas.api.contracts import StartAuthoringTaskRequest, SubmitHitlReviewRequest
+from schemas.api.contracts import (
+    StartAuthoringTaskRequest,
+    StartKnowledgeIndexingTaskRequest,
+    StartRetrievalTaskRequest,
+    SubmitHitlReviewRequest,
+)
 from framework.models.interfaces import IChatModelGateway
-from infra.celery import CeleryAuthoringAsyncDispatcher
+from infra.celery import (
+    CeleryAuthoringAsyncDispatcher,
+    CeleryKnowledgeIndexingAsyncDispatcher,
+    CeleryRetrievalAsyncDispatcher,
+)
 from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
@@ -132,6 +148,50 @@ def _build_llm_runtime_config() -> LlmRuntimeConfig:
     )
 
 
+def _build_knowledge_indexing_dispatcher(
+    *,
+    knowledge_indexing_service: KnowledgeIndexingApplicationService,
+) -> KnowledgeIndexingAsyncDispatcher:
+    """Собирает dispatcher запуска knowledge indexing в async режиме."""
+
+    provider = os.getenv("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline"
+
+    if provider == "celery":
+        return CeleryKnowledgeIndexingAsyncDispatcher(
+            queue_name=os.getenv("APP_CELERY_INDEXING_QUEUE", "knowledge-indexing")
+        )
+    if provider == "inline":
+        return InlineKnowledgeIndexingAsyncDispatcher(
+            runner=lambda task_id, payload: knowledge_indexing_service.run_existing_task(
+                task_id=task_id,
+                request=StartKnowledgeIndexingTaskRequest.model_validate(payload),
+            )
+        )
+
+    raise ValueError(f"Неподдерживаемый APP_ASYNC_PROVIDER: {provider}")
+
+
+def _build_retrieval_dispatcher(
+    *,
+    retrieval_service: RetrievalApplicationService,
+) -> RetrievalAsyncDispatcher:
+    """Собирает dispatcher запуска retrieval в async режиме."""
+
+    provider = os.getenv("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline"
+
+    if provider == "celery":
+        return CeleryRetrievalAsyncDispatcher(queue_name=os.getenv("APP_CELERY_RETRIEVAL_QUEUE", "retrieval"))
+    if provider == "inline":
+        return InlineRetrievalAsyncDispatcher(
+            runner=lambda task_id, payload: retrieval_service.run_existing_task(
+                task_id=task_id,
+                request=StartRetrievalTaskRequest.model_validate(payload),
+            )
+        )
+
+    raise ValueError(f"Неподдерживаемый APP_ASYNC_PROVIDER: {provider}")
+
+
 def _build_authoring_dispatcher(
     *,
     authoring_service: AuthoringApplicationService,
@@ -246,6 +306,10 @@ class ApiContainer:
             template_library_service=template_library_service,
         )
         self.authoring_dispatcher = _build_authoring_dispatcher(authoring_service=self.authoring_service)
+        self.knowledge_indexing_dispatcher = _build_knowledge_indexing_dispatcher(
+            knowledge_indexing_service=self.knowledge_indexing_service
+        )
+        self.retrieval_dispatcher = _build_retrieval_dispatcher(retrieval_service=self.retrieval_service)
 
 
 @lru_cache(maxsize=1)

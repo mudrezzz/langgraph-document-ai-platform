@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 28`.
+Текущий инкремент: `Increment 29`.
 
 Сделано:
 
@@ -152,7 +152,7 @@
   - пакет `domain_docs`;
   - parser `.md/.txt/.json/.docx/.pdf` в `CanonicalDocumentParser`;
   - `KnowledgeIndexingWorkflow` поверх `BaseWorkflow`;
-  - API endpoint `POST /api/v1/tasks/knowledge-indexing/start`;
+  - API endpoints `POST /api/v1/tasks/knowledge-indexing/start` и `POST /api/v1/tasks/knowledge-indexing/start_async`;
   - smoke `smoke_knowledge_indexing.sh/.ps1` и `smoke_knowledge_indexing_api.sh/.ps1` для release go/no-go multifile input.
 - добавлен отдельный canonical persistence/read-model слой:
   - `PostgresCanonicalDocumentStore`;
@@ -616,9 +616,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - multi-step authoring поддерживает шаги `research -> writer -> reviewer -> assembly` и сохраняет их в `steps_summary`.
 - traceability возвращает секции итогового артефакта (`traceability.sections`) с привязкой к источникам.
 - async запуск authoring поддерживается через Celery/Redis очередь (`start_async`).
+- async canonical indexing теперь тоже поддерживается через тот же dispatcher plane (`inline|celery`) и endpoint `POST /api/v1/tasks/knowledge-indexing/start_async`.
+- async retrieval теперь поддерживается через тот же dispatcher plane (`inline|celery`) и endpoint `POST /api/v1/tasks/retrieval/start_async`.
+- knowledge-indexing worker path использует отдельную Celery queue `knowledge-indexing` (`APP_CELERY_INDEXING_QUEUE`) и normalizes host source paths в `/workspace/...` для docker-compose worker volume.
+- retrieval worker path использует отдельную Celery queue `retrieval` (`APP_CELERY_RETRIEVAL_QUEUE`) и проходит тот же `queued -> running -> completed` lifecycle через task events.
+- Docker/Celery e2e теперь покрывает и async knowledge-indexing, помимо authoring/HITL flow.
 - HITL контур поддерживает итеративные ревизии с паузой `waiting_human`, idempotency submit и async continuation через worker.
 - Docker/Celery e2e покрывает как базовый approve-flow, так и iterative path `needs_changes -> approve`.
-- начат `Increment 28: Domain Authoring Extraction`:
+- завершены первые два slice `Increment 29: Unified Execution Plane + Observability`:
+  - existing async execution plane сначала расширен на Knowledge Indexing, затем на Retrieval без новой архитектурной ветки;
+  - добавлены `KnowledgeIndexingAsyncDispatcher` и `RetrievalAsyncDispatcher`, Celery worker tasks и endpoints `knowledge-indexing/start_async` и `retrieval/start_async`;
+  - worker image подтянут до parser-compatible состава зависимостей (`python-docx`, `PyMuPDF`);
+  - task events/e2e подтверждают path `queued -> running -> completed` для async indexing и async retrieval;
+  - для ручной проверки добавлены `smoke_retrieval_async_api.sh/.py` и `demo_release_go_no_go_async_case.sh/.py`.
+- `Increment 28: Domain Authoring Extraction` завершен:
   - добавлен пакет `backend/packages/domain_authoring`;
   - выделены `OutlinePlanner`, `SectionReviewService`, `DocumentAssembler`, `ResearchSummaryBuilder`, `WriterDraftService`;
   - `AuthoringApplicationService` интегрирует domain services через DI без изменения внешних API;
@@ -717,6 +728,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 ## Контракт POST /api/v1/tasks/authoring/start_async
 
 Поля запроса совпадают с `authoring/start`.
+
+Ответ:
+
+- `task_id`
+- `status` (`queued`)
+
+## Контракт POST /api/v1/tasks/retrieval/start_async
+
+Поля запроса совпадают с `retrieval/start`:
+
+- `query`
+- `filters`
+- `task_context`
+
+Ответ:
+
+- `task_id`
+- `status` (`queued`)
+
+## Контракт POST /api/v1/tasks/knowledge-indexing/start_async
+
+Поля запроса совпадают с `knowledge-indexing/start`:
+
+- `source_paths`
+- `task_context`
 
 Ответ:
 
@@ -823,7 +859,7 @@ Canonical ingestion работает через отдельный persistence/r
 - parser: `domain_docs.parsing.CanonicalDocumentParser`;
 - workflow: `domain_docs.indexing.KnowledgeIndexingWorkflow`;
 - application boundary: `KnowledgeIndexingApplicationService`;
-- API endpoint: `POST /api/v1/tasks/knowledge-indexing/start`;
+- API endpoints: `POST /api/v1/tasks/retrieval/start`, `POST /api/v1/tasks/retrieval/start_async`, `POST /api/v1/tasks/knowledge-indexing/start`, `POST /api/v1/tasks/knowledge-indexing/start_async`;
 - canonical boundary: `CanonicalDocumentApplicationService`;
 - storage: `PostgresCanonicalDocumentStore`;
 - SQL tables: `app.canonical_documents`, `app.knowledge_blocks`.

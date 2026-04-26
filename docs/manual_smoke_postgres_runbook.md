@@ -66,6 +66,8 @@ APP_ASYNC_PROVIDER=inline
 APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0
 APP_CELERY_QUEUE=authoring
+APP_CELERY_INDEXING_QUEUE=knowledge-indexing
+APP_CELERY_RETRIEVAL_QUEUE=retrieval
 APP_HITL_MAX_ITERATIONS=2
 APP_HITL_WAIT_TIMEOUT_SEC=1800
 REDIS_PORT=56379
@@ -627,7 +629,77 @@ bash backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 
 3. выполняет последовательность reviewer-решений (`needs_changes -> approve`);
 4. сохраняет результат в `output/authoring_async_hitl_result.json`.
 
-## 18. Расширенный demo: authoring + traceability
+## 18. Async Retrieval через Celery
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+APP_CELERY_RETRIEVAL_QUEUE=retrieval \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_retrieval_async_api.sh --host 127.0.0.1 --port 8076
+```
+
+Что увидеть:
+
+- `start_status=queued`, а итоговый `task_status=completed`;
+- `execution_mode=async`;
+- `events_summary_has_queued_to_running=true`;
+- `events_summary_has_running_to_completed=true`;
+- `evidence_blocks >= 1`.
+
+Как интерпретировать:
+
+- это подтверждает, что retrieval теперь исполняется через ту же queue/Celery execution plane, что и authoring/indexing;
+- тот же путь закреплен в Docker/Celery e2e тесте `backend/tests/e2e/test_fastapi_authoring_async_celery_e2e.py`.
+
+## 19. Расширенный demo: async retrieval release go/no-go
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+APP_CELERY_RETRIEVAL_QUEUE=retrieval \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/demo_release_go_no_go_async_case.sh --host 127.0.0.1 --port 8023
+```
+
+Что делает скрипт:
+
+1. пересобирает file-based dataset из `release_packet.md`;
+2. запускает retrieval через `retrieval/start_async`;
+3. дожидается completion;
+4. собирает итоговый markdown report `release_readiness_report_async.md`.
+
+Что увидеть:
+
+- `retrieval_status=completed`;
+- `execution_mode=async`;
+- `evidence_blocks > 0`;
+- рядом появляется `backend/examples/cases/release_go_no_go_case/output/release_readiness_report_async.md`.
+
+## 20. Async Knowledge Indexing через Celery
+
+```bash
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery \
+APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
+APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
+APP_CELERY_INDEXING_QUEUE=knowledge-indexing \
+PATH="$(pwd)/.venv/bin:$PATH" \
+python backend/scripts/smoke_knowledge_indexing_api.py --host 127.0.0.1 --port 8075 --build-binary-demo-docs
+```
+
+Что увидеть:
+
+- в ответе `start_status=queued`, а итоговый `task_status=completed`;
+- `events_summary_has_running_to_completed=true`;
+- `documents_total=6`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
+- worker обрабатывает задачу из очереди `knowledge-indexing`, а не только `authoring`.
+
+## 21. Расширенный demo: authoring + traceability
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -643,7 +715,7 @@ bash backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.
 2. получает итоговый task artifact и summary событий;
 3. сохраняет итог в `output/authoring_traceability_result.json`.
 
-## 19. Завершение и остановка сервисов
+## 22. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

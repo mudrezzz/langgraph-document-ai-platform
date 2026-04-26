@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
+from application.async_dispatcher import InlineKnowledgeIndexingAsyncDispatcher
 from application.canonical_document_service import CanonicalDocumentApplicationService
+from application.errors import WorkflowExecutionError
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
+from application.task_service import InMemoryTaskRegistry, TaskApplicationService
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from domain_docs.parsing import CanonicalDocumentParser
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
+from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.tei.embedding_gateway import TeiEmbeddingGateway
+from schemas.api.contracts import StartKnowledgeIndexingTaskRequest
 from schemas.workflow.states import KnowledgeIndexingState
 
 
@@ -85,3 +92,80 @@ def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Pat
     _, summary_metadata = summary_stored
     assert summary_metadata["kind"] == "knowledge_summary_embedding"
     assert summary_metadata["block_id"].startswith("summary:")
+
+
+def test_knowledge_indexing_application_service_start_async_with_inline_dispatcher(tmp_path: Path) -> None:
+    source = tmp_path / "ops_readiness.txt"
+    source.write_text("Rollback plan is ready.\nMonitoring dashboard is active.", encoding="utf-8")
+
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=CanonicalDocumentApplicationService(
+            store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+        ),
+        task_service=task_service,
+    )
+    dispatcher = InlineKnowledgeIndexingAsyncDispatcher(
+        runner=lambda task_id, payload: service.run_existing_task(
+            task_id=task_id,
+            request=StartKnowledgeIndexingTaskRequest.model_validate(payload),
+        )
+    )
+
+    started = service.start_task_async(
+        StartKnowledgeIndexingTaskRequest(
+            source_paths=[str(source)],
+            task_context={"requester": "unit-test"},
+        ),
+        dispatcher=dispatcher,
+    )
+
+    assert started.status == "queued"
+    task = task_service.get_task(started.task_id)
+    assert task.status == "completed"
+    assert task.details["execution_mode"] == "async"
+    assert task.details["dispatch_id"] == f"inline-knowledge-indexing-{started.task_id}"
+
+    payload = task_service.get_state_payload(started.task_id)
+    assert payload["task_context"]["task_id"] == started.task_id
+    assert payload["source_paths"] == [str(source)]
+
+
+def test_knowledge_indexing_application_service_start_async_marks_task_failed_on_dispatch_error(tmp_path: Path) -> None:
+    source = tmp_path / "ops_readiness.txt"
+    source.write_text("Rollback plan is ready.", encoding="utf-8")
+
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=CanonicalDocumentApplicationService(
+            store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+        ),
+        task_service=task_service,
+    )
+
+    class _FailingDispatcher:
+        def enqueue_knowledge_indexing_start(self, *, task_id: str, request_payload: dict) -> str:
+            _ = task_id, request_payload
+            raise RuntimeError("broker unavailable")
+
+    with pytest.raises(WorkflowExecutionError, match="async очередь"):
+        service.start_task_async(
+            StartKnowledgeIndexingTaskRequest(
+                source_paths=[str(source)],
+                task_context={"requester": "unit-test"},
+            ),
+            dispatcher=_FailingDispatcher(),
+        )
+
+    tasks = task_service.list_tasks(limit=10, task_type="knowledge_indexing")
+    assert tasks.total_returned == 1
+    task = tasks.items[0]
+    assert task.status == "failed"
+    assert task.details["execution_mode"] == "async"
+    assert task.details["error"] == "broker unavailable"

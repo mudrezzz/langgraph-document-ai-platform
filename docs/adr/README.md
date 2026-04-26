@@ -73,3 +73,6 @@
 - `0061-rich-template-assembly-policy-baseline.md`
 - `0062-exclusive-published-template-version-policy.md`
 - `0063-template-governance-lifecycle-closure.md`
+
+- `0064-async-knowledge-indexing-execution-plane-first-slice.md`
+- `0065-async-retrieval-execution-plane-second-slice.md`

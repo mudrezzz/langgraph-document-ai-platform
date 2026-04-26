@@ -212,6 +212,19 @@ def start_retrieval_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@app.post("/api/v1/tasks/retrieval/start_async", response_model=StartTaskResponse)
+def start_retrieval_task_async(
+    request: StartRetrievalTaskRequest,
+    container: ApiContainer = Depends(get_container),
+) -> StartTaskResponse:
+    """Ставит retrieval workflow в async очередь."""
+
+    try:
+        return container.retrieval_service.start_async(request, dispatcher=container.retrieval_dispatcher)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
 @app.post("/api/v1/tasks/knowledge-indexing/start", response_model=StartTaskResponse)
 def start_knowledge_indexing_task(
     request: StartKnowledgeIndexingTaskRequest,
@@ -223,6 +236,22 @@ def start_knowledge_indexing_task(
         return container.knowledge_indexing_service.start_task(
             request.source_paths,
             task_context=request.task_context,
+        )
+    except WorkflowExecutionError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/tasks/knowledge-indexing/start_async", response_model=StartTaskResponse)
+def start_knowledge_indexing_task_async(
+    request: StartKnowledgeIndexingTaskRequest,
+    container: ApiContainer = Depends(get_container),
+) -> StartTaskResponse:
+    """Ставит canonical Knowledge Factory indexing в async очередь."""
+
+    try:
+        return container.knowledge_indexing_service.start_task_async(
+            request,
+            dispatcher=container.knowledge_indexing_dispatcher,
         )
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

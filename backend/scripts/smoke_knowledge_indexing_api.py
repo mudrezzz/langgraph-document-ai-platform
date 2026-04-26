@@ -45,6 +45,7 @@ def main() -> None:
     base_url = f"http://{args.host}:{args.port}"
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{backend_root}{os.pathsep}{backend_root / 'packages'}"
+    async_provider = env.get("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline"
 
     process = subprocess.Popen(
         [
@@ -67,9 +68,14 @@ def main() -> None:
     try:
         _wait_for_health(base_url, timeout_sec=args.startup_timeout_sec, process=process)
 
+        start_endpoint = (
+            "/api/v1/tasks/knowledge-indexing/start_async"
+            if async_provider == "celery"
+            else "/api/v1/tasks/knowledge-indexing/start"
+        )
         start_status, start_payload = _request(
             "POST",
-            f"{base_url}/api/v1/tasks/knowledge-indexing/start",
+            f"{base_url}{start_endpoint}",
             payload={
                 "source_paths": [str(input_path)],
                 "task_context": {
@@ -82,7 +88,11 @@ def main() -> None:
             raise RuntimeError(f"Knowledge indexing start failed: status={start_status}, payload={start_payload}")
 
         task_id = start_payload["task_id"]
-        status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{task_id}")
+        status_code, status_payload = _wait_for_task_completion(
+            base_url,
+            task_id,
+            timeout_sec=max(30, args.startup_timeout_sec * 2),
+        )
         summary_code, summary_payload = _request(
             "GET",
             f"{base_url}/api/v1/tasks/events/summary?task_id={urllib.parse.quote(task_id)}&task_type=knowledge_indexing",
@@ -101,6 +111,8 @@ def main() -> None:
         result = {
             "base_url": base_url,
             "task_id": task_id,
+            "execution_mode": async_provider,
+            "start_endpoint": start_endpoint,
             "start_status": start_payload.get("status"),
             "task_status": status_payload.get("status"),
             "documents_total": details.get("documents_total"),

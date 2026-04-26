@@ -63,6 +63,25 @@ def _create_interrupted_task(client: TestClient) -> str:
     return payload["task_id"]
 
 
+def _create_task_async(client: TestClient) -> str:
+    response = client.post(
+        "/api/v1/tasks/retrieval/start_async",
+        json={
+            "query": "evidence pack retrieval async",
+            "filters": {
+                "project_id": "p1",
+                "document_types": ["requirements", "methodology"],
+            },
+            "task_context": {"requester": "integration-async-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+    return payload["task_id"]
+
+
 def _create_authoring_task(client: TestClient) -> str:
     response = client.post(
         "/api/v1/tasks/authoring/start",
@@ -324,6 +343,31 @@ def test_start_endpoint_persists_task_id_in_task_context(client: TestClient) -> 
     assert payload["task_context"]["task_id"] == task_id
 
 
+def test_start_async_endpoint_queues_and_completes_inline(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_ASYNC_PROVIDER", "inline")
+    get_container.cache_clear()
+
+    task_id = _create_task_async(client)
+
+    task_status = client.get(f"/api/v1/tasks/{task_id}")
+    assert task_status.status_code == 200
+    status_payload = task_status.json()
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["execution_mode"] == "async"
+    assert status_payload["details"]["dispatch_id"] == f"inline-retrieval-{task_id}"
+
+    summary_response = client.get(
+        f"/api/v1/tasks/events/summary?task_id={quote(task_id)}&task_type=retrieval_pack"
+    )
+    assert summary_response.status_code == 200
+    transitions = summary_response.json()["transitions"]
+    assert any(item["from_status"] == "queued" and item["to_status"] == "running" for item in transitions)
+    assert any(item["from_status"] == "running" and item["to_status"] == "completed" for item in transitions)
+
+
 def test_start_endpoint_returns_400_for_empty_query(client: TestClient) -> None:
     response = client.post(
         "/api/v1/tasks/retrieval/start",
@@ -471,6 +515,50 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
         item["from_status"] == "running" and item["to_status"] == "completed"
         for item in transitions
     )
+
+
+def test_knowledge_indexing_start_async_endpoint_queues_and_completes_inline(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+    monkeypatch.setenv("APP_ASYNC_PROVIDER", "inline")
+    get_container.cache_clear()
+
+    response = client.post(
+        "/api/v1/tasks/knowledge-indexing/start_async",
+        json={
+            "source_paths": [str(dataset_dir)],
+            "task_context": {"requester": "integration-knowledge-indexing-async-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "queued"
+
+    task_status = client.get(f"/api/v1/tasks/{payload['task_id']}")
+    assert task_status.status_code == 200
+    status_payload = task_status.json()
+    assert status_payload["status"] == "completed"
+    assert status_payload["details"]["execution_mode"] == "async"
+    assert status_payload["details"]["dispatch_id"] == f"inline-knowledge-indexing-{payload['task_id']}"
+
+    summary_response = client.get(
+        f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"
+    )
+    assert summary_response.status_code == 200
+    transitions = summary_response.json()["transitions"]
+    assert any(item["from_status"] == "queued" and item["to_status"] == "running" for item in transitions)
+    assert any(item["from_status"] == "running" and item["to_status"] == "completed" for item in transitions)
 
 
 def test_status_endpoint_returns_task_state(client: TestClient) -> None:

@@ -23,10 +23,14 @@
 - `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
+- `smoke_retrieval_async_api.sh` — smoke API flow `retrieval/start_async -> queued -> completed -> evidence -> events/summary`.
 - `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
 - `demo_release_go_no_go_multifile_case.sh` — canonical release go/no-go demo.
   - запускает `knowledge-indexing/start`, затем canonical retrieval по `canonical_doc_ids`;
   - обновляет markdown report с quality summary и source mapping.
+- `demo_release_go_no_go_async_case.sh` — file-based async retrieval demo с итоговым markdown report.
+  - пересобирает dataset из `release_packet.md`;
+  - запускает `retrieval/start_async` и пишет `release_readiness_report_async.md`.
 - `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack/search_summaries/search_blocks/lookup_source`).
 - `smoke_retrieval_mcp.sh` — ручной smoke Retrieval MCP indexed tools через `smoke_retrieval_mcp.py`.
 - `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
@@ -34,7 +38,7 @@
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
   - проверяет запись canonical documents и derived knowledge blocks в canonical store.
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
-- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary`.
+- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (или при `APP_ASYNC_PROVIDER=celery` проверка `knowledge-indexing/start_async -> queued -> completed`).
   - проверяет task registry/checkpoint/task events для canonical indexing.
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
@@ -117,6 +121,16 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
   bash backend/scripts/smoke_authoring_async_api.sh --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 
+# Async retrieval через ту же execution plane:
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_CELERY_RETRIEVAL_QUEUE=retrieval \
+  bash backend/scripts/smoke_retrieval_async_api.sh --port 8076
+
+# Async Knowledge Indexing через ту же execution plane:
+set -a && source backend/.env && set +a
+APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_CELERY_INDEXING_QUEUE=knowledge-indexing \
+  python backend/scripts/smoke_knowledge_indexing_api.py --port 8075 --build-binary-demo-docs
+
 # Async authoring + HITL demo:
 set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
@@ -125,7 +139,7 @@ bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
-Если PostgreSQL поднят на нестандартном host-порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`.
+Если PostgreSQL поднят на нестандартном host-порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`. Для async retrieval/indexing при docker-compose worker queue используйте также `APP_CELERY_RETRIEVAL_QUEUE=retrieval` и `APP_CELERY_INDEXING_QUEUE=knowledge-indexing`.
 
 ## Windows (PowerShell)
 
