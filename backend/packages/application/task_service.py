@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 from datetime import datetime, timezone
 from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
@@ -75,6 +76,42 @@ class TaskEventSummary(BaseModel):
     transitions: list[TaskEventTransitionStat] = Field(default_factory=list)
 
 
+class TaskStatusStat(BaseModel):
+    """Агрегированная статистика по текущим статусам задач."""
+
+    status: str
+    total: int
+
+
+class TaskTypeObservabilityStat(BaseModel):
+    """Dashboard-friendly агрегаты по task type."""
+
+    task_type: str
+    total: int
+    async_total: int = 0
+    completed_total: int = 0
+    failed_total: int = 0
+    avg_duration_ms: int | None = None
+    avg_queue_wait_ms: int | None = None
+
+
+class TaskObservabilitySummary(BaseModel):
+    """Сводка по execution plane поверх task registry."""
+
+    total_tasks: int
+    queued_tasks: int = 0
+    running_tasks: int = 0
+    waiting_human_tasks: int = 0
+    completed_tasks: int = 0
+    failed_tasks: int = 0
+    async_tasks: int = 0
+    avg_duration_ms: int | None = None
+    max_duration_ms: int | None = None
+    avg_queue_wait_ms: int | None = None
+    statuses: list[TaskStatusStat] = Field(default_factory=list)
+    task_types: list[TaskTypeObservabilityStat] = Field(default_factory=list)
+
+
 class TaskCursor(BaseModel):
     """Декодированное значение курсора истории задач."""
 
@@ -140,6 +177,16 @@ class TaskRegistry(Protocol):
     ) -> TaskEventSummary:
         """Возвращает агрегированную сводку по переходам статусов."""
 
+    def summarize_tasks(
+        self,
+        *,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskObservabilitySummary:
+        """Возвращает observability aggregates по task registry."""
+
 
 class InMemoryTaskRegistry(TaskRegistry):
     """Простая in-memory регистрация задач для API слоя."""
@@ -147,6 +194,23 @@ class InMemoryTaskRegistry(TaskRegistry):
     def __init__(self) -> None:
         self._tasks: dict[str, TaskRecord] = {}
         self._events: list[TaskEventRecord] = []
+
+    def summarize_tasks(
+        self,
+        *,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskObservabilitySummary:
+        filtered = _filter_tasks_for_summary(
+            self._tasks.values(),
+            status=status,
+            task_type=task_type,
+            updated_from=updated_from,
+            updated_to=updated_to,
+        )
+        return _build_task_observability_summary(filtered)
 
     def save(self, record: TaskRecord) -> None:
         now_utc = datetime.now(timezone.utc)
@@ -361,12 +425,16 @@ class TaskApplicationService:
         details: dict | None = None,
     ) -> TaskRecord:
         now_utc = datetime.now(timezone.utc)
+        payload = dict(details or {})
+        payload.setdefault("correlation_id", payload.get("correlation_id") or str(uuid4()))
+        payload.setdefault("async_provider", os.getenv("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline")
+        payload.setdefault("task_type", task_type)
         task = TaskRecord(
             task_id=str(uuid4()),
             task_type=task_type,
             status=initial_status,
             current_node=initial_node,
-            details=details or {},
+            details=payload,
             created_at=now_utc,
             updated_at=now_utc,
         )
@@ -393,22 +461,30 @@ class TaskApplicationService:
         """Помечает задачу ошибочной и сохраняет последнее валидное состояние."""
 
         self.save_checkpoint(task_id, state_payload)
+        current = self._registry.get(task_id)
         return self.update_task(
             task_id,
             status="failed",
             current_node="failed",
-            details={"error": error_message},
+            details={**current.details, "error": error_message},
         )
 
     def update_task(self, task_id: str, **kwargs) -> TaskRecord:
         task = self._registry.get(task_id)
-        updated = task.model_copy(
-            update={
-                **kwargs,
-                "created_at": task.created_at,
-                "updated_at": datetime.now(timezone.utc),
-            }
-        )
+        details = kwargs.get("details")
+        if isinstance(details, dict):
+            merged_details = dict(details)
+        else:
+            merged_details = dict(task.details)
+        target_status = str(kwargs.get("status", task.status))
+        self._enrich_execution_details(task, merged_details, target_status=target_status)
+        payload = {
+            **kwargs,
+            "details": merged_details,
+            "created_at": task.created_at,
+            "updated_at": datetime.now(timezone.utc),
+        }
+        updated = task.model_copy(update=payload)
         self._registry.save(updated)
         return updated
 
@@ -502,6 +578,21 @@ class TaskApplicationService:
             created_to=created_to,
         )
 
+    def summarize_tasks(
+        self,
+        *,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskObservabilitySummary:
+        return self._registry.summarize_tasks(
+            status=status,
+            task_type=task_type,
+            updated_from=updated_from,
+            updated_to=updated_to,
+        )
+
     def get_state_payload(self, task_id: str) -> dict:
         payload = self._checkpoint_store.load_checkpoint(task_id)
         if payload is None:
@@ -515,6 +606,39 @@ class TaskApplicationService:
         if callable(builder):
             return builder()
         return None
+
+    def _enrich_execution_details(self, current: TaskRecord, details: dict, *, target_status: str) -> None:
+        details.setdefault("correlation_id", current.details.get("correlation_id") or str(uuid4()))
+        details.setdefault(
+            "async_provider",
+            current.details.get("async_provider") or (os.getenv("APP_ASYNC_PROVIDER", "inline").strip().lower() or "inline"),
+        )
+        details.setdefault("task_type", current.task_type)
+
+        if current.details.get("queued_at") and not details.get("queued_at"):
+            details["queued_at"] = current.details.get("queued_at")
+        if current.details.get("started_at") and not details.get("started_at"):
+            details["started_at"] = current.details.get("started_at")
+        if current.details.get("completed_at") and not details.get("completed_at"):
+            details["completed_at"] = current.details.get("completed_at")
+        if current.details.get("failed_at") and not details.get("failed_at"):
+            details["failed_at"] = current.details.get("failed_at")
+
+        now_iso = datetime.now(timezone.utc).isoformat()
+        execution_mode = str(details.get("execution_mode", current.details.get("execution_mode", "sync")))
+        if details.get("queued_at") is None and execution_mode == "async":
+            details["queued_at"] = current.created_at.isoformat() if current.created_at else now_iso
+        if details.get("started_at") is None and current.status == "queued" and target_status != "queued":
+            details["started_at"] = now_iso
+        if details.get("completed_at") is None and target_status == "completed":
+            details["completed_at"] = now_iso
+        if details.get("failed_at") is None and target_status == "failed":
+            details["failed_at"] = now_iso
+
+        if details.get("started_at") and details.get("queued_at") and details.get("queue_wait_ms") is None:
+            queue_wait_ms = _duration_ms_from_iso(details.get("queued_at"), details.get("started_at"))
+            if queue_wait_ms is not None:
+                details["queue_wait_ms"] = queue_wait_ms
 
 
 class TaskWorkflowNodeEventSink:
@@ -653,3 +777,134 @@ def _is_before_event_cursor(event: TaskEventRecord, cursor: TaskEventCursor) -> 
     if event_timestamp > cursor.created_at:
         return False
     return (event.event_id or 0) < cursor.event_id
+
+
+def _filter_tasks_for_summary(
+    tasks: list[TaskRecord] | tuple[TaskRecord, ...] | Any,
+    *,
+    status: str | None = None,
+    task_type: str | None = None,
+    updated_from: datetime | None = None,
+    updated_to: datetime | None = None,
+) -> list[TaskRecord]:
+    normalized_from = _normalize_datetime(updated_from) if updated_from else None
+    normalized_to = _normalize_datetime(updated_to) if updated_to else None
+    filtered: list[TaskRecord] = []
+    for item in tasks:
+        if status and item.status != status:
+            continue
+        if task_type and item.task_type != task_type:
+            continue
+        item_updated_at = _effective_task_timestamp(item)
+        if normalized_from and item_updated_at < normalized_from:
+            continue
+        if normalized_to and item_updated_at > normalized_to:
+            continue
+        filtered.append(item)
+    return filtered
+
+
+def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabilitySummary:
+    status_buckets: dict[str, int] = {}
+    type_buckets: dict[str, dict[str, Any]] = {}
+    durations: list[int] = []
+    queue_waits: list[int] = []
+
+    for task in tasks:
+        status_buckets[task.status] = status_buckets.get(task.status, 0) + 1
+        task_durations = _task_duration_ms(task)
+        if task_durations is not None:
+            durations.append(task_durations)
+        task_queue_wait = _task_queue_wait_ms(task)
+        if task_queue_wait is not None:
+            queue_waits.append(task_queue_wait)
+
+        bucket = type_buckets.setdefault(
+            task.task_type,
+            {
+                "total": 0,
+                "async_total": 0,
+                "completed_total": 0,
+                "failed_total": 0,
+                "durations": [],
+                "queue_waits": [],
+            },
+        )
+        bucket["total"] += 1
+        if str(task.details.get("execution_mode", "sync")) == "async":
+            bucket["async_total"] += 1
+        if task.status == "completed":
+            bucket["completed_total"] += 1
+        if task.status == "failed":
+            bucket["failed_total"] += 1
+        if task_durations is not None:
+            bucket["durations"].append(task_durations)
+        if task_queue_wait is not None:
+            bucket["queue_waits"].append(task_queue_wait)
+
+    status_items = [TaskStatusStat(status=name, total=total) for name, total in status_buckets.items()]
+    status_items.sort(key=lambda item: (-item.total, item.status))
+
+    task_type_items: list[TaskTypeObservabilityStat] = []
+    for task_type, bucket in type_buckets.items():
+        task_type_items.append(
+            TaskTypeObservabilityStat(
+                task_type=task_type,
+                total=int(bucket["total"]),
+                async_total=int(bucket["async_total"]),
+                completed_total=int(bucket["completed_total"]),
+                failed_total=int(bucket["failed_total"]),
+                avg_duration_ms=_avg_int(bucket["durations"]),
+                avg_queue_wait_ms=_avg_int(bucket["queue_waits"]),
+            )
+        )
+    task_type_items.sort(key=lambda item: (-item.total, item.task_type))
+
+    return TaskObservabilitySummary(
+        total_tasks=len(tasks),
+        queued_tasks=status_buckets.get("queued", 0),
+        running_tasks=status_buckets.get("running", 0),
+        waiting_human_tasks=status_buckets.get("waiting_human", 0),
+        completed_tasks=status_buckets.get("completed", 0),
+        failed_tasks=status_buckets.get("failed", 0),
+        async_tasks=sum(1 for task in tasks if str(task.details.get("execution_mode", "sync")) == "async"),
+        avg_duration_ms=_avg_int(durations),
+        max_duration_ms=max(durations) if durations else None,
+        avg_queue_wait_ms=_avg_int(queue_waits),
+        statuses=status_items,
+        task_types=task_type_items,
+    )
+
+
+def _task_duration_ms(task: TaskRecord) -> int | None:
+    if task.created_at is None or task.updated_at is None:
+        return None
+    created = _normalize_datetime(task.created_at)
+    updated = _normalize_datetime(task.updated_at)
+    return max(0, int((updated - created).total_seconds() * 1000))
+
+
+def _task_queue_wait_ms(task: TaskRecord) -> int | None:
+    value = task.details.get("queue_wait_ms")
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, float):
+        return max(0, int(value))
+    return None
+
+
+def _avg_int(values: list[int]) -> int | None:
+    if not values:
+        return None
+    return int(sum(values) / len(values))
+
+
+def _duration_ms_from_iso(start_raw: Any, end_raw: Any) -> int | None:
+    if not isinstance(start_raw, str) or not isinstance(end_raw, str):
+        return None
+    try:
+        start = _normalize_datetime(datetime.fromisoformat(start_raw))
+        end = _normalize_datetime(datetime.fromisoformat(end_raw))
+    except ValueError:
+        return None
+    return max(0, int((end - start).total_seconds() * 1000))

@@ -101,6 +101,10 @@
   - `GET /api/v1/tasks/events/summary`;
   - фильтры `task_id`, `task_type`, `from_status`, `to_status`, `from`, `to`;
   - агрегаты `total_events`, `unique_tasks`, `transitions(from_status,to_status,total)`.
+- task observability summary API:
+  - `GET /api/v1/tasks/observability/summary`;
+  - фильтры `status`, `task_type`, `from`, `to`;
+  - current-state counts, async totals и latency/queue wait aggregates по `task_type`.
 - authoring API:
   - `POST /api/v1/tasks/authoring/start`;
   - `POST /api/v1/tasks/authoring/start_async`;
@@ -121,6 +125,8 @@
   - `RetrievalApplicationService` поддерживает queued execution через `start_async(...)` и worker-side `run_existing_task(...)`;
   - Celery worker app слушает очереди `authoring`, `knowledge-indexing` и `retrieval`;
   - worker runtime normalizes host `source_paths` в `/workspace/...` для docker-compose bind mount только для indexing path;
+  - execution metadata теперь фиксирует `correlation_id`, `async_provider`, `queue_name`, `queued_at`, `started_at`, `completed_at|failed_at`, `queue_wait_ms`;
+  - observability aggregates строятся поверх existing task registry/task details без отдельной telemetry storage ветки;
   - Docker/Celery e2e подтверждает async path `queued -> running -> completed` для canonical indexing и retrieval.
 - production checkpointer для LangGraph:
   - `PostgresLangGraphCheckpointer` реализует `BaseCheckpointSaver`;
@@ -258,6 +264,9 @@
   - `docs/adr/0041-indexed-canonical-summary-retrieval.md`.
   - `docs/adr/0042-real-tei-embedding-and-rerank-gateways.md`.
   - `docs/adr/0043-retrieval-quality-gates.md`.
+  - `docs/adr/0064-async-knowledge-indexing-execution-plane-first-slice.md`.
+  - `docs/adr/0065-async-retrieval-execution-plane-second-slice.md`.
+  - `docs/adr/0066-task-observability-summary-and-execution-metadata.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;
@@ -299,6 +308,6 @@
 
 ## 5. План следующего инкремента
 
-1. Расширить unified execution plane на retrieval и quality-evaluation paths.
-2. Добавить correlation IDs и structured JSON logging в execution/read-model слой.
-3. Подготовить observability aggregates по `task_events` и reviewer/HITL activity.
+1. Завершить structured JSON logging и correlation propagation в API/worker/MCP runtime.
+2. Добавить observability aggregates по reviewer/HITL activity рядом с task execution summary.
+3. Подготовить handoff к следующему increment production-boundary работ.

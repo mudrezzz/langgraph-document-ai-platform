@@ -615,9 +615,19 @@ Second slice done:
 - targeted Docker/Celery e2e: `4 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `246 passed`.
 
+Third slice done:
+
+- task lifecycle details расширены execution metadata: `correlation_id`, `async_provider`, `queue_name`, `queued_at`, `started_at`, `completed_at|failed_at`, `queue_wait_ms`;
+- добавлен read-model endpoint `GET /api/v1/tasks/observability/summary` с current-state counts и latency aggregates по `task_type`;
+- async smoke/demo scripts теперь явно показывают execution trace и observability aggregates для retrieval/indexing/authoring paths;
+- async release readiness report показывает queue/dispatch/correlation metadata;
+- added ADR `0066-task-observability-summary-and-execution-metadata.md`;
+- targeted tests: `76 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `246 passed`.
+
 Next slice:
 
-- закрыть observability/structured logging/correlation слой поверх unified execution path.
+- закрыть structured JSON logging и расширить observability aggregates на reviewer/HITL activity.
 
 ## Increment 30: MCP + Production Boundary
 

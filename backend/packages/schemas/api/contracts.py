@@ -93,6 +93,42 @@ class TaskEventsSummaryResponse(BaseModel):
     transitions: list[TaskEventTransitionSummaryItem] = Field(default_factory=list)
 
 
+class TaskStatusSummaryItem(BaseModel):
+    """Агрегированная запись по текущему статусу задач."""
+
+    status: str
+    total: int
+
+
+class TaskTypeObservabilitySummaryItem(BaseModel):
+    """Dashboard-friendly агрегаты по task type."""
+
+    task_type: str
+    total: int
+    async_total: int = 0
+    completed_total: int = 0
+    failed_total: int = 0
+    avg_duration_ms: int | None = None
+    avg_queue_wait_ms: int | None = None
+
+
+class TaskObservabilityResponse(BaseModel):
+    """Сводка execution plane поверх task registry."""
+
+    total_tasks: int
+    queued_tasks: int = 0
+    running_tasks: int = 0
+    waiting_human_tasks: int = 0
+    completed_tasks: int = 0
+    failed_tasks: int = 0
+    async_tasks: int = 0
+    avg_duration_ms: int | None = None
+    max_duration_ms: int | None = None
+    avg_queue_wait_ms: int | None = None
+    statuses: list[TaskStatusSummaryItem] = Field(default_factory=list)
+    task_types: list[TaskTypeObservabilitySummaryItem] = Field(default_factory=list)
+
+
 class StartRetrievalTaskRequest(BaseModel):
     """Типизированный запрос на запуск retrieval workflow."""
 

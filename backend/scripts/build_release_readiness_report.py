@@ -161,6 +161,18 @@ def _build_report(
         lines.append(f"- Retrieval backend: `{task_details.get('retrieval_backend', 'in_memory')}`")
         lines.append(f"- Retrieval quality gate: `{task_details.get('quality_gate_status', 'unknown')}`")
         lines.append(f"- Confidence: `{task_details.get('confidence', 'unknown')}`")
+        if task_details.get('execution_mode'):
+            lines.append(f"- Execution mode: `{task_details.get('execution_mode')}`")
+        if task_details.get('async_provider'):
+            lines.append(f"- Async provider: `{task_details.get('async_provider')}`")
+        if task_details.get('queue_name'):
+            lines.append(f"- Queue name: `{task_details.get('queue_name')}`")
+        if task_details.get('dispatch_id'):
+            lines.append(f"- Dispatch ID: `{task_details.get('dispatch_id')}`")
+        if task_details.get('correlation_id'):
+            lines.append(f"- Correlation ID: `{task_details.get('correlation_id')}`")
+        if task_details.get('queue_wait_ms') is not None:
+            lines.append(f"- Queue wait ms: `{task_details.get('queue_wait_ms')}`")
     lines.append("")
     lines.append("## Decision")
     lines.append("")

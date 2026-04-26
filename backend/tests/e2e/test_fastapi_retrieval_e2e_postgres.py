@@ -407,16 +407,13 @@ def test_e2e_postgres_task_flow(postgres_backed_server_context: dict[str, str]) 
         for item in completed_events_payload["items"]
     )
 
-    summary_code, summary_payload = _request(
+    observability_code, observability_payload = _request(
         "GET",
-        f"{base_url}/api/v1/tasks/events/summary?task_id={task_id}&task_type=retrieval_pack",
+        f"{base_url}/api/v1/tasks/observability/summary?task_type=retrieval_pack",
     )
-    assert summary_code == 200
-    assert summary_payload["total_events"] >= 2
-    assert summary_payload["unique_tasks"] == 1
-    transitions = {(item["from_status"], item["to_status"]) for item in summary_payload["transitions"]}
-    assert (None, "running") in transitions
-    assert ("running", "completed") in transitions
+    assert observability_code == 200
+    assert observability_payload["total_tasks"] >= 1
+    assert any(item["task_type"] == "retrieval_pack" for item in observability_payload["task_types"])
 
     assert _has_langgraph_checkpoint_for_task(dsn=dsn, task_id=task_id) is True
 

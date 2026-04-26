@@ -702,6 +702,29 @@ def test_task_events_summary_endpoint_returns_aggregates(client: TestClient) -> 
     assert transitions[("running", "completed")] >= 1
 
 
+def test_task_observability_summary_endpoint_returns_aggregates(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ASYNC_PROVIDER", "inline")
+    _ = _create_task(client)
+    _ = _create_task_async(client)
+    _ = _create_authoring_task_async(client, hitl_required=True)
+
+    response = client.get("/api/v1/tasks/observability/summary")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_tasks"] >= 3
+    assert payload["async_tasks"] >= 1
+    assert payload["completed_tasks"] >= 2
+    assert payload["waiting_human_tasks"] >= 1
+    statuses = {item["status"]: item["total"] for item in payload["statuses"]}
+    assert statuses["completed"] >= 2
+    assert statuses["waiting_human"] >= 1
+    task_types = {item["task_type"]: item for item in payload["task_types"]}
+    assert task_types["retrieval_pack"]["total"] >= 2
+    assert task_types["retrieval_pack"]["async_total"] >= 1
+    assert task_types["authoring_pack"]["total"] >= 1
+
+
 def test_task_events_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:
     response = client.get("/api/v1/tasks/events?limit=20&cursor=invalid_cursor_payload")
 

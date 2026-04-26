@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from application.async_dispatcher import KnowledgeIndexingAsyncDispatcher
@@ -122,6 +123,7 @@ class KnowledgeIndexingApplicationService:
         current = self._task_service.get_task(task.task_id)
         next_status = current.status if current.status != "queued" else "queued"
         next_node = current.current_node if current.status != "queued" else "queued"
+        queue_name = getattr(dispatcher, "queue_name", current.details.get("queue_name", "inline"))
         self._task_service.update_task(
             task.task_id,
             status=next_status,
@@ -130,6 +132,8 @@ class KnowledgeIndexingApplicationService:
                 **current.details,
                 "dispatch_id": dispatch_id,
                 "execution_mode": "async",
+                "queue_name": queue_name,
+                "queued_at": current.created_at.isoformat() if current.created_at else None,
                 "source_paths_total": len(request.source_paths),
             },
         )
@@ -153,6 +157,7 @@ class KnowledgeIndexingApplicationService:
                 **current.details,
                 "source_paths_total": len(request.source_paths),
                 "execution_mode": current.details.get("execution_mode", "sync"),
+                "started_at": datetime.now(timezone.utc).isoformat(),
             },
         )
 

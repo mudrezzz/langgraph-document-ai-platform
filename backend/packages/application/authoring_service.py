@@ -203,6 +203,7 @@ class AuthoringApplicationService:
             next_status = "queued"
             next_node = "queued"
 
+        queue_name = getattr(dispatcher, "queue_name", current.details.get("queue_name", "inline"))
         self._task_service.update_task(
             task.task_id,
             status=next_status,
@@ -210,6 +211,8 @@ class AuthoringApplicationService:
             details={
                 **current.details,
                 "dispatch_id": dispatch_id,
+                "queue_name": queue_name,
+                "queued_at": current.created_at.isoformat() if current.created_at else None,
                 "workflow_mode": request.workflow_mode,
                 "hitl_required": request.hitl_required,
             },
@@ -231,6 +234,7 @@ class AuthoringApplicationService:
                 **current.details,
                 "workflow_mode": request.workflow_mode,
                 "hitl_required": request.hitl_required,
+                "started_at": datetime.now(timezone.utc).isoformat(),
             },
         )
         return self._run_authoring_pipeline(task_id=task_id, request=request)
@@ -538,6 +542,7 @@ class AuthoringApplicationService:
                 **task.details,
                 "current_step": "hitl_dispatch",
                 "pending_reason": "HITL решение принято, ожидается async continuation.",
+                "queued_at": datetime.now(timezone.utc).isoformat(),
                 "hitl_iteration": current_iteration,
                 "hitl_max_iterations": max_iterations,
                 "hitl_pending_action_id": action_id,
@@ -581,7 +586,7 @@ class AuthoringApplicationService:
         if current.status == "queued":
             updated = self._task_service.update_task(
                 task_id,
-                details={**current.details, "hitl_dispatch_id": dispatch_id},
+                details={**current.details, "hitl_dispatch_id": dispatch_id, "queue_name": getattr(dispatcher, "queue_name", current.details.get("queue_name", "inline"))},
             )
             return TaskStatusResponse(
                 task_id=updated.task_id,

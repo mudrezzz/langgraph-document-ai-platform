@@ -145,6 +145,10 @@ def main() -> None:
             "GET",
             f"{base_url}/api/v1/tasks/events/summary?task_id={urllib.parse.quote(task_id)}&task_type=retrieval_pack",
         )
+        observability_code, observability_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/tasks/observability/summary?task_type=retrieval_pack",
+        )
 
         if status_code != 200:
             raise RuntimeError(f"Task status failed: status={status_code}, payload={status_payload}")
@@ -152,6 +156,8 @@ def main() -> None:
             raise RuntimeError(f"Evidence failed: status={evidence_code}, payload={evidence_payload}")
         if summary_code != 200:
             raise RuntimeError(f"Task events summary failed: status={summary_code}, payload={summary_payload}")
+        if observability_code != 200:
+            raise RuntimeError(f"Task observability summary failed: status={observability_code}, payload={observability_payload}")
 
         transitions = summary_payload.get("transitions", [])
         has_queued_to_running = any(
@@ -167,6 +173,14 @@ def main() -> None:
             "start_status": start_payload.get("status"),
             "task_status": status_payload.get("status"),
             "execution_mode": details.get("execution_mode"),
+            "async_provider": details.get("async_provider"),
+            "correlation_id": details.get("correlation_id"),
+            "dispatch_id": details.get("dispatch_id"),
+            "queue_name": details.get("queue_name"),
+            "queued_at": details.get("queued_at"),
+            "started_at": details.get("started_at"),
+            "completed_at": details.get("completed_at"),
+            "queue_wait_ms": details.get("queue_wait_ms"),
             "knowledge_source": details.get("knowledge_source"),
             "retrieval_backend": details.get("retrieval_backend"),
             "quality_gate_status": details.get("quality_gate_status"),
@@ -175,6 +189,10 @@ def main() -> None:
             "events_summary_total": summary_payload.get("total_events"),
             "events_summary_has_queued_to_running": has_queued_to_running,
             "events_summary_has_running_to_completed": has_running_to_completed,
+            "observability_total_tasks": observability_payload.get("total_tasks"),
+            "observability_avg_queue_wait_ms": observability_payload.get("avg_queue_wait_ms"),
+            "observability_statuses": observability_payload.get("statuses", []),
+            "observability_task_types": observability_payload.get("task_types", []),
         }
         print(json.dumps(result, ensure_ascii=False, indent=4))
     finally:

@@ -97,11 +97,17 @@ def main() -> None:
             "GET",
             f"{base_url}/api/v1/tasks/events/summary?task_id={urllib.parse.quote(task_id)}&task_type=knowledge_indexing",
         )
+        observability_code, observability_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/tasks/observability/summary?task_type=knowledge_indexing",
+        )
 
         if status_code != 200:
             raise RuntimeError(f"Task status failed: status={status_code}, payload={status_payload}")
         if summary_code != 200:
             raise RuntimeError(f"Task events summary failed: status={summary_code}, payload={summary_payload}")
+        if observability_code != 200:
+            raise RuntimeError(f"Task observability summary failed: status={observability_code}, payload={observability_payload}")
 
         transitions = summary_payload.get("transitions", [])
         has_completed_transition = any(
@@ -112,6 +118,14 @@ def main() -> None:
             "base_url": base_url,
             "task_id": task_id,
             "execution_mode": async_provider,
+            "async_provider": details.get("async_provider"),
+            "correlation_id": details.get("correlation_id"),
+            "dispatch_id": details.get("dispatch_id"),
+            "queue_name": details.get("queue_name"),
+            "queued_at": details.get("queued_at"),
+            "started_at": details.get("started_at"),
+            "completed_at": details.get("completed_at"),
+            "queue_wait_ms": details.get("queue_wait_ms"),
             "start_endpoint": start_endpoint,
             "start_status": start_payload.get("status"),
             "task_status": status_payload.get("status"),
@@ -124,6 +138,8 @@ def main() -> None:
             "quality_summary": details.get("quality_summary", {}),
             "events_summary_total": summary_payload.get("total_events"),
             "events_summary_has_running_to_completed": has_completed_transition,
+            "observability_total_tasks": observability_payload.get("total_tasks"),
+            "observability_task_types": observability_payload.get("task_types", []),
         }
         print(json.dumps(result, ensure_ascii=False, indent=4))
     finally:

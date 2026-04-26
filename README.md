@@ -47,6 +47,10 @@
 - добавлен агрегированный endpoint аудита `GET /api/v1/tasks/events/summary`:
   - сводка `total_events`, `unique_tasks`;
   - группировка переходов `from_status -> to_status` с полем `total`.
+- добавлен observability read-model endpoint `GET /api/v1/tasks/observability/summary`:
+  - текущие counts по статусам;
+  - async/queue aggregates;
+  - latency breakdown по `task_type`.
 - исправлен Linux demo-скрипт `backend/scripts/demo_saa_release_readiness_case.sh` (устранена ошибка парсинга JSON вывода smoke).
 - в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API по `task_id`.
 - добавлен production checkpointer LangGraph поверх PostgreSQL (`PostgresLangGraphCheckpointer`) с подключением в runtime compile/invoke.
@@ -77,6 +81,7 @@
   - Linux: `backend/scripts/demo_release_go_no_go_multifile_case.sh`;
   - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`.
   - текущий вариант demo запускает canonical indexing API, retrieval по `canonical_doc_ids` и пишет report с quality/source mapping.
+- async smoke/demo теперь также показывают execution metadata (`queue_name`, `dispatch_id`, `correlation_id`, `queue_wait_ms`) и observability summary поверх task registry.
 - smoke-скрипты расширены параметром директории датасета:
   - `--case-dataset-dir` (Linux);
   - `-CaseDatasetDir` (Windows).
@@ -758,6 +763,22 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 
 - `task_id`
 - `status` (`queued`)
+
+## Контракт GET /api/v1/tasks/observability/summary
+
+Параметры:
+
+- `status`
+- `task_type`
+- `from`
+- `to`
+
+Ответ:
+
+- `total_tasks`, `queued_tasks`, `running_tasks`, `waiting_human_tasks`, `completed_tasks`, `failed_tasks`;
+- `async_tasks`, `avg_duration_ms`, `max_duration_ms`, `avg_queue_wait_ms`;
+- `statuses[]`;
+- `task_types[]` с breakdown по `task_type`.
 
 ## Контракт GET /api/v1/tasks/{task_id}/artifact
 

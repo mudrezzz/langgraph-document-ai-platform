@@ -10,8 +10,11 @@ from application.task_service import (
     TaskEventSummary,
     TaskEventTransitionStat,
     TaskListPage,
+    TaskObservabilitySummary,
     TaskRecord,
     TaskRegistry,
+    _build_task_observability_summary,
+    _filter_tasks_for_summary,
     build_task_cursor,
     build_task_event_cursor,
     decode_task_cursor,
@@ -442,6 +445,57 @@ class PostgresTaskRegistry(TaskRegistry):
             unique_tasks=int(totals_row.get("unique_tasks", 0) or 0),
             transitions=transitions,
         )
+
+    def summarize_tasks(
+        self,
+        *,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskObservabilitySummary:
+        if self._use_fallback:
+            filtered = _filter_tasks_for_summary(
+                self._tasks.values(),
+                status=status,
+                task_type=task_type,
+                updated_from=updated_from,
+                updated_to=updated_to,
+            )
+            return _build_task_observability_summary(filtered)
+
+        normalized_from = _normalize_datetime(updated_from) if updated_from else None
+        normalized_to = _normalize_datetime(updated_to) if updated_to else None
+
+        where_clauses = ["1=1"]
+        params: list[object] = []
+
+        if status:
+            where_clauses.append("status = %s")
+            params.append(status)
+        if task_type:
+            where_clauses.append("task_type = %s")
+            params.append(task_type)
+        if normalized_from:
+            where_clauses.append("updated_at >= %s")
+            params.append(normalized_from)
+        if normalized_to:
+            where_clauses.append("updated_at <= %s")
+            params.append(normalized_to)
+
+        query = f"""
+            SELECT task_id, task_type, status, current_node, details, created_at, updated_at
+            FROM {self._schema}.tasks
+            WHERE {" AND ".join(where_clauses)}
+        """
+
+        psycopg, dict_row = _import_psycopg()
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(params))
+                rows = cur.fetchall()
+
+        return _build_task_observability_summary([_row_to_task_record(row) for row in rows])
 
     def _save_with_fallback(self, record: TaskRecord) -> None:
         now_utc = datetime.now(timezone.utc)

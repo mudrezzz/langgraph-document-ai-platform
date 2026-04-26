@@ -645,8 +645,10 @@ bash backend/scripts/smoke_retrieval_async_api.sh --host 127.0.0.1 --port 8076
 
 - `start_status=queued`, а итоговый `task_status=completed`;
 - `execution_mode=async`;
+- есть `dispatch_id`, `correlation_id`, `queue_name`, `queue_wait_ms`;
 - `events_summary_has_queued_to_running=true`;
 - `events_summary_has_running_to_completed=true`;
+- `observability_total_tasks >= 1`;
 - `evidence_blocks >= 1`.
 
 Как интерпретировать:
@@ -677,8 +679,9 @@ bash backend/scripts/demo_release_go_no_go_async_case.sh --host 127.0.0.1 --port
 
 - `retrieval_status=completed`;
 - `execution_mode=async`;
+- в stdout видны `dispatch_id`, `correlation_id`, `queue_name`;
 - `evidence_blocks > 0`;
-- рядом появляется `backend/examples/cases/release_go_no_go_case/output/release_readiness_report_async.md`.
+- рядом появляется `backend/examples/cases/release_go_no_go_case/output/release_readiness_report_async.md`, где есть execution metadata.
 
 ## 20. Async Knowledge Indexing через Celery
 
@@ -695,7 +698,9 @@ python backend/scripts/smoke_knowledge_indexing_api.py --host 127.0.0.1 --port 8
 Что увидеть:
 
 - в ответе `start_status=queued`, а итоговый `task_status=completed`;
+- есть `dispatch_id`, `correlation_id`, `queue_name`, `queue_wait_ms`;
 - `events_summary_has_running_to_completed=true`;
+- `observability_total_tasks >= 1`;
 - `documents_total=6`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
 - worker обрабатывает задачу из очереди `knowledge-indexing`, а не только `authoring`.
 

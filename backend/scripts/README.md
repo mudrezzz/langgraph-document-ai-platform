@@ -23,7 +23,7 @@
 - `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
-- `smoke_retrieval_async_api.sh` — smoke API flow `retrieval/start_async -> queued -> completed -> evidence -> events/summary`.
+- `smoke_retrieval_async_api.sh` — smoke API flow `retrieval/start_async -> queued -> completed -> evidence -> events/summary -> observability/summary`.
 - `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
 - `demo_release_go_no_go_multifile_case.sh` — canonical release go/no-go demo.
   - запускает `knowledge-indexing/start`, затем canonical retrieval по `canonical_doc_ids`;
@@ -38,7 +38,7 @@
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
   - проверяет запись canonical documents и derived knowledge blocks в canonical store.
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
-- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (или при `APP_ASYNC_PROVIDER=celery` проверка `knowledge-indexing/start_async -> queued -> completed`).
+- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (или при `APP_ASYNC_PROVIDER=celery` проверка `knowledge-indexing/start_async -> queued -> completed -> observability/summary`).
   - проверяет task registry/checkpoint/task events для canonical indexing.
   - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
 - `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
@@ -53,7 +53,7 @@
   - поддерживает `--workflow-mode single_pass|multi_step`;
   - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
 - `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
-- `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact`.
+- `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact -> observability/summary`.
   - поддерживает `--hitl-decision-sequence` (например `needs_changes,approve`) для проверки итеративного HITL loop.
   - проверяет read-model endpoint `GET /api/v1/hitl/actions` для текущего task.
 - `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.

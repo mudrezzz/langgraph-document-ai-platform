@@ -374,3 +374,90 @@ def test_postgres_task_registry_fallback_task_events_summary_counts_queued_runni
     assert transitions[(None, "queued")] == 1
     assert transitions[("queued", "running")] == 1
     assert transitions[("running", "completed")] == 1
+
+
+def test_task_service_summarize_tasks_returns_observability_aggregates() -> None:
+    registry = InMemoryTaskRegistry()
+    service = TaskApplicationService(
+        registry=registry,
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+
+    service.create_task(
+        "retrieval_pack",
+        initial_status="queued",
+        initial_node="queued",
+        details={
+            "execution_mode": "async",
+            "queue_name": "retrieval",
+            "queued_at": "2026-04-26T10:00:00+00:00",
+        },
+    )
+    running = service.create_task(
+        "knowledge_indexing",
+        initial_status="queued",
+        initial_node="queued",
+        details={
+            "execution_mode": "async",
+            "queue_name": "knowledge-indexing",
+            "queued_at": "2026-04-26T10:00:00+00:00",
+        },
+    )
+    service.update_task(
+        running.task_id,
+        status="running",
+        current_node="start",
+        details={
+            **service.get_task(running.task_id).details,
+            "execution_mode": "async",
+            "queue_name": "knowledge-indexing",
+            "started_at": "2026-04-26T10:00:03+00:00",
+        },
+    )
+    completed = service.create_task(
+        "authoring_pack",
+        initial_status="queued",
+        initial_node="queued",
+        details={
+            "execution_mode": "async",
+            "queue_name": "authoring",
+            "queued_at": "2026-04-26T10:00:00+00:00",
+        },
+    )
+    service.update_task(
+        completed.task_id,
+        status="running",
+        current_node="start",
+        details={
+            **service.get_task(completed.task_id).details,
+            "execution_mode": "async",
+            "queue_name": "authoring",
+            "started_at": "2026-04-26T10:00:02+00:00",
+        },
+    )
+    service.update_task(
+        completed.task_id,
+        status="completed",
+        current_node="completed",
+        details={
+            **service.get_task(completed.task_id).details,
+            "execution_mode": "async",
+            "queue_name": "authoring",
+            "completed_at": "2026-04-26T10:00:09+00:00",
+        },
+    )
+
+    summary = service.summarize_tasks()
+
+    assert summary.total_tasks == 3
+    assert summary.queued_tasks == 1
+    assert summary.running_tasks == 1
+    assert summary.completed_tasks == 1
+    assert summary.async_tasks == 3
+    statuses = {item.status: item.total for item in summary.statuses}
+    assert statuses["queued"] == 1
+    assert statuses["running"] == 1
+    assert statuses["completed"] == 1
+    task_types = {item.task_type: item for item in summary.task_types}
+    assert task_types["authoring_pack"].avg_queue_wait_ms == 2000
+    assert task_types["knowledge_indexing"].avg_queue_wait_ms == 3000

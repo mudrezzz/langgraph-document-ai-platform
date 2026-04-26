@@ -83,7 +83,7 @@ def main() -> None:
     try:
         _wait_for_health(base_url, timeout_sec=args.startup_timeout_sec, process=process)
 
-        task_id, status_payload, evidence_payload, events_summary = _run_async_retrieval(
+        task_id, status_payload, evidence_payload, events_summary, observability_summary = _run_async_retrieval(
             base_url=base_url,
             query=args.query,
             dataset_path=dataset_path,
@@ -115,18 +115,26 @@ def main() -> None:
             check=True,
         )
 
+        details = status_payload.get("details", {})
         result = {
             "base_url": base_url,
             "dataset_path": str(dataset_path),
             "report": str(output_path),
             "retrieval_task_id": task_id,
             "retrieval_status": status_payload.get("status"),
-            "execution_mode": status_payload.get("details", {}).get("execution_mode"),
-            "retrieval_backend": status_payload.get("details", {}).get("retrieval_backend"),
-            "quality_gate_status": status_payload.get("details", {}).get("quality_gate_status"),
+            "execution_mode": details.get("execution_mode"),
+            "async_provider": details.get("async_provider"),
+            "correlation_id": details.get("correlation_id"),
+            "dispatch_id": details.get("dispatch_id"),
+            "queue_name": details.get("queue_name"),
+            "queue_wait_ms": details.get("queue_wait_ms"),
+            "retrieval_backend": details.get("retrieval_backend"),
+            "quality_gate_status": details.get("quality_gate_status"),
             "evidence_blocks": len(evidence_payload.get("evidence_pack", {}).get("selected_blocks", [])),
             "top_sources": evidence_payload.get("evidence_pack", {}).get("selected_sources", [])[:5],
             "events_summary_total": events_summary.get("total_events"),
+            "observability_total_tasks": observability_summary.get("total_tasks"),
+            "observability_task_types": observability_summary.get("task_types", []),
         }
         print(json.dumps(result, ensure_ascii=False, indent=4))
     finally:
@@ -139,7 +147,7 @@ def main() -> None:
             path.unlink(missing_ok=True)
 
 
-def _run_async_retrieval(*, base_url: str, query: str, dataset_path: Path) -> tuple[str, dict, dict, dict]:
+def _run_async_retrieval(*, base_url: str, query: str, dataset_path: Path) -> tuple[str, dict, dict, dict, dict]:
     start_status, start_payload = _request(
         "POST",
         f"{base_url}/api/v1/tasks/retrieval/start_async",
@@ -165,13 +173,19 @@ def _run_async_retrieval(*, base_url: str, query: str, dataset_path: Path) -> tu
         "GET",
         f"{base_url}/api/v1/tasks/events/summary?task_id={urllib.parse.quote(task_id)}&task_type=retrieval_pack",
     )
+    observability_code, observability_payload = _request(
+        "GET",
+        f"{base_url}/api/v1/tasks/observability/summary?task_type=retrieval_pack",
+    )
     if status_code != 200:
         raise RuntimeError(f"Retrieval status failed: status={status_code}, payload={status_payload}")
     if evidence_code != 200:
         raise RuntimeError(f"Retrieval evidence failed: status={evidence_code}, payload={evidence_payload}")
     if summary_code != 200:
         raise RuntimeError(f"Retrieval events summary failed: status={summary_code}, payload={summary_payload}")
-    return task_id, status_payload, evidence_payload, summary_payload
+    if observability_code != 200:
+        raise RuntimeError(f"Retrieval observability summary failed: status={observability_code}, payload={observability_payload}")
+    return task_id, status_payload, evidence_payload, summary_payload, observability_payload
 
 
 def _wait_for_task_completion(base_url: str, task_id: str, timeout_sec: int) -> tuple[int, dict]:

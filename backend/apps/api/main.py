@@ -30,6 +30,7 @@ from schemas.api.contracts import (
     TaskEventsResponse,
     TaskEventsSummaryResponse,
     TaskHistoryResponse,
+    TaskObservabilityResponse,
     TaskStatusResponse,
     TemplateListResponse,
     TemplateResponse,
@@ -356,6 +357,24 @@ def get_task_events_summary(
         to_status=to_status,
         created_from=created_from,
         created_to=created_to,
+    )
+
+
+@app.get("/api/v1/tasks/observability/summary", response_model=TaskObservabilityResponse)
+def get_task_observability_summary(
+    status_filter: str | None = Query(default=None, alias="status"),
+    task_type: str | None = Query(default=None),
+    updated_from: datetime | None = Query(default=None, alias="from"),
+    updated_to: datetime | None = Query(default=None, alias="to"),
+    container: ApiContainer = Depends(get_container),
+) -> TaskObservabilityResponse:
+    """Возвращает observability aggregates по execution plane."""
+
+    return container.retrieval_service.observability_summary(
+        status=status_filter,
+        task_type=task_type,
+        updated_from=updated_from,
+        updated_to=updated_to,
     )
 
 

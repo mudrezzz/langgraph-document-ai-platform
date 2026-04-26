@@ -334,6 +334,17 @@ def test_e2e_task_events_summary_endpoint(server_base_url: str) -> None:
     assert ("running", "completed") in transitions
 
 
+def test_e2e_task_observability_summary_endpoint(server_base_url: str) -> None:
+    _ = _start_task(server_base_url)
+
+    status, body = _request("GET", f"{server_base_url}/api/v1/tasks/observability/summary")
+
+    assert status == 200
+    assert body["total_tasks"] >= 1
+    assert body["completed_tasks"] >= 1
+    assert any(item["task_type"] == "retrieval_pack" for item in body["task_types"])
+
+
 def test_e2e_evidence_endpoint(server_base_url: str) -> None:
     task_id = _start_task(server_base_url)
 

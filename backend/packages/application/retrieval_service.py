@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from application.async_dispatcher import RetrievalAsyncDispatcher
 from application.canonical_document_service import CanonicalDocumentApplicationService
@@ -19,6 +19,9 @@ from schemas.api.contracts import (
     TaskEventsResponse,
     TaskEventsSummaryResponse,
     TaskHistoryItem,
+    TaskObservabilityResponse,
+    TaskStatusSummaryItem,
+    TaskTypeObservabilitySummaryItem,
     TaskHistoryResponse,
     TaskStatusResponse,
 )
@@ -107,6 +110,7 @@ class RetrievalApplicationService:
         current = self._task_service.get_task(task.task_id)
         next_status = current.status if current.status != "queued" else "queued"
         next_node = current.current_node if current.status != "queued" else "queued"
+        queue_name = getattr(dispatcher, "queue_name", current.details.get("queue_name", "inline"))
         self._task_service.update_task(
             task.task_id,
             status=next_status,
@@ -115,6 +119,8 @@ class RetrievalApplicationService:
                 **current.details,
                 "dispatch_id": dispatch_id,
                 "execution_mode": "async",
+                "queue_name": queue_name,
+                "queued_at": current.created_at.isoformat() if current.created_at else None,
                 "knowledge_source": effective_context.get("knowledge_source", "case_dataset"),
             },
         )
@@ -138,6 +144,7 @@ class RetrievalApplicationService:
                 **current.details,
                 "execution_mode": current.details.get("execution_mode", "sync"),
                 "knowledge_source": knowledge_source or current.details.get("knowledge_source", "case_dataset"),
+                "started_at": datetime.now(timezone.utc).isoformat(),
             },
         )
 
@@ -329,6 +336,46 @@ class RetrievalApplicationService:
                     total=item.total,
                 )
                 for item in summary.transitions
+            ],
+        )
+
+    def observability_summary(
+        self,
+        *,
+        status: str | None = None,
+        task_type: str | None = None,
+        updated_from: datetime | None = None,
+        updated_to: datetime | None = None,
+    ) -> TaskObservabilityResponse:
+        summary = self._task_service.summarize_tasks(
+            status=status,
+            task_type=task_type,
+            updated_from=updated_from,
+            updated_to=updated_to,
+        )
+        return TaskObservabilityResponse(
+            total_tasks=summary.total_tasks,
+            queued_tasks=summary.queued_tasks,
+            running_tasks=summary.running_tasks,
+            waiting_human_tasks=summary.waiting_human_tasks,
+            completed_tasks=summary.completed_tasks,
+            failed_tasks=summary.failed_tasks,
+            async_tasks=summary.async_tasks,
+            avg_duration_ms=summary.avg_duration_ms,
+            max_duration_ms=summary.max_duration_ms,
+            avg_queue_wait_ms=summary.avg_queue_wait_ms,
+            statuses=[TaskStatusSummaryItem(status=item.status, total=item.total) for item in summary.statuses],
+            task_types=[
+                TaskTypeObservabilitySummaryItem(
+                    task_type=item.task_type,
+                    total=item.total,
+                    async_total=item.async_total,
+                    completed_total=item.completed_total,
+                    failed_total=item.failed_total,
+                    avg_duration_ms=item.avg_duration_ms,
+                    avg_queue_wait_ms=item.avg_queue_wait_ms,
+                )
+                for item in summary.task_types
             ],
         )
 

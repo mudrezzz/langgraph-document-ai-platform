@@ -224,12 +224,30 @@ def main() -> None:
                 f"HITL actions history failed: code={hitl_actions_code}, payload={hitl_actions_payload}"
             )
 
+        observability_code, observability_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/tasks/observability/summary?task_type=authoring_pack",
+        )
+        if observability_code != 200:
+            raise RuntimeError(
+                f"Task observability summary failed: status={observability_code}, payload={observability_payload}"
+            )
+
+        details = task_payload.get("details", {})
         result = {
             "base_url": base_url,
             "task_id": task_id,
             "start_status": start_payload.get("status"),
             "task_status": task_payload.get("status"),
             "task_current_node": task_payload.get("current_node"),
+            "async_provider": details.get("async_provider"),
+            "correlation_id": details.get("correlation_id"),
+            "dispatch_id": details.get("dispatch_id"),
+            "hitl_dispatch_id": details.get("hitl_dispatch_id"),
+            "queue_name": details.get("queue_name"),
+            "queued_at": details.get("queued_at"),
+            "started_at": details.get("started_at"),
+            "queue_wait_ms": details.get("queue_wait_ms"),
             "hitl_required": args.hitl_required,
             "hitl_submit_status": hitl_after_submit.get("status") if hitl_after_submit else None,
             "hitl_submit_count": len(hitl_submits),
@@ -241,6 +259,8 @@ def main() -> None:
             "workflow_mode": artifact_payload.get("metadata", {}).get("workflow_mode") if artifact_code == 200 else None,
             "steps_total": len(artifact_payload.get("metadata", {}).get("steps_summary", [])) if artifact_code == 200 else 0,
             "traceability_sections": len(artifact_payload.get("traceability", {}).get("sections", [])) if artifact_code == 200 else 0,
+            "observability_total_tasks": observability_payload.get("total_tasks"),
+            "observability_task_types": observability_payload.get("task_types", []),
         }
         print(json.dumps(result, ensure_ascii=False, indent=4))
     finally:
