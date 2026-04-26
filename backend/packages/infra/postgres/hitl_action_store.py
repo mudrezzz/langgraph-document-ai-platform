@@ -7,6 +7,9 @@ from application.hitl_action_store import (
     HitlActionListPage,
     HitlActionRecord,
     HitlActionStore,
+    HitlActionSummary,
+    _build_hitl_action_summary,
+    _filter_actions,
     build_hitl_action_cursor,
     decode_hitl_action_cursor,
 )
@@ -200,6 +203,66 @@ class PostgresHitlActionStore(HitlActionStore):
             has_more=has_more,
         )
 
+    def summarize_actions(
+        self,
+        *,
+        task_id: str | None = None,
+        decision: str | None = None,
+        status: str | None = None,
+        reviewer: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> HitlActionSummary:
+        if self._use_fallback:
+            filtered = _filter_actions(
+                self._actions.values(),
+                task_id=task_id,
+                decision=decision,
+                status=status,
+                reviewer=reviewer,
+                created_from=created_from,
+                created_to=created_to,
+            )
+            return _build_hitl_action_summary(filtered)
+
+        normalized_from = _to_utc(created_from) if created_from else None
+        normalized_to = _to_utc(created_to) if created_to else None
+
+        where_clauses = ["1=1"]
+        params: list[object] = []
+        if task_id:
+            where_clauses.append("task_id = %s")
+            params.append(task_id)
+        if decision:
+            where_clauses.append("decision = %s")
+            params.append(decision)
+        if status:
+            where_clauses.append("status = %s")
+            params.append(status)
+        if reviewer:
+            where_clauses.append("reviewer = %s")
+            params.append(reviewer)
+        if normalized_from:
+            where_clauses.append("created_at >= %s")
+            params.append(normalized_from)
+        if normalized_to:
+            where_clauses.append("created_at <= %s")
+            params.append(normalized_to)
+
+        query = f"""
+            SELECT action_id, task_id, iteration, decision, status, comment, reviewer, idempotency_key, metadata, created_at, updated_at
+            FROM {self._schema}.hitl_actions
+            WHERE {" AND ".join(where_clauses)}
+        """
+
+        psycopg, dict_row = _import_psycopg()
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, tuple(params))
+                rows = cur.fetchall()
+
+        return _build_hitl_action_summary([_row_to_hitl_action_record(row) for row in rows])
+
     def _list_actions_fallback(
         self,
         *,
@@ -213,30 +276,28 @@ class PostgresHitlActionStore(HitlActionStore):
         created_to: datetime | None,
     ) -> HitlActionListPage:
         cursor_payload = decode_hitl_action_cursor(cursor) if cursor else None
-        normalized_from = _to_utc(created_from) if created_from else None
-        normalized_to = _to_utc(created_to) if created_to else None
+        filtered = _filter_actions(
+            self._actions.values(),
+            task_id=task_id,
+            decision=decision,
+            status=status,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
 
-        filtered: list[HitlActionRecord] = []
-        for item in self._actions.values():
-            if task_id and item.task_id != task_id:
-                continue
-            if decision and item.decision != decision:
-                continue
-            if status and item.status != status:
-                continue
-            if reviewer and item.reviewer != reviewer:
-                continue
-            item_created_at = _to_utc(item.created_at or item.updated_at or datetime.min.replace(tzinfo=timezone.utc))
-            if normalized_from and item_created_at < normalized_from:
-                continue
-            if normalized_to and item_created_at > normalized_to:
-                continue
-            if cursor_payload and not (
-                item_created_at < cursor_payload.created_at
-                or (item_created_at == cursor_payload.created_at and item.action_id < cursor_payload.action_id)
-            ):
-                continue
-            filtered.append(item)
+        if cursor_payload:
+            filtered = [
+                item
+                for item in filtered
+                if _to_utc(item.created_at or item.updated_at or datetime.min.replace(tzinfo=timezone.utc))
+                < cursor_payload.created_at
+                or (
+                    _to_utc(item.created_at or item.updated_at or datetime.min.replace(tzinfo=timezone.utc))
+                    == cursor_payload.created_at
+                    and item.action_id < cursor_payload.action_id
+                )
+            ]
 
         ordered = sorted(
             filtered,

@@ -625,9 +625,19 @@ Third slice done:
 - targeted tests: `76 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `246 passed`.
 
+Fourth slice done:
+
+- добавлен shared helper `infra.logging.runtime` для one-line structured JSON logs на stdlib logging;
+- FastAPI endpoints, Celery worker tasks и `AuthoringApplicationService` теперь эмитят structured runtime events с `task_id`, `correlation_id`, `dispatch_id`, `queue_name`, `decision`, `iteration`;
+- `HitlActionStore` расширен агрегатами `summarize_actions(...)`, а API получил endpoint `GET /api/v1/hitl/observability/summary`;
+- async authoring smoke показывает reviewer/HITL observability summary рядом с existing task observability summary;
+- added ADR `0067-structured-logging-and-hitl-observability-summary.md`;
+- targeted tests: `75 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `252 passed`.
+
 Next slice:
 
-- закрыть structured JSON logging и расширить observability aggregates на reviewer/HITL activity.
+- прогнать полный gate, зафиксировать результат и после этого закрыть Increment 29.
 
 ## Increment 30: MCP + Production Boundary
 

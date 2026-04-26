@@ -843,6 +843,71 @@ def test_authoring_service_hitl_iterations_and_idempotency() -> None:
     assert "### Human Feedback" not in artifact.content
 
 
+def test_authoring_service_hitl_observability_summary() -> None:
+    task_service = TaskApplicationService(
+        registry=InMemoryTaskRegistry(),
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+    service = AuthoringApplicationService(
+        task_service=task_service,
+        retrieval_service=_FakeRetrievalService(),  # type: ignore[arg-type]
+        artifact_service=_FakeArtifactService(),  # type: ignore[arg-type]
+        task_artifact_registry=_InMemoryTaskArtifactRegistry(),  # type: ignore[arg-type]
+        hitl_max_iterations=2,
+    )
+    dispatcher = _build_inline_dispatcher(service)
+
+    started = service.start(
+        StartAuthoringTaskRequest(
+            query="hitl summary draft",
+            artifact_type="release_report",
+            artifact_title="Unit HITL Summary Draft",
+            artifact_format="markdown",
+            draft_strategy="deterministic",
+            workflow_mode="multi_step",
+            hitl_required=True,
+            task_context={"requester": "unit-test"},
+        )
+    )
+    assert started.status == "waiting_human"
+
+    first_submit = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="needs_changes",
+            comment="добавь approvals",
+            metadata={"reviewer": "unit"},
+            idempotency_key="summary-k-1",
+            expected_iteration=1,
+        ),
+        dispatcher=dispatcher,
+    )
+    assert first_submit.status == "waiting_human"
+
+    second_submit = service.submit_hitl(
+        started.task_id,
+        SubmitHitlReviewRequest(
+            decision="approve",
+            comment="теперь ок",
+            metadata={"reviewer": "unit"},
+            idempotency_key="summary-k-2",
+            expected_iteration=2,
+        ),
+        dispatcher=dispatcher,
+    )
+    assert second_submit.status == "completed"
+
+    summary = service.hitl_observability_summary(reviewer="unit")
+    assert summary.total_actions == 2
+    assert summary.unique_tasks == 1
+    assert summary.pending_actions == 0
+    assert summary.completed_actions == 2
+    assert summary.approve_total == 1
+    assert summary.needs_changes_total == 1
+    assert summary.max_iteration == 2
+    assert summary.reviewers[0].reviewer == "unit"
+
+
 def test_authoring_service_start_async_with_inline_dispatcher() -> None:
     task_service = TaskApplicationService(
         registry=InMemoryTaskRegistry(),

@@ -224,6 +224,15 @@ def main() -> None:
                 f"HITL actions history failed: code={hitl_actions_code}, payload={hitl_actions_payload}"
             )
 
+        hitl_summary_code, hitl_summary_payload = _request(
+            "GET",
+            f"{base_url}/api/v1/hitl/observability/summary?task_id={urllib.parse.quote(task_id)}",
+        )
+        if hitl_summary_code != 200:
+            raise RuntimeError(
+                f"HITL observability summary failed: status={hitl_summary_code}, payload={hitl_summary_payload}"
+            )
+
         observability_code, observability_payload = _request(
             "GET",
             f"{base_url}/api/v1/tasks/observability/summary?task_type=authoring_pack",
@@ -254,6 +263,10 @@ def main() -> None:
             "hitl_submits": hitl_submits,
             "hitl_actions_total": hitl_actions_payload.get("total_returned", 0),
             "hitl_actions_has_more": bool(hitl_actions_payload.get("has_more", False)),
+            "hitl_summary_total_actions": hitl_summary_payload.get("total_actions"),
+            "hitl_summary_pending_actions": hitl_summary_payload.get("pending_actions"),
+            "hitl_summary_decisions": hitl_summary_payload.get("decisions", []),
+            "hitl_summary_reviewers": hitl_summary_payload.get("reviewers", []),
             "artifact_id": artifact_payload.get("artifact_id") if artifact_code == 200 else None,
             "artifact_title": artifact_payload.get("title") if artifact_code == 200 else None,
             "workflow_mode": artifact_payload.get("metadata", {}).get("workflow_mode") if artifact_code == 200 else None,

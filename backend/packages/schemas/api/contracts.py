@@ -199,6 +199,50 @@ class HitlActionsResponse(BaseModel):
     has_more: bool = False
 
 
+class HitlActionStatusSummaryItem(BaseModel):
+    """Агрегированная запись по статусу reviewer actions."""
+
+    status: str
+    total: int
+
+
+class HitlDecisionSummaryItem(BaseModel):
+    """Агрегированная запись по reviewer decisions."""
+
+    decision: str
+    total: int
+
+
+class HitlReviewerSummaryItem(BaseModel):
+    """Агрегированная нагрузка по reviewer."""
+
+    reviewer: str
+    total: int
+    approve_total: int = 0
+    needs_changes_total: int = 0
+    reject_total: int = 0
+
+
+class HitlObservabilityResponse(BaseModel):
+    """Сводка reviewer/HITL activity поверх hitl_actions read-model."""
+
+    total_actions: int
+    unique_tasks: int
+    pending_actions: int = 0
+    queued_actions: int = 0
+    processing_actions: int = 0
+    completed_actions: int = 0
+    approve_total: int = 0
+    needs_changes_total: int = 0
+    reject_total: int = 0
+    avg_iteration: float | None = None
+    max_iteration: int | None = None
+    latest_action_at: datetime | None = None
+    statuses: list[HitlActionStatusSummaryItem] = Field(default_factory=list)
+    decisions: list[HitlDecisionSummaryItem] = Field(default_factory=list)
+    reviewers: list[HitlReviewerSummaryItem] = Field(default_factory=list)
+
+
 class HitlOutlineSectionResponse(BaseModel):
     """Секция outline snapshot для HITL authoring."""
 

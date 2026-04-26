@@ -14,9 +14,11 @@ from application.errors import (
     WorkflowExecutionError,
 )
 from apps.api.dependencies import ApiContainer, get_container
+from infra.logging import configure_runtime_logging, log_runtime_event
 from schemas.api.contracts import (
     EvidencePackResponse,
     HitlActionsResponse,
+    HitlObservabilityResponse,
     HitlReviewStatusResponse,
     ResumeTaskRequest,
     SubmitHitlReviewRequest,
@@ -38,6 +40,8 @@ from schemas.api.contracts import (
 )
 
 app = FastAPI(title="LangGraph Document AI API", version="0.1.0")
+
+_api_logger = configure_runtime_logging(service="api", component="http")
 
 
 @app.get("/health")
@@ -208,7 +212,19 @@ def start_retrieval_task(
     """Запускает retrieval workflow и возвращает task id."""
 
     try:
-        return container.retrieval_service.start(request)
+        response = container.retrieval_service.start(request)
+        log_runtime_event(
+            "api.retrieval_start",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="retrieval_pack",
+            query=request.query,
+            endpoint="/api/v1/tasks/retrieval/start",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -221,7 +237,19 @@ def start_retrieval_task_async(
     """Ставит retrieval workflow в async очередь."""
 
     try:
-        return container.retrieval_service.start_async(request, dispatcher=container.retrieval_dispatcher)
+        response = container.retrieval_service.start_async(request, dispatcher=container.retrieval_dispatcher)
+        log_runtime_event(
+            "api.retrieval_start_async",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="retrieval_pack",
+            query=request.query,
+            endpoint="/api/v1/tasks/retrieval/start_async",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -234,10 +262,22 @@ def start_knowledge_indexing_task(
     """Запускает canonical Knowledge Factory indexing как task lifecycle."""
 
     try:
-        return container.knowledge_indexing_service.start_task(
+        response = container.knowledge_indexing_service.start_task(
             request.source_paths,
             task_context=request.task_context,
         )
+        log_runtime_event(
+            "api.knowledge_indexing_start",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="knowledge_indexing",
+            source_paths_total=len(request.source_paths),
+            endpoint="/api/v1/tasks/knowledge-indexing/start",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -250,10 +290,22 @@ def start_knowledge_indexing_task_async(
     """Ставит canonical Knowledge Factory indexing в async очередь."""
 
     try:
-        return container.knowledge_indexing_service.start_task_async(
+        response = container.knowledge_indexing_service.start_task_async(
             request,
             dispatcher=container.knowledge_indexing_dispatcher,
         )
+        log_runtime_event(
+            "api.knowledge_indexing_start_async",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="knowledge_indexing",
+            source_paths_total=len(request.source_paths),
+            endpoint="/api/v1/tasks/knowledge-indexing/start_async",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -266,7 +318,21 @@ def start_authoring_task(
     """Запускает authoring workflow и возвращает task id."""
 
     try:
-        return container.authoring_service.start(request)
+        response = container.authoring_service.start(request)
+        log_runtime_event(
+            "api.authoring_start",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="authoring_pack",
+            query=request.query,
+            workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
+            endpoint="/api/v1/tasks/authoring/start",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -279,7 +345,21 @@ def start_authoring_task_async(
     """Ставит authoring workflow в async очередь и возвращает queued task id."""
 
     try:
-        return container.authoring_service.start_async(request, dispatcher=container.authoring_dispatcher)
+        response = container.authoring_service.start_async(request, dispatcher=container.authoring_dispatcher)
+        log_runtime_event(
+            "api.authoring_start_async",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=response.task_id,
+            status=response.status,
+            task_type="authoring_pack",
+            query=request.query,
+            workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
+            endpoint="/api/v1/tasks/authoring/start_async",
+        )
+        return response
     except WorkflowExecutionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -467,6 +547,28 @@ def get_hitl_actions(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
 
+@app.get("/api/v1/hitl/observability/summary", response_model=HitlObservabilityResponse)
+def get_hitl_observability_summary(
+    task_id: str | None = Query(default=None),
+    decision: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    reviewer: str | None = Query(default=None),
+    created_from: datetime | None = Query(default=None, alias="from"),
+    created_to: datetime | None = Query(default=None, alias="to"),
+    container: ApiContainer = Depends(get_container),
+) -> HitlObservabilityResponse:
+    """Возвращает агрегированную сводку reviewer/HITL activity."""
+
+    return container.authoring_service.hitl_observability_summary(
+        task_id=task_id,
+        decision=decision,
+        status=status_filter,
+        reviewer=reviewer,
+        created_from=created_from,
+        created_to=created_to,
+    )
+
+
 @app.post("/api/v1/tasks/{task_id}/hitl/submit", response_model=TaskStatusResponse)
 def submit_task_hitl(
     task_id: str,
@@ -476,11 +578,24 @@ def submit_task_hitl(
     """Принимает ручное решение reviewer и продолжает authoring flow."""
 
     try:
-        return container.authoring_service.submit_hitl(
+        response = container.authoring_service.submit_hitl(
             task_id,
             request,
             dispatcher=container.authoring_dispatcher,
         )
+        log_runtime_event(
+            "api.hitl_submit",
+            service="api",
+            component="http",
+            logger=_api_logger,
+            task_id=task_id,
+            status=response.status,
+            task_type="authoring_pack",
+            decision=request.decision,
+            reviewer=(request.metadata or {}).get("reviewer"),
+            endpoint=f"/api/v1/tasks/{task_id}/hitl/submit",
+        )
+        return response
     except TaskNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTaskStateError as exc:

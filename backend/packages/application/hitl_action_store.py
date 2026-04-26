@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import datetime, timezone
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
@@ -36,6 +36,50 @@ class HitlActionListPage(BaseModel):
     has_more: bool = False
 
 
+class HitlActionStatusStat(BaseModel):
+    """Агрегированная запись по статусу HITL action."""
+
+    status: str
+    total: int
+
+
+class HitlDecisionStat(BaseModel):
+    """Агрегированная запись по типу reviewer решения."""
+
+    decision: str
+    total: int
+
+
+class HitlReviewerStat(BaseModel):
+    """Агрегированная нагрузка по reviewer."""
+
+    reviewer: str
+    total: int
+    approve_total: int = 0
+    needs_changes_total: int = 0
+    reject_total: int = 0
+
+
+class HitlActionSummary(BaseModel):
+    """Dashboard-friendly сводка по reviewer/HITL activity."""
+
+    total_actions: int
+    unique_tasks: int
+    pending_actions: int = 0
+    queued_actions: int = 0
+    processing_actions: int = 0
+    completed_actions: int = 0
+    approve_total: int = 0
+    needs_changes_total: int = 0
+    reject_total: int = 0
+    avg_iteration: float | None = None
+    max_iteration: int | None = None
+    latest_action_at: datetime | None = None
+    statuses: list[HitlActionStatusStat] = Field(default_factory=list)
+    decisions: list[HitlDecisionStat] = Field(default_factory=list)
+    reviewers: list[HitlReviewerStat] = Field(default_factory=list)
+
+
 class HitlActionCursor(BaseModel):
     """Декодированное значение курсора HITL действий."""
 
@@ -66,6 +110,18 @@ class HitlActionStore(Protocol):
         created_to: datetime | None = None,
     ) -> HitlActionListPage:
         """Возвращает историю HITL действий по фильтрам."""
+
+    def summarize_actions(
+        self,
+        *,
+        task_id: str | None = None,
+        decision: str | None = None,
+        status: str | None = None,
+        reviewer: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> HitlActionSummary:
+        """Возвращает агрегированную сводку reviewer/HITL activity."""
 
 
 class InMemoryHitlActionStore(HitlActionStore):
@@ -104,28 +160,18 @@ class InMemoryHitlActionStore(HitlActionStore):
         created_to: datetime | None = None,
     ) -> HitlActionListPage:
         cursor_payload = decode_hitl_action_cursor(cursor) if cursor else None
-        normalized_from = _normalize_datetime(created_from) if created_from else None
-        normalized_to = _normalize_datetime(created_to) if created_to else None
+        filtered = _filter_actions(
+            self._actions.values(),
+            task_id=task_id,
+            decision=decision,
+            status=status,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
 
-        filtered: list[HitlActionRecord] = []
-        for item in self._actions.values():
-            if task_id and item.task_id != task_id:
-                continue
-            if decision and item.decision != decision:
-                continue
-            if status and item.status != status:
-                continue
-            if reviewer and item.reviewer != reviewer:
-                continue
-
-            item_created_at = _effective_hitl_timestamp(item)
-            if normalized_from and item_created_at < normalized_from:
-                continue
-            if normalized_to and item_created_at > normalized_to:
-                continue
-            if cursor_payload and not _is_before_cursor(item, cursor_payload):
-                continue
-            filtered.append(item)
+        if cursor_payload:
+            filtered = [item for item in filtered if _is_before_cursor(item, cursor_payload)]
 
         ordered = sorted(
             filtered,
@@ -143,6 +189,27 @@ class InMemoryHitlActionStore(HitlActionStore):
             next_cursor=next_cursor,
             has_more=has_more,
         )
+
+    def summarize_actions(
+        self,
+        *,
+        task_id: str | None = None,
+        decision: str | None = None,
+        status: str | None = None,
+        reviewer: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> HitlActionSummary:
+        filtered = _filter_actions(
+            self._actions.values(),
+            task_id=task_id,
+            decision=decision,
+            status=status,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return _build_hitl_action_summary(filtered)
 
 
 def build_hitl_action_cursor(action: HitlActionRecord) -> str:
@@ -203,3 +270,108 @@ def _is_before_cursor(action: HitlActionRecord, cursor: HitlActionCursor) -> boo
     if action_timestamp > cursor.created_at:
         return False
     return action.action_id < cursor.action_id
+
+
+def _filter_actions(
+    actions: list[HitlActionRecord] | tuple[HitlActionRecord, ...] | Any,
+    *,
+    task_id: str | None = None,
+    decision: str | None = None,
+    status: str | None = None,
+    reviewer: str | None = None,
+    created_from: datetime | None = None,
+    created_to: datetime | None = None,
+) -> list[HitlActionRecord]:
+    normalized_from = _normalize_datetime(created_from) if created_from else None
+    normalized_to = _normalize_datetime(created_to) if created_to else None
+
+    filtered: list[HitlActionRecord] = []
+    for item in actions:
+        if task_id and item.task_id != task_id:
+            continue
+        if decision and item.decision != decision:
+            continue
+        if status and item.status != status:
+            continue
+        if reviewer and item.reviewer != reviewer:
+            continue
+
+        item_created_at = _effective_hitl_timestamp(item)
+        if normalized_from and item_created_at < normalized_from:
+            continue
+        if normalized_to and item_created_at > normalized_to:
+            continue
+        filtered.append(item)
+    return filtered
+
+
+def _build_hitl_action_summary(actions: list[HitlActionRecord]) -> HitlActionSummary:
+    status_buckets: dict[str, int] = {}
+    decision_buckets: dict[str, int] = {}
+    reviewer_buckets: dict[str, dict[str, int | str]] = {}
+    iterations: list[int] = []
+    latest_action_at: datetime | None = None
+
+    for action in actions:
+        status_buckets[action.status] = status_buckets.get(action.status, 0) + 1
+        decision_buckets[action.decision] = decision_buckets.get(action.decision, 0) + 1
+        iterations.append(max(1, action.iteration))
+
+        action_timestamp = _effective_hitl_timestamp(action)
+        if latest_action_at is None or action_timestamp > latest_action_at:
+            latest_action_at = action_timestamp
+
+        reviewer_name = (action.reviewer or "unassigned").strip() or "unassigned"
+        reviewer_bucket = reviewer_buckets.setdefault(
+            reviewer_name,
+            {
+                "reviewer": reviewer_name,
+                "total": 0,
+                "approve_total": 0,
+                "needs_changes_total": 0,
+                "reject_total": 0,
+            },
+        )
+        reviewer_bucket["total"] = int(reviewer_bucket["total"]) + 1
+        if action.decision == "approve":
+            reviewer_bucket["approve_total"] = int(reviewer_bucket["approve_total"]) + 1
+        elif action.decision == "needs_changes":
+            reviewer_bucket["needs_changes_total"] = int(reviewer_bucket["needs_changes_total"]) + 1
+        elif action.decision == "reject":
+            reviewer_bucket["reject_total"] = int(reviewer_bucket["reject_total"]) + 1
+
+    statuses = [HitlActionStatusStat(status=name, total=total) for name, total in status_buckets.items()]
+    statuses.sort(key=lambda item: (-item.total, item.status))
+
+    decisions = [HitlDecisionStat(decision=name, total=total) for name, total in decision_buckets.items()]
+    decisions.sort(key=lambda item: (-item.total, item.decision))
+
+    reviewers = [
+        HitlReviewerStat(
+            reviewer=str(bucket["reviewer"]),
+            total=int(bucket["total"]),
+            approve_total=int(bucket["approve_total"]),
+            needs_changes_total=int(bucket["needs_changes_total"]),
+            reject_total=int(bucket["reject_total"]),
+        )
+        for bucket in reviewer_buckets.values()
+    ]
+    reviewers.sort(key=lambda item: (-item.total, item.reviewer))
+
+    return HitlActionSummary(
+        total_actions=len(actions),
+        unique_tasks=len({item.task_id for item in actions}),
+        pending_actions=status_buckets.get("queued", 0) + status_buckets.get("processing", 0),
+        queued_actions=status_buckets.get("queued", 0),
+        processing_actions=status_buckets.get("processing", 0),
+        completed_actions=status_buckets.get("completed", 0),
+        approve_total=decision_buckets.get("approve", 0),
+        needs_changes_total=decision_buckets.get("needs_changes", 0),
+        reject_total=decision_buckets.get("reject", 0),
+        avg_iteration=(sum(iterations) / len(iterations)) if iterations else None,
+        max_iteration=max(iterations) if iterations else None,
+        latest_action_at=latest_action_at,
+        statuses=statuses,
+        decisions=decisions,
+        reviewers=reviewers,
+    )

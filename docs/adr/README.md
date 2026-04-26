@@ -77,3 +77,4 @@
 - `0064-async-knowledge-indexing-execution-plane-first-slice.md`
 - `0065-async-retrieval-execution-plane-second-slice.md`
 - `0066-task-observability-summary-and-execution-metadata.md`
+- `0067-structured-logging-and-hitl-observability-summary.md`

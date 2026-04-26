@@ -1191,6 +1191,78 @@ def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> No
     assert actions_payload["items"][0]["decision"] == "approve"
 
 
+def test_hitl_observability_summary_endpoint_returns_aggregates(client: TestClient) -> None:
+    first_task_id = _create_authoring_task_async(client, hitl_required=True)
+
+    first_wait_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{first_task_id}")
+        assert response.status_code == 200
+        first_wait_payload = response.json()
+        if first_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert first_wait_payload["status"] == "waiting_human"
+
+    approve = client.post(
+        f"/api/v1/tasks/{first_task_id}/hitl/submit",
+        json={
+            "decision": "approve",
+            "comment": "integration reviewer approved",
+            "metadata": {"reviewer": "integration"},
+            "idempotency_key": "integration-summary-approve-1",
+            "expected_iteration": 1,
+        },
+    )
+    assert approve.status_code == 200
+
+    second_task_id = _create_authoring_task_async(client, hitl_required=True)
+    second_wait_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{second_task_id}")
+        assert response.status_code == 200
+        second_wait_payload = response.json()
+        if second_wait_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+    assert second_wait_payload["status"] == "waiting_human"
+
+    needs_changes = client.post(
+        f"/api/v1/tasks/{second_task_id}/hitl/submit",
+        json={
+            "decision": "needs_changes",
+            "comment": "добавь больше деталей",
+            "metadata": {"reviewer": "integration"},
+            "idempotency_key": "integration-summary-needs-changes-1",
+            "expected_iteration": 1,
+        },
+    )
+    assert needs_changes.status_code == 200
+
+    summary = client.get("/api/v1/hitl/observability/summary?reviewer=integration")
+    assert summary.status_code == 200
+    payload = summary.json()
+    assert payload["total_actions"] == 2
+    assert payload["unique_tasks"] == 2
+    assert payload["approve_total"] == 1
+    assert payload["needs_changes_total"] == 1
+    assert payload["pending_actions"] == 0
+    assert payload["completed_actions"] == 2
+    assert payload["max_iteration"] >= 1
+
+    statuses = {item["status"]: item["total"] for item in payload["statuses"]}
+    assert statuses["completed"] == 2
+
+    decisions = {item["decision"]: item["total"] for item in payload["decisions"]}
+    assert decisions["approve"] == 1
+    assert decisions["needs_changes"] == 1
+
+    reviewers = {item["reviewer"]: item for item in payload["reviewers"]}
+    assert reviewers["integration"]["total"] == 2
+    assert reviewers["integration"]["approve_total"] == 1
+    assert reviewers["integration"]["needs_changes_total"] == 1
+
+
 def test_authoring_hitl_iterative_needs_changes_flow(client: TestClient) -> None:
     task_id = _create_authoring_task_async(client, hitl_required=True)
 

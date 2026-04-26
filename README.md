@@ -51,6 +51,10 @@
   - текущие counts по статусам;
   - async/queue aggregates;
   - latency breakdown по `task_type`.
+- добавлен reviewer observability endpoint `GET /api/v1/hitl/observability/summary`:
+  - decision mix, pending/completed counts, `avg_iteration`, `max_iteration`;
+  - breakdown по reviewer load поверх existing `hitl_actions` read-model.
+- API, Celery worker и authoring/HITL orchestration теперь эмитят structured one-line JSON logs через `infra.logging.runtime`.
 - исправлен Linux demo-скрипт `backend/scripts/demo_saa_release_readiness_case.sh` (устранена ошибка парсинга JSON вывода smoke).
 - в `smoke_retrieval_api.sh` добавлен режим `--keep-server` для ручной post-smoke проверки API по `task_id`.
 - добавлен production checkpointer LangGraph поверх PostgreSQL (`PostgresLangGraphCheckpointer`) с подключением в runtime compile/invoke.
@@ -856,6 +860,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 - `total_returned`
 - `next_cursor`
 - `has_more`
+
+## Контракт GET /api/v1/hitl/observability/summary
+
+Параметры:
+
+- `task_id`
+- `decision`
+- `status`
+- `reviewer`
+- `from` / `to`
+
+Ответ:
+
+- `total_actions`, `unique_tasks`
+- `pending_actions`, `queued_actions`, `processing_actions`, `completed_actions`
+- `approve_total`, `needs_changes_total`, `reject_total`
+- `avg_iteration`, `max_iteration`, `latest_action_at`
+- `statuses[]`
+- `decisions[]`
+- `reviewers[]`
+
+Structured runtime logging:
+
+- API, Celery worker и authoring/HITL orchestration эмитят one-line JSON logs;
+- основные поля: `timestamp`, `level`, `service`, `component`, `event`, `task_id`, `task_type`, `correlation_id`, `dispatch_id`, `queue_name`, `decision`, `iteration`.
 
 ## MCP Контракты (MVP)
 

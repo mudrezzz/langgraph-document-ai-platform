@@ -207,6 +207,10 @@
   - отдельный adapter `PostgresHitlActionStore`;
   - reviewer действия сохраняются в таблицу `app.hitl_actions`;
   - history API `GET /api/v1/hitl/actions` поддерживает фильтры `task_id/decision/status/reviewer/from/to` и cursor pagination.
+- HITL observability and runtime logging:
+  - `HitlActionStore.summarize_actions(...)` строит reviewer aggregates поверх existing `app.hitl_actions`;
+  - API endpoint `GET /api/v1/hitl/observability/summary` отдает decision mix, pending/completed counts, iteration stats и reviewer load;
+  - shared helper `infra.logging.runtime` эмитит structured JSON logs в FastAPI, Celery worker и authoring/HITL orchestration paths.
 - document application layer:
   - `DocumentApplicationService` для операций repository домена;
   - list-операция в `PostgresDocumentRepository` (`limit/offset`) для MCP read-model.
@@ -303,11 +307,11 @@
 2. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
 3. Дорастить async execution до общего execution-plane (не только authoring).
 4. Дорастить ingestion до OCR/rich layout/table extraction и более строгих quality gates.
-5. Добавить агрегаты и аналитические read-model поверх reviewer действий (SLA, decisions, reviewer load).
+5. Дорастить reviewer observability от текущего summary endpoint до периодических SLA buckets и dashboard-oriented read models.
 6. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Завершить structured JSON logging и correlation propagation в API/worker/MCP runtime.
-2. Добавить observability aggregates по reviewer/HITL activity рядом с task execution summary.
+1. Закрыть полный gate и зафиксировать итог Increment 29.
+2. После этого перейти к MCP + production boundary slices следующего инкремента.
 3. Подготовить handoff к следующему increment production-boundary работ.

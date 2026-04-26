@@ -31,12 +31,17 @@ from application.hitl_action_store import HitlActionRecord, HitlActionStore, InM
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
 from framework.models.interfaces import IChatModelGateway
+from infra.logging import configure_runtime_logging, log_runtime_event
 from schemas.api.contracts import (
+    HitlActionStatusSummaryItem,
+    HitlActionsResponse,
+    HitlDecisionSummaryItem,
+    HitlObservabilityResponse,
     HitlOutlineResponse,
     HitlOutlineSectionResponse,
     HitlReviewActionResponse,
-    HitlActionsResponse,
     HitlReviewStatusResponse,
+    HitlReviewerSummaryItem,
     SubmitHitlReviewRequest,
     StartAuthoringTaskRequest,
     StartRetrievalTaskRequest,
@@ -160,9 +165,22 @@ class AuthoringApplicationService:
             section_authoring_service=self._section_authoring_service,
             section_review_service=self._section_review_service,
         )
+        self._logger = configure_runtime_logging(service="authoring", component="application")
 
     def start(self, request: StartAuthoringTaskRequest) -> StartTaskResponse:
         task = self._task_service.create_task(task_type="authoring_pack")
+        log_runtime_event(
+            "authoring.task_created",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task.task_id,
+            task_type=task.task_type,
+            correlation_id=task.details.get("correlation_id"),
+            workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
+            execution_mode=task.details.get("execution_mode", "sync"),
+        )
         return self.run_existing_task(task_id=task.task_id, request=request)
 
     def start_async(
@@ -217,6 +235,19 @@ class AuthoringApplicationService:
                 "hitl_required": request.hitl_required,
             },
         )
+        log_runtime_event(
+            "authoring.async_enqueued",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task.task_id,
+            task_type=task.task_type,
+            correlation_id=current.details.get("correlation_id"),
+            dispatch_id=dispatch_id,
+            queue_name=queue_name,
+            workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
+        )
         return StartTaskResponse(task_id=task.task_id, status="queued")
 
     def run_existing_task(self, *, task_id: str, request: StartAuthoringTaskRequest) -> StartTaskResponse:
@@ -236,6 +267,20 @@ class AuthoringApplicationService:
                 "hitl_required": request.hitl_required,
                 "started_at": datetime.now(timezone.utc).isoformat(),
             },
+        )
+        updated = self._task_service.get_task(task_id)
+        log_runtime_event(
+            "authoring.task_started",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=updated.task_type,
+            correlation_id=updated.details.get("correlation_id"),
+            dispatch_id=updated.details.get("dispatch_id"),
+            queue_name=updated.details.get("queue_name"),
+            workflow_mode=request.workflow_mode,
+            hitl_required=request.hitl_required,
         )
         return self._run_authoring_pipeline(task_id=task_id, request=request)
 
@@ -397,6 +442,20 @@ class AuthoringApplicationService:
                 state_payload=failed_state.model_dump(mode="json"),
                 error_message=str(exc),
             )
+            failed = self._task_service.get_task(task_id)
+            log_runtime_event(
+                "authoring.task_failed",
+                service="authoring",
+                component="application",
+                level="ERROR",
+                logger=self._logger,
+                task_id=task_id,
+                task_type=failed.task_type,
+                correlation_id=failed.details.get("correlation_id"),
+                dispatch_id=failed.details.get("dispatch_id"),
+                queue_name=failed.details.get("queue_name"),
+                error=str(exc),
+            )
             raise WorkflowExecutionError(str(exc)) from exc
 
     def hitl_status(self, task_id: str) -> HitlReviewStatusResponse:
@@ -463,6 +522,57 @@ class AuthoringApplicationService:
             total_returned=page.total_returned,
             next_cursor=page.next_cursor,
             has_more=page.has_more,
+        )
+
+    def hitl_observability_summary(
+        self,
+        *,
+        task_id: str | None = None,
+        decision: str | None = None,
+        status: str | None = None,
+        reviewer: str | None = None,
+        created_from: datetime | None = None,
+        created_to: datetime | None = None,
+    ) -> HitlObservabilityResponse:
+        """Возвращает агрегаты reviewer/HITL activity поверх existing hitl_actions read-model."""
+
+        summary = self._hitl_action_store.summarize_actions(
+            task_id=task_id,
+            decision=decision,
+            status=status,
+            reviewer=reviewer,
+            created_from=created_from,
+            created_to=created_to,
+        )
+        return HitlObservabilityResponse(
+            total_actions=summary.total_actions,
+            unique_tasks=summary.unique_tasks,
+            pending_actions=summary.pending_actions,
+            queued_actions=summary.queued_actions,
+            processing_actions=summary.processing_actions,
+            completed_actions=summary.completed_actions,
+            approve_total=summary.approve_total,
+            needs_changes_total=summary.needs_changes_total,
+            reject_total=summary.reject_total,
+            avg_iteration=summary.avg_iteration,
+            max_iteration=summary.max_iteration,
+            latest_action_at=summary.latest_action_at,
+            statuses=[
+                HitlActionStatusSummaryItem(status=item.status, total=item.total) for item in summary.statuses
+            ],
+            decisions=[
+                HitlDecisionSummaryItem(decision=item.decision, total=item.total) for item in summary.decisions
+            ],
+            reviewers=[
+                HitlReviewerSummaryItem(
+                    reviewer=item.reviewer,
+                    total=item.total,
+                    approve_total=item.approve_total,
+                    needs_changes_total=item.needs_changes_total,
+                    reject_total=item.reject_total,
+                )
+                for item in summary.reviewers
+            ],
         )
 
     def submit_hitl(
@@ -549,6 +659,20 @@ class AuthoringApplicationService:
                 "hitl_decision_requested": request.decision,
             },
         )
+        log_runtime_event(
+            "authoring.hitl_submit_queued",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=task.task_type,
+            correlation_id=task.details.get("correlation_id"),
+            queue_name=getattr(dispatcher, "queue_name", task.details.get("queue_name")),
+            decision=request.decision,
+            iteration=current_iteration,
+            action_id=action_id,
+            reviewer=(request.metadata or {}).get("reviewer"),
+        )
 
         try:
             dispatch_id = dispatcher.enqueue_hitl_action(
@@ -580,6 +704,21 @@ class AuthoringApplicationService:
                 pending_action_id=None,
                 pending_reason="Ошибка постановки HITL continuation в очередь. Повторите submit.",
             )
+            log_runtime_event(
+                "authoring.hitl_submit_dispatch_failed",
+                service="authoring",
+                component="application",
+                level="ERROR",
+                logger=self._logger,
+                task_id=task_id,
+                task_type=task.task_type,
+                correlation_id=task.details.get("correlation_id"),
+                queue_name=getattr(dispatcher, "queue_name", task.details.get("queue_name")),
+                decision=request.decision,
+                iteration=current_iteration,
+                action_id=action_id,
+                error=str(exc),
+            )
             raise WorkflowExecutionError(f"Не удалось поставить HITL continuation в очередь: {exc}") from exc
 
         current = self._task_service.get_task(task_id)
@@ -587,6 +726,20 @@ class AuthoringApplicationService:
             updated = self._task_service.update_task(
                 task_id,
                 details={**current.details, "hitl_dispatch_id": dispatch_id, "queue_name": getattr(dispatcher, "queue_name", current.details.get("queue_name", "inline"))},
+            )
+            log_runtime_event(
+                "authoring.hitl_submit_dispatched",
+                service="authoring",
+                component="application",
+                logger=self._logger,
+                task_id=task_id,
+                task_type=task.task_type,
+                correlation_id=updated.details.get("correlation_id"),
+                dispatch_id=dispatch_id,
+                queue_name=updated.details.get("queue_name"),
+                decision=request.decision,
+                iteration=current_iteration,
+                action_id=action_id,
             )
             return TaskStatusResponse(
                 task_id=updated.task_id,
@@ -670,6 +823,21 @@ class AuthoringApplicationService:
                     "hitl_pending_action_id": action_id,
                 },
             )
+        log_runtime_event(
+            "authoring.hitl_action_processing",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=task.task_type,
+            correlation_id=current_before.details.get("correlation_id"),
+            dispatch_id=current_before.details.get("hitl_dispatch_id"),
+            queue_name=current_before.details.get("queue_name"),
+            decision=request.decision,
+            iteration=state.hitl_iteration,
+            action_id=action_id,
+            reviewer=(request.metadata or {}).get("reviewer"),
+        )
 
         if request.decision == "reject":
             failed_actions = self._update_hitl_action(
@@ -693,6 +861,22 @@ class AuthoringApplicationService:
                 error_message=request.comment or "Ручной reviewer отклонил задачу",
             )
             failed = self._task_service.get_task(task_id)
+            log_runtime_event(
+                "authoring.hitl_action_rejected",
+                service="authoring",
+                component="application",
+                level="WARNING",
+                logger=self._logger,
+                task_id=task_id,
+                task_type=task.task_type,
+                correlation_id=failed.details.get("correlation_id"),
+                dispatch_id=failed.details.get("hitl_dispatch_id"),
+                queue_name=failed.details.get("queue_name"),
+                decision=request.decision,
+                iteration=state.hitl_iteration,
+                action_id=action_id,
+                reviewer=(request.metadata or {}).get("reviewer"),
+            )
             return TaskStatusResponse(
                 task_id=failed.task_id,
                 status=failed.status,
@@ -738,6 +922,23 @@ class AuthoringApplicationService:
                     pending_reason=request.comment or "Outline требует доработки evidence/template inputs перед authoring.",
                 )
                 waiting_task = self._task_service.get_task(task_id)
+                log_runtime_event(
+                    "authoring.hitl_action_needs_changes",
+                    service="authoring",
+                    component="application",
+                    logger=self._logger,
+                    task_id=task_id,
+                    task_type=task.task_type,
+                    correlation_id=waiting_task.details.get("correlation_id"),
+                    dispatch_id=waiting_task.details.get("hitl_dispatch_id"),
+                    queue_name=waiting_task.details.get("queue_name"),
+                    decision=request.decision,
+                    iteration=processing_state.hitl_iteration,
+                    next_iteration=waiting_task.details.get("hitl_iteration"),
+                    action_id=action_id,
+                    reviewer=(request.metadata or {}).get("reviewer"),
+                    phase=processing_state.hitl_phase,
+                )
                 return TaskStatusResponse(
                     task_id=waiting_task.task_id,
                     status=waiting_task.status,
@@ -846,6 +1047,22 @@ class AuthoringApplicationService:
                 pending_action_id=None,
             )
             waiting_task = self._task_service.get_task(task_id)
+            log_runtime_event(
+                "authoring.hitl_action_rewrite_completed",
+                service="authoring",
+                component="application",
+                logger=self._logger,
+                task_id=task_id,
+                task_type=task.task_type,
+                correlation_id=waiting_task.details.get("correlation_id"),
+                dispatch_id=waiting_task.details.get("hitl_dispatch_id"),
+                queue_name=waiting_task.details.get("queue_name"),
+                decision=request.decision,
+                iteration=processing_state.hitl_iteration,
+                next_iteration=waiting_task.details.get("hitl_iteration"),
+                action_id=action_id,
+                reviewer=(request.metadata or {}).get("reviewer"),
+            )
             return TaskStatusResponse(
                 task_id=waiting_task.task_id,
                 status=waiting_task.status,
@@ -1079,6 +1296,22 @@ class AuthoringApplicationService:
                 "steps_summary": [step.model_dump(mode="json") for step in steps],
             },
         )
+        completed_task = self._task_service.get_task(task_id)
+        log_runtime_event(
+            "authoring.task_completed",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=completed_task.task_type,
+            correlation_id=completed_task.details.get("correlation_id"),
+            dispatch_id=completed_task.details.get("dispatch_id"),
+            queue_name=completed_task.details.get("queue_name"),
+            artifact_id=artifact.artifact_id,
+            retrieval_task_id=retrieval_task_id,
+            hitl_required=request.hitl_required,
+            workflow_mode=request.workflow_mode,
+        )
         return StartTaskResponse(task_id=task_id, status="completed")
 
     def _finalize_from_hitl(
@@ -1185,6 +1418,23 @@ class AuthoringApplicationService:
             },
         )
         task = self._task_service.get_task(task_id)
+        log_runtime_event(
+            "authoring.task_completed",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=task.task_type,
+            correlation_id=task.details.get("correlation_id"),
+            dispatch_id=task.details.get("hitl_dispatch_id") or task.details.get("dispatch_id"),
+            queue_name=task.details.get("queue_name"),
+            artifact_id=artifact.artifact_id,
+            retrieval_task_id=state.retrieval_task_id,
+            hitl_required=True,
+            workflow_mode=state.workflow_mode,
+            hitl_decision=decision,
+            hitl_iteration=state.hitl_iteration,
+        )
         return TaskStatusResponse(
             task_id=task.task_id,
             status=task.status,
@@ -1235,6 +1485,23 @@ class AuthoringApplicationService:
                 "final_recommendation": waiting_state.review_result.get("recommendation"),
                 "steps_summary": waiting_state.steps_summary,
             },
+        )
+        current = self._task_service.get_task(task_id)
+        log_runtime_event(
+            "authoring.hitl_waiting_human",
+            service="authoring",
+            component="application",
+            logger=self._logger,
+            task_id=task_id,
+            task_type=current.task_type,
+            correlation_id=current.details.get("correlation_id"),
+            queue_name=current.details.get("queue_name"),
+            pending_action_id=pending_action_id,
+            pending_reason=resolved_pending_reason,
+            iteration=iteration,
+            max_iterations=max_iterations,
+            deadline_at=deadline_at.isoformat(),
+            phase=waiting_state.hitl_phase,
         )
 
     def _parse_datetime(self, raw: Any) -> datetime | None:

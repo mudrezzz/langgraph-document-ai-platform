@@ -604,6 +604,7 @@ bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 -
 - `traceability_sections >= 3`;
 - `hitl_submit_count=2`;
 - `hitl_actions_total=2` (проверка нового read-model endpoint `/api/v1/hitl/actions`).
+- `hitl_summary_total_actions=2`, `hitl_summary_pending_actions=0` и в `hitl_summary_decisions` видны `needs_changes` и `approve` (проверка `/api/v1/hitl/observability/summary`).
 
 Как интерпретировать:
 
