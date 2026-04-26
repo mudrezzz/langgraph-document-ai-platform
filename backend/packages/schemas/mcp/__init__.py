@@ -35,6 +35,16 @@ from schemas.mcp.template_library import (
     TemplateLibraryMcpUpsertTemplateInput,
     TemplateLibraryMcpUpsertTemplateOutput,
 )
+from schemas.mcp.review_approval import (
+    ReviewApprovalMcpGetHitlObservabilitySummaryInput,
+    ReviewApprovalMcpGetHitlObservabilitySummaryOutput,
+    ReviewApprovalMcpGetHitlStatusInput,
+    ReviewApprovalMcpGetHitlStatusOutput,
+    ReviewApprovalMcpListHitlActionsInput,
+    ReviewApprovalMcpListHitlActionsOutput,
+    ReviewApprovalMcpSubmitHitlReviewInput,
+    ReviewApprovalMcpSubmitHitlReviewOutput,
+)
 
 __all__ = [
     "ArtifactWriterMcpWriteArtifactInput",
@@ -66,4 +76,12 @@ __all__ = [
     "TemplateLibraryMcpPublishTemplateOutput",
     "TemplateLibraryMcpTemplateItem",
     "TemplateLibraryMcpListTemplatesOutput",
+    "ReviewApprovalMcpGetHitlStatusInput",
+    "ReviewApprovalMcpGetHitlStatusOutput",
+    "ReviewApprovalMcpListHitlActionsInput",
+    "ReviewApprovalMcpListHitlActionsOutput",
+    "ReviewApprovalMcpSubmitHitlReviewInput",
+    "ReviewApprovalMcpSubmitHitlReviewOutput",
+    "ReviewApprovalMcpGetHitlObservabilitySummaryInput",
+    "ReviewApprovalMcpGetHitlObservabilitySummaryOutput",
 ]

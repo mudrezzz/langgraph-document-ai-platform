@@ -24,6 +24,7 @@
 - `backend/scripts/demo_release_authoring_traceability_case.sh`
 - `backend/scripts/smoke_authoring_async_api.sh`
 - `backend/scripts/demo_release_authoring_async_hitl_case.sh`
+- `backend/scripts/smoke_review_approval_mcp.sh`
 
 Минимальный критерий: после каждого backend-инкремента demo показывает связку `input documents -> retrieval/evidence -> authoring artifact -> traceability -> task events -> HITL/read-model`, если изменяемый слой влияет на этот путь.
 
@@ -558,7 +559,7 @@ Next increment:
 
 ## Increment 29: Unified Execution Plane + Observability
 
-Статус: In Progress.
+Статус: Done.
 
 Цель: сделать async execution и observability общими для всех long-running workflows.
 
@@ -635,11 +636,13 @@ Fourth slice done:
 - targeted tests: `75 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `252 passed`.
 
-Next slice:
+Increment closed:
 
-- прогнать полный gate, зафиксировать результат и после этого закрыть Increment 29.
+- полный gate with Docker async e2e and OpenRouter external LLM enabled: `252 passed`.
 
 ## Increment 30: MCP + Production Boundary
+
+Статус: In Progress.
 
 Цель: довести service boundary до production-like состояния.
 
@@ -672,6 +675,24 @@ Definition of Done:
 - MCP слой покрывает минимальный целевой набор;
 - operational runbook достаточен для stage/prod rehearsal;
 - service contracts не требуют knowledge of internal state payload.
+
+First slice done:
+
+- добавлен Review/Approval MCP boundary:
+  - `backend/apps/mcp_review_approval/main.py`;
+  - `backend/packages/infra/fastmcp/review_approval_service.py`;
+  - `backend/packages/schemas/mcp/review_approval.py`;
+- MCP tools покрывают reviewer/HITL manual operations без доступа к internal state payload:
+  - `get_hitl_status`;
+  - `list_hitl_actions`;
+  - `submit_hitl_review`;
+  - `get_hitl_observability_summary`;
+- boundary переиспользует existing `AuthoringApplicationService`, `PostgresHitlActionStore` и existing async dispatcher plane, без новой review-specific архитектуры;
+- добавлены operational scripts `run_review_approval_mcp.sh/.ps1` и `smoke_review_approval_mcp.sh/.ps1`;
+- добавлен ADR `0068-review-approval-mcp-boundary.md`;
+- targeted MCP/authoring/API tests: `78 passed`;
+- manual smoke Review/Approval MCP: passed;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `259 passed`.
 
 ## Increment 31: Knowledge Factory Hardening
 

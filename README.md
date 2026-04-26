@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 29`.
+Текущий инкремент: `Increment 30`.
 
 Сделано:
 
@@ -108,6 +108,11 @@
   - скрипты `run_template_library_mcp.sh/.ps1` и `smoke_template_library_mcp.sh/.ps1`.
   - reusable templates получили lifecycle `draft|published|deprecated|archived`, explicit status-transition path и governance metadata/history;
   - authoring по умолчанию резолвит только published template, explicit archived version для authoring запрещена.
+- добавлен Review/Approval MCP boundary:
+  - `apps/mcp_review_approval/main.py`;
+  - `FastMcpReviewApprovalService` с tool-ами `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
+  - скрипты `run_review_approval_mcp.sh/.ps1` и `smoke_review_approval_mcp.sh/.ps1`;
+  - boundary переиспользует existing `AuthoringApplicationService`, `PostgresHitlActionStore` и existing async dispatcher plane без отдельного review-specific runtime stack.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -206,6 +211,7 @@ backend/
     mcp_repository/
     mcp_retrieval/
     mcp_template_library/
+    mcp_review_approval/
     worker/
   examples/
     cases/
@@ -415,19 +421,45 @@ bash ./backend/scripts/smoke_template_library_mcp.sh
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_template_library_mcp.ps1
 ```
 
-26. Smoke Authoring API (Linux):
+26. Запуск Review/Approval MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_review_approval_mcp.sh
+```
+
+27. Запуск Review/Approval MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_review_approval_mcp.ps1
+```
+
+28. Smoke Review/Approval MCP (Linux):
+
+```bash
+bash ./backend/scripts/smoke_review_approval_mcp.sh
+```
+
+29. Smoke Review/Approval MCP (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_review_approval_mcp.ps1
+```
+
+30. Smoke Authoring API (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
 ```
 
-27. Smoke Authoring API (Windows):
+31. Smoke Authoring API (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030 -WorkflowMode multi_step
 ```
 
-28. Smoke Authoring API c обязательной LLM-генерацией (Linux):
+32. Smoke Authoring API c обязательной LLM-генерацией (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -435,25 +467,25 @@ APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
-29. Demo Authoring + Traceability (Linux):
+33. Demo Authoring + Traceability (Linux):
 
 ```bash
 bash ./backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.1 --port 8040
 ```
 
-30. Demo Authoring + Traceability (Windows):
+34. Demo Authoring + Traceability (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_authoring_traceability_case.ps1 -HostName 127.0.0.1 -Port 8040
 ```
 
-31. Поднять Redis + Celery worker (Linux):
+35. Поднять Redis + Celery worker (Linux):
 
 ```bash
 bash ./backend/scripts/async_up.sh
 ```
 
-32. Smoke Async Authoring API + HITL (Linux):
+36. Smoke Async Authoring API + HITL (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -464,7 +496,7 @@ APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
 
-33. Demo Async Authoring + HITL (Linux):
+37. Demo Async Authoring + HITL (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -475,43 +507,43 @@ APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision-sequence needs_changes,approve
 ```
 
-34. Остановить Redis + Celery worker (Linux):
+38. Остановить Redis + Celery worker (Linux):
 
 ```bash
 bash ./backend/scripts/async_down.sh
 ```
 
-35. Smoke Knowledge Indexing (Linux):
+39. Smoke Knowledge Indexing (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 ```
 
-36. Smoke Knowledge Indexing (Windows):
+40. Smoke Knowledge Indexing (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing.ps1 -BuildBinaryDemoDocs
 ```
 
-37. Smoke Canonical Retrieval (Linux):
+41. Smoke Canonical Retrieval (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
-38. Smoke Canonical Retrieval (Windows):
+42. Smoke Canonical Retrieval (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_canonical_retrieval.ps1 -BuildBinaryDemoDocs
 ```
 
-33. Smoke Knowledge Indexing API task lifecycle (Linux):
+43. Smoke Knowledge Indexing API task lifecycle (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 ```
 
-34. Smoke Knowledge Indexing API task lifecycle (Windows):
+44. Smoke Knowledge Indexing API task lifecycle (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_knowledge_indexing_api.ps1 -BuildBinaryDemoDocs
@@ -901,6 +933,9 @@ Structured runtime logging:
 - Template Library MCP:
   - tools `upsert_template`, `publish_template`, `set_template_status`, `get_template`, `list_templates`;
   - схемы `backend/packages/schemas/mcp/template_library.py`.
+- Review/Approval MCP:
+  - tools `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
+  - схемы `backend/packages/schemas/mcp/review_approval.py`.
 
 ## Knowledge Factory MVP
 

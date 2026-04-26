@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-26
-Статус: Increment 29
+Статус: Increment 30
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 29)
+## 2. Текущая реализация (Increment 30)
 
 Реализовано:
 
@@ -165,6 +165,11 @@
   - сервис `FastMcpTemplateLibraryService`;
   - MCP tools: `upsert_template`, `publish_template`, `set_template_status`, `get_template`, `list_templates`;
   - сервис использует existing `TemplateLibraryApplicationService` без отдельного template-specific runtime stack.
+- Review/Approval MCP boundary:
+  - app entrypoint `apps/mcp_review_approval/main.py`;
+  - сервис `FastMcpReviewApprovalService`;
+  - MCP tools: `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
+  - boundary использует existing `AuthoringApplicationService`, existing HITL read-model и existing async dispatcher plane без отдельного reviewer-specific runtime stack.
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
@@ -271,6 +276,8 @@
   - `docs/adr/0064-async-knowledge-indexing-execution-plane-first-slice.md`.
   - `docs/adr/0065-async-retrieval-execution-plane-second-slice.md`.
   - `docs/adr/0066-task-observability-summary-and-execution-metadata.md`.
+  - `docs/adr/0067-structured-logging-and-hitl-observability-summary.md`.
+  - `docs/adr/0068-review-approval-mcp-boundary.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;
@@ -291,13 +298,13 @@
 
 ## 3. Архитектурные ограничения текущей версии
 
-- MCP-контур включает Retrieval/Repository/Artifact Writer/Template Library MCP, но пока без unified auth/rate-limit/observability политик;
+- MCP-контур включает Retrieval/Repository/Artifact Writer/Template Library/Review Approval MCP, но пока без unified auth/rate-limit/observability политик;
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
 - `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary, closed template governance lifecycle (`draft|published|deprecated|archived`) и exclusive published-version policy для templates;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
-- async контур есть только для authoring (остальные long-running задачи пока в sync path);
+- async execution plane уже покрывает authoring, retrieval и knowledge indexing, но пока без общего policy слоя для остальных production workflows;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
 
@@ -312,6 +319,6 @@
 
 ## 5. План следующего инкремента
 
-1. Закрыть полный gate и зафиксировать итог Increment 29.
-2. После этого перейти к MCP + production boundary slices следующего инкремента.
-3. Подготовить handoff к следующему increment production-boundary работ.
+1. Продолжить Increment 30 после Review/Approval MCP следующими slices production-boundary.
+2. Добавить Configuration Library MCP skeleton и унифицировать MCP policies.
+3. Подготовить production runbook/handoff для следующего increment production-boundary работ.

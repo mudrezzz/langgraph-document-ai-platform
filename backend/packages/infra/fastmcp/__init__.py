@@ -8,6 +8,10 @@ from infra.fastmcp.template_library_service import (
     FastMcpTemplateLibraryService,
     create_fastmcp_template_library_server,
 )
+from infra.fastmcp.review_approval_service import (
+    FastMcpReviewApprovalService,
+    create_fastmcp_review_approval_server,
+)
 
 __all__ = [
     "FastMcpRetrievalService",
@@ -18,4 +22,6 @@ __all__ = [
     "create_fastmcp_artifact_writer_server",
     "FastMcpTemplateLibraryService",
     "create_fastmcp_template_library_server",
+    "FastMcpReviewApprovalService",
+    "create_fastmcp_review_approval_server",
 ]

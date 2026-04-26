@@ -367,6 +367,45 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_template_library_mcp.sh
 - доступны tools `upsert_template`, `publish_template`, `set_template_status`, `get_template`, `list_templates`;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
+## 13.2.1. Smoke Review/Approval MCP (reviewer/HITL tools)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_review_approval_mcp.sh
+```
+
+Что увидеть в JSON:
+
+- `tool_names` содержит `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
+- `start_status=waiting_human`;
+- `hitl_status_before=waiting_human`;
+- `can_submit_before=true`;
+- `submit_status=completed|queued|waiting_human`;
+- `actions_after >= 1`;
+- `summary_total_actions >= 1`;
+- `summary_reviewers` содержит переданного reviewer.
+
+Как интерпретировать:
+
+- это подтверждает, что reviewer/HITL manual boundary доступен через MCP service слой, а не только через HTTP API;
+- `submit_hitl_review` использует тот же `AuthoringApplicationService.submit_hitl(...)` и тот же async dispatcher plane, что и HTTP submit path;
+- `get_hitl_status`, `list_hitl_actions` и `get_hitl_observability_summary` читают existing HITL read-model без отдельной параллельной persistence ветки.
+
+## 13.2.2. (Опционально) Проверка Review/Approval MCP runtime
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_review_approval_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис `review-approval-mcp` стартует без ошибки импорта;
+- доступны tools `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
 ## 13.3. Smoke Knowledge Indexing
 
 Этот smoke проверяет реальный вход demo-кейса:
