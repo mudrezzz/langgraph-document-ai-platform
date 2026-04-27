@@ -72,15 +72,17 @@ def test_canonical_parser_doc_id_is_stable_for_relative_and_absolute_paths(
 def test_canonical_parser_parses_release_demo_directory() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
+    pytest.importorskip("openpyxl")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     documents = CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway()).parse_dir(dataset_dir)
 
-    assert len(documents) == 7
-    assert {document.file_type for document in documents} == {"docx", "json", "md", "pdf", "txt"}
+    assert len(documents) == 8
+    assert {document.file_type for document in documents} == {"docx", "json", "md", "pdf", "txt", "xlsx"}
     assert sum(len(document.content_blocks) for document in documents) >= 8
     assert any(document.parser_quality.parser_family == "docx" for document in documents)
     assert any(document.parser_quality.parser_family == "pdf" for document in documents)
+    assert any(document.parser_quality.parser_family == "xlsx" for document in documents)
 
 
 def test_canonical_parser_reports_docx_table_quality_flags(tmp_path: Path) -> None:
@@ -151,6 +153,57 @@ def test_canonical_parser_detects_docx_lists_and_appendix(tmp_path: Path) -> Non
     assert parsed.parser_quality.lists_total >= 1
     assert "appendix_section_detected" in parsed.quality_flags
     assert any(block.block_type == "bullet" for block in parsed.content_blocks)
+
+
+def test_canonical_parser_extracts_xlsx_sheet_tables(tmp_path: Path) -> None:
+    pytest.importorskip("openpyxl")
+    from openpyxl import Workbook
+
+    source = tmp_path / "release_tracker.xlsx"
+    workbook = Workbook()
+    tracker = workbook.active
+    tracker.title = "Approval Tracker"
+    tracker.append(["Check", "Owner", "Status"])
+    tracker.append(["Customer notification", "Product Owner", "APPROVED"])
+    risks = workbook.create_sheet("Risk Register")
+    risks.append(["Risk", "Severity"])
+    risks.append(["Approval lag", "high"])
+    workbook.save(source)
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert parsed.file_type == "xlsx"
+    assert parsed.parser_quality.parser_family == "xlsx"
+    assert parsed.parser_quality.tables_total == 2
+    assert parsed.parser_quality.headings_total == 2
+    assert "xlsx_tables_detected" in parsed.quality_flags
+    assert "xlsx_workbook_detected" in parsed.quality_flags
+    assert len(parsed.extracted_tables) == 2
+    assert parsed.extracted_tables[0].title == "Approval Tracker"
+    assert parsed.extracted_tables[0].metadata["sheet_name"] == "Approval Tracker"
+    first_row = next(block for block in parsed.content_blocks if block.block_type == "table_row")
+    assert first_row.heading_path == ["Approval Tracker"]
+    assert first_row.metadata["sheet_name"] == "Approval Tracker"
+    assert first_row.metadata["table_id"] == "XLSX-T-1"
+
+
+def test_canonical_parser_reports_missing_xlsx_dependency_when_needed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "openpyxl":
+            raise ImportError("openpyxl unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    source = tmp_path / "sample.xlsx"
+    source.write_bytes(b"not-a-real-xlsx")
+
+    with pytest.raises(RuntimeError, match="openpyxl"):
+        CanonicalDocumentParser().parse_path(source)
 
 
 def test_canonical_parser_reports_empty_pdf_as_ocr_candidate(tmp_path: Path) -> None:

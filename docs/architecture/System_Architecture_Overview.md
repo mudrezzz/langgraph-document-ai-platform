@@ -77,6 +77,12 @@
   - canonical retrieval/detail candidates отдают `source_kind`, `table_id`, `table_title`, `table_columns`, `row_index`, `row_values`;
   - `lookup_source` возвращает typed source provenance и table payload для table-backed evidence;
   - release readiness report показывает table-aware canonical source mapping для evidence, пришедшего из approval matrix.
+- Knowledge Factory Hardening / XLSX parser slice:
+  - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
+  - workbook sheets становятся structural sections/heading path источником;
+  - табличные листы извлекаются в canonical `extracted_tables`;
+  - строки sheet tables попадают в retrieval corpus как `table_row` blocks;
+  - multifile demo input расширен `08_release_tracker.xlsx` для ручной проверки Excel ingestion path.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;

@@ -321,7 +321,7 @@ def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: 
 
     assert status_payload["status"] == "completed"
     assert status_payload["details"]["execution_mode"] == "async"
-    assert status_payload["details"]["documents_total"] == 7
+    assert status_payload["details"]["documents_total"] == 8
     assert status_payload["details"]["stored_blocks_total"] >= 8
 
     summary_payload: dict = {}

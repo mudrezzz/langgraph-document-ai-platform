@@ -16,7 +16,7 @@ from schemas.documents.contracts import (
     ParserQualitySummary,
 )
 
-_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf"}
+_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf", ".xlsx"}
 _HEADING_RE = re.compile(r"^\s*(#{1,6})\s+(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+(.+?)\s*$")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -58,6 +58,11 @@ class CanonicalDocumentParser:
             parser_family = "json"
             extraction_mode = "structured"
             blocks, structure = self._parse_json(raw_text, quality_flags=quality_flags, metrics=metrics)
+        elif extension == ".xlsx":
+            parser_family = "xlsx"
+            extraction_mode = "structured"
+            blocks, structure, tables = self._parse_xlsx(path, quality_flags=quality_flags, metrics=metrics)
+            raw_text = "\n".join(block.text for block in blocks)
         elif extension == ".docx":
             parser_family = "docx"
             extraction_mode = "structured"
@@ -319,6 +324,87 @@ class CanonicalDocumentParser:
             root.block_ids = [block.block_id for block in blocks]
         return blocks, root, tables
 
+    def _parse_xlsx(
+        self,
+        path: Path,
+        *,
+        quality_flags: list[str],
+        metrics: dict[str, int | None],
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode, list[CanonicalTable]]:
+        try:
+            from openpyxl import load_workbook
+        except Exception as exc:  # pragma: no cover - depends on optional runtime package
+            raise RuntimeError("Для XLSX parsing требуется зависимость openpyxl") from exc
+
+        workbook = load_workbook(filename=str(path), data_only=True)
+        root = CanonicalStructureNode(node_id="root", title="XLSX Workbook", level=0)
+        blocks: list[CanonicalContentBlock] = []
+        tables: list[CanonicalTable] = []
+        sheet_headings_total = 0
+        table_index = 0
+
+        for sheet in workbook.worksheets:
+            rows = [
+                [_normalize_text("" if cell is None else str(cell)) for cell in row]
+                for row in sheet.iter_rows(values_only=True)
+            ]
+            rows = [row for row in rows if any(cell for cell in row)]
+            if not rows:
+                continue
+
+            sheet_headings_total += 1
+            sheet_node = CanonicalStructureNode(
+                node_id=f"sheet-{sheet_headings_total}",
+                title=sheet.title,
+                level=1,
+            )
+            root.children.append(sheet_node)
+            current_heading_path = [sheet.title]
+
+            header = rows[0]
+            data_rows = rows[1:] if len(rows) > 1 else []
+            if not any(header):
+                header = [f"column_{index + 1}" for index in range(len(rows[0]))]
+
+            if data_rows:
+                quality_flags.append("xlsx_tables_detected")
+                table_index += 1
+                metrics["tables_total"] = int(metrics.get("tables_total", 0) or 0) + 1
+                parsed_table = _build_tabular_content(
+                    header=header,
+                    data_rows=data_rows,
+                    table_id=f"XLSX-T-{table_index}",
+                    title=sheet.title,
+                    heading_path=current_heading_path,
+                    block_index_start=len(blocks) + 1,
+                    table_metadata={"sheet_name": sheet.title, "sheet_index": sheet_headings_total},
+                    block_metadata={"sheet_name": sheet.title},
+                )
+                tables.append(parsed_table.table)
+                blocks.extend(parsed_table.blocks)
+                sheet_node.block_ids.extend(block.block_id for block in parsed_table.blocks)
+            else:
+                for row in rows:
+                    text = _normalize_text("; ".join(cell for cell in row if cell))
+                    if not text:
+                        continue
+                    block = _build_block(
+                        text=text,
+                        block_type="paragraph",
+                        index=len(blocks) + 1,
+                        heading_path=current_heading_path,
+                        metadata={"sheet_name": sheet.title},
+                    )
+                    blocks.append(block)
+                    sheet_node.block_ids.append(block.block_id)
+
+        metrics["headings_total"] = sheet_headings_total
+        if metrics["tables_total"]:
+            quality_flags.append("xlsx_workbook_detected")
+        if not root.children:
+            quality_flags.append("empty_workbook")
+        return blocks, root, tables
+
     def _parse_pdf(
         self,
         path: Path,
@@ -551,14 +637,38 @@ def _parse_docx_table(
 
     header = rows[0]
     data_rows = rows[1:] if len(rows) > 1 else []
-    if not any(header):
-        header = [f"column_{index + 1}" for index in range(len(rows[0]))]
+    return _build_tabular_content(
+        header=header,
+        data_rows=data_rows,
+        table_id=f"T-{table_index}",
+        title=current_heading_path[-1] if current_heading_path else f"Table {table_index}",
+        heading_path=current_heading_path,
+        block_index_start=block_index_start,
+        table_metadata={"heading_path": list(current_heading_path), "table_index": table_index},
+        block_metadata={},
+    )
 
+
+def _build_tabular_content(
+    *,
+    header: list[str],
+    data_rows: list[list[str]],
+    table_id: str,
+    title: str,
+    heading_path: list[str],
+    block_index_start: int,
+    table_metadata: dict[str, Any],
+    block_metadata: dict[str, Any],
+) -> _ParsedDocxTable:
+    if not any(header):
+        header = [f"column_{index + 1}" for index in range(len(header))]
+
+    normalized_columns = [column or f"column_{index + 1}" for index, column in enumerate(header)]
     normalized_rows: list[dict[str, Any]] = []
     blocks: list[CanonicalContentBlock] = []
     for row_index, row in enumerate(data_rows, start=1):
-        padded = list(row) + [""] * max(0, len(header) - len(row))
-        item = {header[index] or f"column_{index + 1}": padded[index] for index in range(len(header))}
+        padded = list(row) + [""] * max(0, len(normalized_columns) - len(row))
+        item = {normalized_columns[index]: padded[index] for index in range(len(normalized_columns))}
         normalized_rows.append(item)
         pairs = [f"{key}: {value}" for key, value in item.items() if value]
         row_text = _normalize_text("; ".join(pairs))
@@ -568,19 +678,18 @@ def _parse_docx_table(
                     text=row_text,
                     block_type="table_row",
                     index=block_index_start + len(blocks),
-                    heading_path=current_heading_path,
-                    metadata={"table_id": f"T-{table_index}", "row_index": row_index},
+                    heading_path=heading_path,
+                    metadata={"table_id": table_id, "row_index": row_index, **block_metadata},
                 )
             )
 
-    title = current_heading_path[-1] if current_heading_path else f"Table {table_index}"
     return _ParsedDocxTable(
         table=CanonicalTable(
-            table_id=f"T-{table_index}",
+            table_id=table_id,
             title=title,
-            columns=[column or f"column_{index + 1}" for index, column in enumerate(header)],
+            columns=normalized_columns,
             rows=normalized_rows,
-            metadata={"heading_path": list(current_heading_path), "table_index": table_index},
+            metadata=dict(table_metadata),
         ),
         blocks=blocks,
     )
@@ -665,6 +774,8 @@ def _parse_heading_level(style_name: str) -> int:
 
 def _infer_document_type(path: Path) -> str:
     lowered = path.stem.lower()
+    if any(token in lowered for token in ("tracker", "register", "matrix", "spreadsheet")):
+        return "governance"
     if any(token in lowered for token in ("security", "sec", "vuln", "pentest")):
         return "security"
     if any(token in lowered for token in ("ops", "rollback", "monitor", "sre")):

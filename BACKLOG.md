@@ -829,6 +829,15 @@ Fifth slice done:
 - добавлен ADR `0074-table-aware-canonical-retrieval-provenance.md`;
 - targeted provenance/retrieval/report tests: `18 passed`.
 
+Sixth slice done:
+
+- canonical parser baseline расширен поддержкой `.xlsx` через `openpyxl`;
+- workbook sheets теперь становятся structural sections, sheet tables попадают в `extracted_tables`, а строки листов индексируются как canonical `table_row` blocks;
+- binary demo input расширен реальным fixture `08_release_tracker.xlsx`;
+- indexing/API tests и parser demo tests теперь проверяют, что XLSX проходит тот же canonical/indexing path, что и DOCX/PDF/JSON;
+- добавлен ADR `0075-xlsx-parser-baseline-for-canonical-ingestion.md`;
+- targeted parser/indexing/API tests: planned after slice finalization.
+
 Scope:
 
 - OCR path для scanned PDF:

@@ -85,3 +85,4 @@
 - `0072-canonical-parser-quality-read-model-baseline.md`
 - `0073-scanned-pdf-ocr-fallback-path.md`
 - `0074-table-aware-canonical-retrieval-provenance.md`
+- `0075-xlsx-parser-baseline-for-canonical-ingestion.md`

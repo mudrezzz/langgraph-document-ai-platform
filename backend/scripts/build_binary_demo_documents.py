@@ -40,6 +40,7 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
     pdf_path = output_dir / "06_audit_summary.pdf"
     scanned_pdf_path = output_dir / "07_scanned_signoff.pdf"
     scanned_ocr_sidecar_path = output_dir / "07_scanned_signoff.pdf.ocr.txt"
+    xlsx_path = output_dir / "08_release_tracker.xlsx"
 
     written: list[str] = []
     if overwrite or not docx_path.exists():
@@ -54,6 +55,9 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
     if overwrite or not scanned_ocr_sidecar_path.exists():
         _write_scanned_pdf_sidecar(scanned_ocr_sidecar_path)
         written.append(str(scanned_ocr_sidecar_path))
+    if overwrite or not xlsx_path.exists():
+        _write_xlsx(xlsx_path)
+        written.append(str(xlsx_path))
     return written
 
 
@@ -135,6 +139,28 @@ def _write_scanned_pdf_sidecar(path: Path) -> None:
         "Final note: scanned signature page recovered via OCR fallback.\n"
     )
     path.write_text(text, encoding="utf-8")
+
+
+def _write_xlsx(path: Path) -> None:
+    try:
+        from openpyxl import Workbook
+    except Exception as exc:  # pragma: no cover - depends on local environment
+        raise RuntimeError("Для генерации XLSX demo требуется зависимость openpyxl") from exc
+
+    workbook = Workbook()
+    approvals = workbook.active
+    approvals.title = "Approval Tracker"
+    approvals.append(["Check", "Owner", "Status", "Notes"])
+    approvals.append(["Security sign-off", "Security Lead", "PENDING", "Waiting for final review"])
+    approvals.append(["Rollback readiness", "SRE", "READY", "Rollback runbook attached"])
+    approvals.append(["Customer notification", "Product Owner", "APPROVED", "Messaging ready"])
+
+    risks = workbook.create_sheet("Risk Register")
+    risks.append(["Risk", "Severity", "Owner", "Mitigation"])
+    risks.append(["Payment timeout spike", "medium", "Ops", "Canary and alert tuning"])
+    risks.append(["Approval lag", "high", "Release Manager", "Escalate pending approvers before freeze"])
+
+    workbook.save(path)
 
 
 if __name__ == "__main__":

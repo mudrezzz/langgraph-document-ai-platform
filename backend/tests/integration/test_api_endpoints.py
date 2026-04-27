@@ -508,6 +508,7 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
         / "release_go_no_go_multifile_case"
         / "input"
     )
+    pytest.importorskip("openpyxl")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     response = client.post(
@@ -525,8 +526,8 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     task_status = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
     details = task_status["details"]
     assert task_status["status"] == "completed"
-    assert details["documents_total"] == 7
-    assert details["file_types"] == ["docx", "json", "md", "pdf", "txt"]
+    assert details["documents_total"] == 8
+    assert details["file_types"] == ["docx", "json", "md", "pdf", "txt", "xlsx"]
     assert details["stored_blocks_total"] >= 8
     assert details["quality_gate_status"] in {"passed", "warning"}
     assert details["quality_summary"]["quality_flags_total"] >= 0
@@ -536,6 +537,9 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     docx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "docx")
     assert docx_doc["extracted_tables"]
     assert any(block["block_type"] == "table_row" for block in docx_doc["content_blocks"])
+    xlsx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "xlsx")
+    assert xlsx_doc["extracted_tables"]
+    assert any(block["block_type"] == "table_row" for block in xlsx_doc["content_blocks"])
 
     summary_response = client.get(
         f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"

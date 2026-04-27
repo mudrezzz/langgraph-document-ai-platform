@@ -46,6 +46,7 @@ def test_knowledge_indexing_workflow_persists_documents(tmp_path: Path) -> None:
 def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
+    pytest.importorskip("openpyxl")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
     store = PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
     canonical_document_service = CanonicalDocumentApplicationService(store=store)
@@ -56,9 +57,9 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     )
     result = service.index_paths([dataset_dir])
 
-    assert len(result.indexed_doc_ids) == 7
+    assert len(result.indexed_doc_ids) == 8
     assert result.quality_summary["gate_status"] in {"passed", "warning"}
-    assert result.quality_summary["documents_total"] == 7
+    assert result.quality_summary["documents_total"] == 8
     assert "parser_families" in result.quality_summary
     assert result.quality_summary["parser_issues_total"] >= 0
     assert result.quality_summary["documents_needing_ocr"] >= 1
@@ -70,6 +71,9 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     docx_document = next(document for document in result.documents if document.file_type == "docx")
     assert docx_document.extracted_tables
     assert any(block.block_type == "table_row" for block in docx_document.content_blocks)
+    xlsx_document = next(document for document in result.documents if document.file_type == "xlsx")
+    assert xlsx_document.extracted_tables
+    assert any(block.block_type == "table_row" for block in xlsx_document.content_blocks)
 
 
 def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Path) -> None:

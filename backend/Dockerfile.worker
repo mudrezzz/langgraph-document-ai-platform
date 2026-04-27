@@ -12,6 +12,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
         redis \
         python-docx \
         PyMuPDF \
+        openpyxl \
         uvicorn
 
 ENV PYTHONUNBUFFERED=1

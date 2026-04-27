@@ -1043,6 +1043,11 @@ Parser quality baseline текущего hardening-среза:
 - OCR runtime configurable через `APP_OCR_ENABLED=true|false` и `APP_OCR_PROVIDER=sidecar|ocrmypdf`;
 - demo input теперь содержит scanned PDF `07_scanned_signoff.pdf` и sidecar OCR text для ручной проверки OCR path;
 - demo DOCX fixture теперь содержит approval matrix table, numbered checklist и appendix section для ручной проверки DOCX hardening path;
+- canonical parser теперь поддерживает `.xlsx` через `openpyxl`:
+  - workbook sheets становятся structural sections;
+  - sheet tables извлекаются в `extracted_tables`;
+  - строки таблиц становятся canonical `table_row` blocks;
+  - binary demo input теперь включает `08_release_tracker.xlsx`;
 - Knowledge Indexing task details и smoke/report path теперь показывают parser diagnostics по `doc_id` и aggregate поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`.
 - retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
   - `source_kind=table_row`;
@@ -1060,7 +1065,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 Ожидаемый результат:
 
-- `documents_total=7`;
+- `documents_total=8`;
 - `content_blocks_total > 0`;
 - `stored_blocks_for_indexed_docs_total > 0` в direct/canonical retrieval smoke;
 - для scanned PDF fixture direct smoke и API smoke оба показывают `ocr_recovered_doc_ids=["07SCANNE-..."]` и не показывают `ocr_not_available`, если заданы `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar`;
@@ -1074,7 +1079,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;
 - `evidence_blocks > 0`;
-- `file_types` содержит `md`, `txt`, `json`, `docx`, `pdf`.
+- `file_types` содержит `md`, `txt`, `json`, `docx`, `pdf`, `xlsx`.
 
 ## Контракт GET /api/v1/tasks
 
