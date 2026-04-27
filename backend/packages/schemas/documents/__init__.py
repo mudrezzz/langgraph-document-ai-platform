@@ -4,6 +4,8 @@
     CanonicalSectionSummary,
     CanonicalStructureNode,
     CanonicalTable,
+    ParserQualityIssue,
+    ParserQualitySummary,
     SectionDigest,
     TemplateSpec,
 )
@@ -14,6 +16,8 @@ __all__ = [
     "CanonicalSectionSummary",
     "CanonicalStructureNode",
     "CanonicalTable",
+    "ParserQualityIssue",
+    "ParserQualitySummary",
     "SectionDigest",
     "TemplateSpec",
 ]

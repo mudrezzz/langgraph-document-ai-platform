@@ -188,6 +188,7 @@ def test_fastmcp_retrieval_service_lookup_source_returns_document_mapping_for_do
     assert result["block"] is None
     assert result["source_path"] == "input/security.md"
     assert result["document_metadata"]["quality_flags"] == []
+    assert result["document_metadata"]["parser_quality"]["parser_family"] == "text"
 
 
 def test_fastmcp_retrieval_service_lookup_source_returns_clear_empty_result() -> None:
@@ -256,6 +257,7 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
                 )
             ],
             quality_flags=[],
+            parser_quality={"parser_family": "text", "extraction_mode": "text", "blocks_total": 1},
         )
     )
     vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)

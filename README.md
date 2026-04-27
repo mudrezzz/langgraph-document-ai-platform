@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 30`.
+Текущий инкремент: `Increment 31`.
 
 Сделано:
 
@@ -1029,7 +1029,19 @@ Canonical ingestion работает через отдельный persistence/r
 - `.txt`;
 - `.json`;
 - `.docx` через `python-docx`;
-- `.pdf` через `PyMuPDF`.
+- `.pdf` через `PyMuPDF` с OCR fallback для scanned PDF.
+
+Parser quality baseline текущего hardening-среза:
+
+- каждый `CanonicalDocument` теперь хранит typed `parser_quality`:
+  - `parser_family`, `extraction_mode`;
+  - `pages_total`, `blocks_total`, `headings_total`, `lists_total`, `tables_total`;
+  - typed `issues[]` и mirrored `flags[]`;
+- DOCX parser уже детектирует наличие tables и помечает `table_extraction_not_implemented`;
+- PDF parser без extractable text помечает документ как `ocr_required` и пытается OCR fallback;
+- OCR runtime configurable через `APP_OCR_ENABLED=true|false` и `APP_OCR_PROVIDER=sidecar|ocrmypdf`;
+- demo input теперь содержит scanned PDF `07_scanned_signoff.pdf` и sidecar OCR text для ручной проверки OCR path;
+- Knowledge Indexing task details и smoke/report path теперь показывают parser diagnostics по `doc_id` и aggregate поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`.
 
 Smoke текущего demo input:
 
@@ -1041,12 +1053,15 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 Ожидаемый результат:
 
-- `documents_total=6`;
+- `documents_total=7`;
 - `content_blocks_total > 0`;
 - `stored_blocks_for_indexed_docs_total > 0` в direct/canonical retrieval smoke;
 - `stored_blocks_total > 0` в API smoke details;
 - `embeddings_indexed > 0`;
 - `quality_gate_status=passed|warning`;
+- `quality_summary.parser_families` содержит используемые parser families;
+- `quality_summary.documents_needing_ocr >= 1` для текущего demo OCR fixture;
+- `parser_quality` присутствует в Knowledge Indexing API smoke output;
 - `events_summary_has_running_to_completed=true` в Knowledge Indexing API smoke;
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;

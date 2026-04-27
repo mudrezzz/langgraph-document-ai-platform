@@ -38,6 +38,8 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
 
     docx_path = output_dir / "05_release_notes.docx"
     pdf_path = output_dir / "06_audit_summary.pdf"
+    scanned_pdf_path = output_dir / "07_scanned_signoff.pdf"
+    scanned_ocr_sidecar_path = output_dir / "07_scanned_signoff.pdf.ocr.txt"
 
     written: list[str] = []
     if overwrite or not docx_path.exists():
@@ -46,6 +48,12 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
     if overwrite or not pdf_path.exists():
         _write_pdf(pdf_path)
         written.append(str(pdf_path))
+    if overwrite or not scanned_pdf_path.exists():
+        _write_scanned_pdf(scanned_pdf_path)
+        written.append(str(scanned_pdf_path))
+    if overwrite or not scanned_ocr_sidecar_path.exists():
+        _write_scanned_pdf_sidecar(scanned_ocr_sidecar_path)
+        written.append(str(scanned_ocr_sidecar_path))
     return written
 
 
@@ -86,6 +94,28 @@ def _write_pdf(path: Path) -> None:
     page.insert_text((72, 72), text, fontsize=11)
     doc.save(path)
     doc.close()
+
+
+def _write_scanned_pdf(path: Path) -> None:
+    try:
+        import fitz
+    except Exception as exc:  # pragma: no cover - depends on local environment
+        raise RuntimeError("Для генерации PDF demo требуется зависимость PyMuPDF") from exc
+
+    doc = fitz.open()
+    doc.new_page()
+    doc.save(path)
+    doc.close()
+
+
+def _write_scanned_pdf_sidecar(path: Path) -> None:
+    text = (
+        "Scanned Sign-off Record\n\n"
+        "Security sign-off: APPROVED by release manager.\n"
+        "Operations readiness: rollback runbook attached.\n"
+        "Final note: scanned signature page recovered via OCR fallback.\n"
+    )
+    path.write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

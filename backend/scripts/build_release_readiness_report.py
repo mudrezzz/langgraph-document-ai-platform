@@ -211,6 +211,11 @@ def _build_report(
         lines.append(f"- file_types: `{', '.join(indexing_details.get('file_types', []))}`")
         lines.append(f"- embeddings_indexed: `{indexing_details.get('embeddings_indexed', 0)}`")
         lines.append(f"- quality_flags_total: `{quality_summary.get('quality_flags_total', len(indexing_details.get('quality_flags', [])))}`")
+        lines.append(f"- parser_families: `{', '.join(quality_summary.get('parser_families', []))}`")
+        lines.append(f"- extraction_modes: `{', '.join(quality_summary.get('extraction_modes', []))}`")
+        lines.append(f"- parser_issues_total: `{quality_summary.get('parser_issues_total', 0)}`")
+        lines.append(f"- documents_with_tables: `{quality_summary.get('documents_with_tables', 0)}`")
+        lines.append(f"- documents_needing_ocr: `{quality_summary.get('documents_needing_ocr', 0)}`")
         flags = indexing_details.get("quality_flags", []) or quality_summary.get("warning_flags", []) or []
         if flags:
             lines.append("")
@@ -218,6 +223,22 @@ def _build_report(
             lines.append("")
             for flag in flags:
                 lines.append(f"- `{flag}`")
+
+        parser_quality = indexing_details.get("parser_quality", {})
+        if parser_quality:
+            lines.append("")
+            lines.append("### Parser Diagnostics")
+            lines.append("")
+            for doc_id, summary in sorted(parser_quality.items()):
+                issues = summary.get("issues", [])
+                lines.append(
+                    "- "
+                    f"doc_id=`{doc_id}`, "
+                    f"parser_family=`{summary.get('parser_family', 'unknown')}`, "
+                    f"blocks_total=`{summary.get('blocks_total', 0)}`, "
+                    f"tables_total=`{summary.get('tables_total', 0)}`, "
+                    f"issues_total=`{len(issues)}`"
+                )
 
     lines.append("")
     lines.append("## Retrieval Quality")

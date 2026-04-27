@@ -5,11 +5,14 @@ import re
 from pathlib import Path
 from typing import Any
 
+from domain_docs.parsing.ocr import PdfOcrGateway
 from schemas.documents.contracts import (
     CanonicalContentBlock,
     CanonicalDocument,
     CanonicalSectionSummary,
     CanonicalStructureNode,
+    ParserQualityIssue,
+    ParserQualitySummary,
 )
 
 _SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf"}
@@ -20,6 +23,9 @@ _WHITESPACE_RE = re.compile(r"\s+")
 
 class CanonicalDocumentParser:
     """Parser MVP for text-like sources into canonical document contracts."""
+
+    def __init__(self, *, pdf_ocr_gateway: PdfOcrGateway | None = None) -> None:
+        self._pdf_ocr_gateway = pdf_ocr_gateway
 
     def supported_extensions(self) -> set[str]:
         return set(_SUPPORTED_EXTENSIONS)
@@ -37,19 +43,40 @@ class CanonicalDocumentParser:
 
         doc_id = _build_doc_id(path)
         quality_flags: list[str] = []
+        metrics: dict[str, int | None] = {
+            "pages_total": None,
+            "headings_total": 0,
+            "lists_total": 0,
+            "tables_total": 0,
+        }
+        extraction_mode = "text"
+        parser_family = "text"
 
         if extension == ".json":
             raw_text = path.read_text(encoding="utf-8")
-            blocks, structure = self._parse_json(raw_text, quality_flags=quality_flags)
+            parser_family = "json"
+            extraction_mode = "structured"
+            blocks, structure = self._parse_json(raw_text, quality_flags=quality_flags, metrics=metrics)
         elif extension == ".docx":
-            blocks, structure = self._parse_docx(path, quality_flags=quality_flags)
+            parser_family = "docx"
+            extraction_mode = "structured"
+            blocks, structure = self._parse_docx(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
         elif extension == ".pdf":
-            blocks, structure = self._parse_pdf(path, quality_flags=quality_flags)
+            parser_family = "pdf"
+            extraction_mode = "page_text"
+            blocks, structure = self._parse_pdf(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
         else:
             raw_text = path.read_text(encoding="utf-8")
-            blocks, structure = self._parse_text(raw_text, markdown=extension == ".md", quality_flags=quality_flags)
+            parser_family = "markdown" if extension == ".md" else "text"
+            extraction_mode = "markdown" if extension == ".md" else "text"
+            blocks, structure = self._parse_text(
+                raw_text,
+                markdown=extension == ".md",
+                quality_flags=quality_flags,
+                metrics=metrics,
+            )
 
         if not raw_text.strip():
             quality_flags.append("empty_document")
@@ -57,6 +84,7 @@ class CanonicalDocumentParser:
             quality_flags.append("no_content_blocks")
 
         summaries = _build_section_summaries(blocks, structure)
+        unique_flags = _unique_keep_order(quality_flags)
         return CanonicalDocument(
             doc_id=doc_id,
             source_path=str(path),
@@ -75,7 +103,15 @@ class CanonicalDocumentParser:
             content_blocks=blocks,
             extracted_tables=[],
             section_summaries=summaries,
-            quality_flags=_unique_keep_order(quality_flags),
+            quality_flags=unique_flags,
+            parser_quality=_build_parser_quality_summary(
+                parser_family=parser_family,
+                extraction_mode=extraction_mode,
+                structure=structure,
+                blocks=blocks,
+                quality_flags=unique_flags,
+                metrics=metrics,
+            ),
         )
 
     def parse_dir(self, source_dir: str | Path, *, version: str = "1") -> list[CanonicalDocument]:
@@ -85,7 +121,11 @@ class CanonicalDocumentParser:
         if not root.is_dir():
             raise ValueError(f"Путь должен быть директорией: {root}")
 
-        files = sorted(path for path in root.rglob("*") if path.is_file() and path.suffix.lower() in _SUPPORTED_EXTENSIONS)
+        files = sorted(
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in _SUPPORTED_EXTENSIONS and not _is_ocr_sidecar(path)
+        )
         if not files:
             raise ValueError(f"В директории {root} нет поддерживаемых документов")
         return [self.parse_path(path, version=version) for path in files]
@@ -96,6 +136,7 @@ class CanonicalDocumentParser:
         *,
         markdown: bool,
         quality_flags: list[str],
+        metrics: dict[str, int | None],
     ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
         blocks: list[CanonicalContentBlock] = []
         root = CanonicalStructureNode(node_id="root", title="Document", level=0)
@@ -134,6 +175,7 @@ class CanonicalDocumentParser:
                     level=level,
                 )
                 root.children.append(current_node)
+                metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
                 continue
 
             bullet_match = _BULLET_RE.match(raw_line)
@@ -147,6 +189,7 @@ class CanonicalDocumentParser:
                 )
                 blocks.append(block)
                 current_node.block_ids.append(block.block_id)
+                metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
                 continue
 
             if raw_line.strip():
@@ -167,6 +210,7 @@ class CanonicalDocumentParser:
         raw_text: str,
         *,
         quality_flags: list[str],
+        metrics: dict[str, int | None],
     ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
         try:
             payload = json.loads(raw_text)
@@ -189,6 +233,7 @@ class CanonicalDocumentParser:
             )
             blocks.append(block)
             root.block_ids.append(block.block_id)
+        metrics["headings_total"] = len(root.children)
         return blocks, root
 
     def _parse_docx(
@@ -196,6 +241,7 @@ class CanonicalDocumentParser:
         path: Path,
         *,
         quality_flags: list[str],
+        metrics: dict[str, int | None],
     ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
         try:
             from docx import Document
@@ -207,6 +253,11 @@ class CanonicalDocumentParser:
         root = CanonicalStructureNode(node_id="root", title="DOCX Document", level=0)
         current_node = root
         current_heading_path: list[str] = []
+        tables_detected = len(document.tables)
+        if tables_detected:
+            quality_flags.append("docx_tables_detected")
+            quality_flags.append("table_extraction_not_implemented")
+        metrics["tables_total"] = tables_detected
 
         for paragraph in document.paragraphs:
             text = _normalize_text(paragraph.text)
@@ -222,7 +273,11 @@ class CanonicalDocumentParser:
                     level=_parse_heading_level(style_name),
                 )
                 root.children.append(current_node)
+                metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
                 continue
+
+            if _looks_like_list_paragraph(style_name, text):
+                metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
 
             block = _build_block(
                 text=text,
@@ -244,6 +299,7 @@ class CanonicalDocumentParser:
         path: Path,
         *,
         quality_flags: list[str],
+        metrics: dict[str, int | None],
     ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
         try:
             import fitz
@@ -253,6 +309,7 @@ class CanonicalDocumentParser:
         root = CanonicalStructureNode(node_id="root", title="PDF Document", level=0)
         blocks: list[CanonicalContentBlock] = []
         with fitz.open(str(path)) as pdf_document:
+            metrics["pages_total"] = len(pdf_document)
             for page_index, page in enumerate(pdf_document, start=1):
                 page_text = page.get_text("text")
                 for paragraph in re.split(r"\n\s*\n+", page_text):
@@ -272,9 +329,167 @@ class CanonicalDocumentParser:
 
         if not blocks:
             quality_flags.append("pdf_no_extractable_text")
+            quality_flags.append("ocr_required")
+            ocr_blocks = self._run_pdf_ocr(path, quality_flags=quality_flags, metrics=metrics)
+            if ocr_blocks:
+                root.block_ids = [block.block_id for block in ocr_blocks]
+                blocks = ocr_blocks
         if blocks and len(blocks) < 2:
             quality_flags.append("low_text_density")
         return blocks, root
+
+    def _run_pdf_ocr(
+        self,
+        path: Path,
+        *,
+        quality_flags: list[str],
+        metrics: dict[str, int | None],
+    ) -> list[CanonicalContentBlock]:
+        if self._pdf_ocr_gateway is None:
+            quality_flags.append("ocr_not_available")
+            return []
+
+        ocr_result = self._pdf_ocr_gateway.extract_pdf_text(path)
+        if ocr_result is None or not ocr_result.page_texts:
+            quality_flags.append("ocr_text_not_recovered")
+            return []
+
+        quality_flags.append("ocr_applied")
+        quality_flags.append(f"ocr_provider:{ocr_result.provider}")
+        for warning in ocr_result.warnings:
+            quality_flags.append(warning)
+
+        blocks: list[CanonicalContentBlock] = []
+        for page_index, page_text in enumerate(ocr_result.page_texts, start=1):
+            for paragraph in re.split(r"\n\s*\n+", page_text):
+                text = _normalize_text(paragraph)
+                if not text:
+                    continue
+                block = _build_block(
+                    text=text,
+                    block_type="paragraph",
+                    index=len(blocks) + 1,
+                    heading_path=[f"Page {page_index}"],
+                    metadata={"page_number": page_index, "ocr_provider": ocr_result.provider, "extraction_mode": "ocr"},
+                )
+                block.page_number = page_index
+                blocks.append(block)
+
+        metrics["pages_total"] = max(int(metrics.get("pages_total") or 0), len(ocr_result.page_texts))
+        return blocks
+
+
+def _build_parser_quality_summary(
+    *,
+    parser_family: str,
+    extraction_mode: str,
+    structure: CanonicalStructureNode,
+    blocks: list[CanonicalContentBlock],
+    quality_flags: list[str],
+    metrics: dict[str, int | None],
+) -> ParserQualitySummary:
+    sections_total = len(structure.children)
+    flags = list(quality_flags)
+    issues = [_build_quality_issue(flag, metrics=metrics, blocks=blocks, sections_total=sections_total) for flag in flags]
+    return ParserQualitySummary(
+        parser_family=parser_family,
+        extraction_mode=extraction_mode,
+        pages_total=metrics.get("pages_total"),
+        blocks_total=len(blocks),
+        sections_total=sections_total,
+        headings_total=int(metrics.get("headings_total", 0) or 0),
+        lists_total=int(metrics.get("lists_total", 0) or 0),
+        tables_total=int(metrics.get("tables_total", 0) or 0),
+        issues=issues,
+        flags=flags,
+    )
+
+
+def _build_quality_issue(
+    flag: str,
+    *,
+    metrics: dict[str, int | None],
+    blocks: list[CanonicalContentBlock],
+    sections_total: int,
+) -> ParserQualityIssue:
+    if flag == "empty_document":
+        return ParserQualityIssue(code=flag, severity="blocking", message="Document text is empty after parser read")
+    if flag == "no_content_blocks":
+        return ParserQualityIssue(code=flag, severity="blocking", message="Parser did not produce content blocks")
+    if flag == "pdf_no_extractable_text":
+        return ParserQualityIssue(
+            code=flag,
+            severity="blocking",
+            message="PDF parser found no extractable text blocks",
+            metadata={"pages_total": metrics.get("pages_total")},
+        )
+    if flag == "ocr_required":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="PDF likely requires OCR before reliable indexing",
+            metadata={"pages_total": metrics.get("pages_total")},
+        )
+    if flag == "ocr_not_available":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="OCR fallback is not configured for this runtime",
+        )
+    if flag == "ocr_text_not_recovered":
+        return ParserQualityIssue(
+            code=flag,
+            severity="blocking",
+            message="OCR fallback did not recover text from scanned PDF",
+        )
+    if flag == "ocr_applied":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="OCR fallback recovered text for scanned PDF",
+        )
+    if flag.startswith("ocr_provider:"):
+        provider = flag.split(":", 1)[1] or "unknown"
+        return ParserQualityIssue(
+            code="ocr_provider",
+            severity="info",
+            message=f"OCR provider used: {provider}",
+            metadata={"provider": provider},
+        )
+    if flag == "low_text_density":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="Parser extracted very few text blocks for the document",
+            metadata={"blocks_total": len(blocks), "pages_total": metrics.get("pages_total")},
+        )
+    if flag == "no_structural_headings":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="Parser did not detect structural headings",
+            metadata={"sections_total": sections_total},
+        )
+    if flag == "docx_tables_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="DOCX contains tables that were detected during parsing",
+            metadata={"tables_total": metrics.get("tables_total", 0)},
+        )
+    if flag == "table_extraction_not_implemented":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="Tabular content was detected but table extraction is not implemented yet",
+            metadata={"tables_total": metrics.get("tables_total", 0)},
+        )
+    return ParserQualityIssue(code=flag, severity="warning", message=f"Parser quality flag: {flag}")
+
+
+def _looks_like_list_paragraph(style_name: str, text: str) -> bool:
+    lowered_style = style_name.lower()
+    return lowered_style.startswith("list") or bool(_BULLET_RE.match(text))
 
 
 def _build_block(
@@ -378,6 +593,10 @@ def _build_tags(path: Path) -> list[str]:
 
 def _normalize_text(value: str) -> str:
     return _WHITESPACE_RE.sub(" ", value).strip()
+
+
+def _is_ocr_sidecar(path: Path) -> bool:
+    return path.name.endswith(".pdf.ocr.txt")
 
 
 def _unique_keep_order(values: list[str]) -> list[str]:

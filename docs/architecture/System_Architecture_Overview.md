@@ -1,7 +1,7 @@
 # System Architecture Overview
 
 Дата обновления: 2026-04-27
-Статус: Increment 30
+Статус: Increment 31
 
 ## 1. Целевой архитектурный ориентир
 
@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 30)
+## 2. Текущая реализация (Increment 31)
 
 Реализовано:
 
@@ -55,6 +55,18 @@
   - API task smoke `backend/scripts/smoke_knowledge_indexing_api.sh/.ps1`;
   - binary demo input generator `backend/scripts/build_binary_demo_documents.sh/.ps1`;
   - canonical release go/no-go report with quality/source mapping.
+- Knowledge Factory Hardening / parser quality baseline:
+  - `CanonicalDocument` расширен typed `parser_quality` read-model;
+  - parser diagnostics содержат `parser_family`, `extraction_mode`, page/block/heading/list/table counters и typed issues;
+  - DOCX path уже детектирует наличие tables и помечает `table_extraction_not_implemented`;
+  - PDF path без extractable text помечает документ как `ocr_required`;
+  - knowledge indexing task details и aggregate quality summary отдают parser diagnostics по `doc_id` и поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`;
+  - canonical retrieval/report path прокидывает `parser_quality` в source metadata и release-readiness report.
+- Knowledge Factory Hardening / OCR fallback slice:
+  - добавлен `PdfOcrGateway` boundary для scanned PDF recovery path;
+  - default/demo OCR path использует deterministic sidecar OCR fixture, а production-like path поддерживает `ocrmypdf` CLI;
+  - PDF parser теперь пытается OCR fallback после `pdf_no_extractable_text` и пишет `ocr_applied`, `ocr_provider:*`, `ocr_not_available`, `ocr_text_not_recovered` quality flags;
+  - multifile demo теперь включает scanned PDF fixture для ручной проверки OCR сценария.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
@@ -297,6 +309,8 @@
   - `docs/adr/0066-task-observability-summary-and-execution-metadata.md`.
   - `docs/adr/0067-structured-logging-and-hitl-observability-summary.md`.
   - `docs/adr/0068-review-approval-mcp-boundary.md`.
+  - `docs/adr/0072-canonical-parser-quality-read-model-baseline.md`.
+  - `docs/adr/0073-scanned-pdf-ocr-fallback-path.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;
@@ -339,7 +353,7 @@
 
 ## 5. План следующего инкремента
 
-1. Начать Increment 31: Knowledge Factory Hardening.
-2. Добавить OCR/rich layout/table extraction и parser hardening.
+1. Добавить OCR/rich layout/table extraction поверх parser quality read-model.
+2. Добавить document versions/read-model policy.
 3. Перевести quality gates в конфигурируемый production policy layer.
 4. Позже расширить RBAC baseline до signed auth / audit decision propagation.

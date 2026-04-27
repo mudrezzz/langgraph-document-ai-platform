@@ -110,4 +110,5 @@ def _document_metadata(document: CanonicalDocument | None) -> dict:
         "source_path": document.source_path,
         "file_type": document.file_type,
         "quality_flags": list(document.quality_flags),
+        "parser_quality": document.parser_quality.model_dump(mode="json"),
     }

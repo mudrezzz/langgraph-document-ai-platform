@@ -15,7 +15,7 @@ from schemas.api.contracts import StartKnowledgeIndexingTaskRequest, StartTaskRe
 from schemas.documents.contracts import CanonicalDocument
 from schemas.workflow.states import KnowledgeIndexingState
 
-_BLOCKING_QUALITY_FLAGS = {"empty_document", "no_content_blocks", "pdf_no_extractable_text"}
+_BLOCKING_QUALITY_FLAGS = {"empty_document", "no_content_blocks", "pdf_no_extractable_text", "ocr_text_not_recovered"}
 
 
 class KnowledgeIndexingResult:
@@ -296,6 +296,9 @@ def _build_state_payload(
     }
 
 def _build_task_details(result: KnowledgeIndexingResult) -> dict:
+    parser_quality = {
+        document.doc_id: document.parser_quality.model_dump(mode="json") for document in result.documents
+    }
     return {
         "documents_total": len(result.documents),
         "indexed_doc_ids": result.indexed_doc_ids,
@@ -307,23 +310,38 @@ def _build_task_details(result: KnowledgeIndexingResult) -> dict:
         "quality_flags": result.quality_flags,
         "quality_summary": result.quality_summary,
         "quality_gate_status": result.quality_summary.get("gate_status", "passed"),
+        "parser_quality": parser_quality,
     }
 
 def _build_quality_summary(documents: list[CanonicalDocument], quality_flags: list[str]) -> dict:
     flagged_doc_ids: set[str] = set()
     blocking_flags: list[str] = []
     warning_flags: list[str] = []
+    flags_by_doc: dict[str, set[str]] = {}
+
+    for flag in quality_flags:
+        doc_id, flag_code = _split_quality_flag(flag)
+        if doc_id:
+            flags_by_doc.setdefault(doc_id, set()).add(flag_code)
 
     for flag in quality_flags:
         doc_id, flag_code = _split_quality_flag(flag)
         if doc_id:
             flagged_doc_ids.add(doc_id)
+        if flag_code == "pdf_no_extractable_text" and doc_id and "ocr_applied" in flags_by_doc.get(doc_id, set()):
+            warning_flags.append(flag)
+            continue
         if flag_code in _BLOCKING_QUALITY_FLAGS:
             blocking_flags.append(flag)
         else:
             warning_flags.append(flag)
 
     gate_status = "failed" if blocking_flags else "warning" if warning_flags else "passed"
+    parser_families = sorted({document.parser_quality.parser_family for document in documents})
+    extraction_modes = sorted({document.parser_quality.extraction_mode for document in documents})
+    total_issues = sum(len(document.parser_quality.issues) for document in documents)
+    documents_with_tables = sum(1 for document in documents if document.parser_quality.tables_total > 0)
+    documents_needing_ocr = sum(1 for document in documents if "ocr_required" in document.parser_quality.flags)
     return {
         "gate_status": gate_status,
         "documents_total": len(documents),
@@ -331,6 +349,11 @@ def _build_quality_summary(documents: list[CanonicalDocument], quality_flags: li
         "quality_flags_total": len(quality_flags),
         "blocking_flags": blocking_flags,
         "warning_flags": warning_flags,
+        "parser_families": parser_families,
+        "extraction_modes": extraction_modes,
+        "parser_issues_total": total_issues,
+        "documents_with_tables": documents_with_tables,
+        "documents_needing_ocr": documents_needing_ocr,
     }
 
 def _split_quality_flag(flag: str) -> tuple[str | None, str]:

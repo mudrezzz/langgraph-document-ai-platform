@@ -21,6 +21,7 @@ from application.knowledge_indexing_service import KnowledgeIndexingApplicationS
 from application.template_library_service import TemplateLibraryApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
+from domain_docs.parsing import CanonicalDocumentParser
 from schemas.api.contracts import (
     StartAuthoringTaskRequest,
     StartKnowledgeIndexingTaskRequest,
@@ -33,6 +34,7 @@ from infra.celery import (
     CeleryKnowledgeIndexingAsyncDispatcher,
     CeleryRetrievalAsyncDispatcher,
 )
+from infra.docs.ocr_gateway import OcrmypdfGateway, SidecarPdfOcrGateway
 from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
@@ -148,6 +150,17 @@ def _build_llm_runtime_config() -> LlmRuntimeConfig:
         model_name=None,
         chat_gateway=None,
     )
+
+
+def _build_canonical_document_parser() -> CanonicalDocumentParser:
+    ocr_enabled = _env_flag("APP_OCR_ENABLED", default=True)
+    if not ocr_enabled:
+        return CanonicalDocumentParser()
+
+    provider = os.getenv("APP_OCR_PROVIDER", "sidecar").strip().lower() or "sidecar"
+    if provider == "ocrmypdf":
+        return CanonicalDocumentParser(pdf_ocr_gateway=OcrmypdfGateway(sidecar_gateway=SidecarPdfOcrGateway()))
+    return CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway())
 
 
 def _build_knowledge_indexing_dispatcher(
@@ -292,6 +305,7 @@ class ApiContainer:
         self.vector_store = vector_store
         self.knowledge_indexing_service = KnowledgeIndexingApplicationService(
             canonical_document_service=canonical_document_service,
+            parser=_build_canonical_document_parser(),
             embedding_gateway=embedding_gateway,
             vector_store=vector_store,
             task_service=task_service,

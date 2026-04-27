@@ -502,18 +502,19 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 
 Что увидеть в JSON:
 
-- `documents_total=6`;
-- `indexed_doc_ids` содержит `01SCOPEA-*`, `02SECURI-*`, `03OPSREA-*`, `04APPROV-*`, `05RELEAS-*`, `06AUDITS-*`;
-- `content_blocks_total` около `37` или больше при изменении fixture;
-- `stored_blocks_for_indexed_docs_total` около `37` или больше;
+- `documents_total=7`;
+- `indexed_doc_ids` содержит также `07SCANNE-*` для OCR fixture;
+- `content_blocks_total` около `40` или больше при изменении fixture;
+- `stored_blocks_for_indexed_docs_total` около `40` или больше;
 - `stored_blocks_total` может быть больше, если в той же БД уже были прошлые indexing smoke;
-- `embeddings_indexed` около `37` или больше;
+- `embeddings_indexed` около `40` или больше;
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
-- `quality_flags` может содержать `06AUDITS-*:low_text_density` для текущего PDF fixture.
+- `quality_flags` содержит `07SCANNE-*:ocr_required` и `07SCANNE-*:ocr_applied` для scanned PDF fixture;
+- `ocr_recovered_doc_ids` содержит OCR fixture `07SCANNE-*`.
 
 Как интерпретировать:
 
-- это подтверждает, что Knowledge Factory строит canonical documents из text, markdown, JSON, DOCX и PDF;
+- это подтверждает, что Knowledge Factory строит canonical documents из text, markdown, JSON, DOCX, обычного PDF и scanned PDF через OCR fallback;
 - canonical documents сохраняются в `app.canonical_documents`;
 - derived content blocks сохраняются в `app.knowledge_blocks`;
 - embedding vectors для content blocks пишутся в `app.embeddings`.
@@ -534,11 +535,12 @@ bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 
 - `start_status=completed`;
 - `task_status=completed`;
-- `documents_total=6`;
+- `documents_total=7`;
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
-- `stored_blocks_total` около `37` или больше;
-- `embeddings_indexed` около `37` или больше;
+- `stored_blocks_total` около `40` или больше;
+- `embeddings_indexed` около `40` или больше;
 - `quality_gate_status=passed|warning`;
+- `ocr_recovered_doc_ids` содержит scanned PDF doc_id;
 - `events_summary_has_running_to_completed=true`.
 
 Как интерпретировать:
@@ -807,7 +809,9 @@ python backend/scripts/smoke_knowledge_indexing_api.py --host 127.0.0.1 --port 8
 - есть `dispatch_id`, `correlation_id`, `queue_name`, `queue_wait_ms`;
 - `events_summary_has_running_to_completed=true`;
 - `observability_total_tasks >= 1`;
-- `documents_total=6`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
+- `documents_total=7`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
+- `quality_summary.parser_families` содержит как минимум `docx`, `json`, `markdown`, `pdf`, `text`;
+- `parser_quality` содержит diagnostics по каждому `doc_id`, включая scanned PDF с `ocr_required` и `ocr_applied`;
 - worker обрабатывает задачу из очереди `knowledge-indexing`, а не только `authoring`.
 
 ## 21. Расширенный demo: authoring + traceability

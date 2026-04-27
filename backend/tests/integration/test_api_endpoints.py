@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from apps.api.dependencies import get_container
 from apps.api.main import app
+from scripts.build_binary_demo_documents import build_binary_demo_documents
 
 
 @pytest.fixture(autouse=True)
@@ -507,6 +508,7 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
         / "release_go_no_go_multifile_case"
         / "input"
     )
+    build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     response = client.post(
         "/api/v1/tasks/knowledge-indexing/start",
@@ -523,11 +525,13 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     task_status = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
     details = task_status["details"]
     assert task_status["status"] == "completed"
-    assert details["documents_total"] == 6
+    assert details["documents_total"] == 7
     assert details["file_types"] == ["docx", "json", "md", "pdf", "txt"]
     assert details["stored_blocks_total"] >= 8
     assert details["quality_gate_status"] in {"passed", "warning"}
     assert details["quality_summary"]["quality_flags_total"] >= 0
+    assert details["quality_summary"]["documents_needing_ocr"] >= 1
+    assert details["parser_quality"]
 
     summary_response = client.get(
         f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"

@@ -44,6 +44,13 @@ def main() -> None:
         "documents_total": len(result.documents),
         "indexed_doc_ids": result.indexed_doc_ids,
         "quality_flags": result.quality_flags,
+        "parser_quality": {
+            document.doc_id: document.parser_quality.model_dump(mode="json") for document in result.documents
+        },
+        "parser_quality_summary": result.quality_summary,
+        "ocr_recovered_doc_ids": [
+            document.doc_id for document in result.documents if "ocr_applied" in document.parser_quality.flags
+        ],
         "content_blocks_total": sum(len(document.content_blocks) for document in result.documents),
         "section_summaries_total": sum(len(document.section_summaries) for document in result.documents),
         "file_types": sorted({document.file_type for document in result.documents}),

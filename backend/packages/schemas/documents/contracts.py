@@ -1,6 +1,6 @@
 ﻿from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -46,6 +46,30 @@ class CanonicalSectionSummary(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ParserQualityIssue(BaseModel):
+    """Диагностическая запись качества parser extraction."""
+
+    code: str
+    severity: Literal["info", "warning", "blocking"] = "warning"
+    message: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ParserQualitySummary(BaseModel):
+    """Структурированная сводка parser quality для canonical document."""
+
+    parser_family: str = "text"
+    extraction_mode: str = "text"
+    pages_total: int | None = None
+    blocks_total: int = 0
+    sections_total: int = 0
+    headings_total: int = 0
+    lists_total: int = 0
+    tables_total: int = 0
+    issues: list[ParserQualityIssue] = Field(default_factory=list)
+    flags: list[str] = Field(default_factory=list)
+
+
 class CanonicalDocument(BaseModel):
     """Каноническое представление исходного документа."""
 
@@ -59,6 +83,7 @@ class CanonicalDocument(BaseModel):
     extracted_tables: list[CanonicalTable] = Field(default_factory=list)
     section_summaries: list[CanonicalSectionSummary] = Field(default_factory=list)
     quality_flags: list[str] = Field(default_factory=list)
+    parser_quality: ParserQualitySummary = Field(default_factory=ParserQualitySummary)
 
 
 class TemplateSpec(BaseModel):

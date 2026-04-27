@@ -22,10 +22,35 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                 "file_types": ["docx", "pdf"],
                 "embeddings_indexed": 3,
                 "quality_gate_status": "warning",
-                "quality_flags": ["PDF-1:low_text_density"],
+                "quality_flags": ["PDF-1:low_text_density", "PDF-2:ocr_applied"],
                 "quality_summary": {
                     "gate_status": "warning",
-                    "quality_flags_total": 1,
+                    "quality_flags_total": 2,
+                    "parser_families": ["docx", "pdf"],
+                    "extraction_modes": ["page_text", "structured"],
+                    "parser_issues_total": 3,
+                    "documents_with_tables": 1,
+                    "documents_needing_ocr": 1,
+                },
+                "parser_quality": {
+                    "DOCX-1": {
+                        "parser_family": "docx",
+                        "blocks_total": 3,
+                        "tables_total": 1,
+                        "issues": [{"code": "table_extraction_not_implemented"}],
+                    },
+                    "PDF-1": {
+                        "parser_family": "pdf",
+                        "blocks_total": 1,
+                        "tables_total": 0,
+                        "issues": [{"code": "low_text_density"}],
+                    },
+                    "PDF-2": {
+                        "parser_family": "pdf",
+                        "blocks_total": 2,
+                        "tables_total": 0,
+                        "issues": [{"code": "ocr_applied"}],
+                    },
                 },
             },
         },
@@ -76,6 +101,11 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "## Canonical Quality Summary" in report
     assert "quality_gate_status: `warning`" in report
     assert "`PDF-1:low_text_density`" in report
+    assert "parser_families: `docx, pdf`" in report
+    assert "documents_with_tables: `1`" in report
+    assert "documents_needing_ocr: `1`" in report
+    assert "### Parser Diagnostics" in report
+    assert "doc_id=`DOCX-1`, parser_family=`docx`" in report
     assert "## Canonical Source Mapping" in report
     assert "source_path=`input/05_release_notes.docx`" in report
     assert "source_path=`input/06_audit_summary.pdf`" in report

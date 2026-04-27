@@ -136,6 +136,12 @@ def main() -> None:
             "embeddings_indexed": details.get("embeddings_indexed"),
             "quality_gate_status": details.get("quality_gate_status"),
             "quality_summary": details.get("quality_summary", {}),
+            "parser_quality": details.get("parser_quality", {}),
+            "ocr_recovered_doc_ids": [
+                doc_id
+                for doc_id, summary in details.get("parser_quality", {}).items()
+                if "ocr_applied" in summary.get("flags", [])
+            ],
             "events_summary_total": summary_payload.get("total_events"),
             "events_summary_has_running_to_completed": has_completed_transition,
             "observability_total_tasks": observability_payload.get("total_tasks"),

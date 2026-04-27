@@ -82,3 +82,5 @@
 - `0069-configuration-library-mcp-skeleton.md`
 - `0070-unified-fastmcp-service-policies.md`
 - `0071-rbac-boundaries-for-sensitive-api-and-mcp-operations.md`
+- `0072-canonical-parser-quality-read-model-baseline.md`
+- `0073-scanned-pdf-ocr-fallback-path.md`

@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from scripts.build_binary_demo_documents import build_binary_demo_documents
+
 def _docker_available() -> bool:
     if shutil.which("docker") is None:
         return False
@@ -295,6 +297,7 @@ def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: 
         / "release_go_no_go_multifile_case"
         / "input"
     )
+    build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     start_code, start_payload = _request(
         "POST",
@@ -318,7 +321,7 @@ def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: 
 
     assert status_payload["status"] == "completed"
     assert status_payload["details"]["execution_mode"] == "async"
-    assert status_payload["details"]["documents_total"] == 6
+    assert status_payload["details"]["documents_total"] == 7
     assert status_payload["details"]["stored_blocks_total"] >= 8
 
     summary_payload: dict = {}

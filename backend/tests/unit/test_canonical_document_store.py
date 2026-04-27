@@ -24,6 +24,7 @@ def test_canonical_document_store_fallback_lists_documents_and_blocks(tmp_path: 
     assert documents_page.total_returned == 1
     assert blocks_page.total_returned == 2
     assert all(block.doc_id == saved_doc_id for block in blocks_page.items)
+    assert loaded.parser_quality.blocks_total == 2
 
 
 def test_canonical_document_store_replaces_blocks_on_update(tmp_path: Path) -> None:

@@ -193,6 +193,7 @@ class FastMcpRetrievalService(BaseFastMcpService):
             document_metadata={
                 **document.metadata_profile,
                 "quality_flags": document.quality_flags,
+                "parser_quality": document.parser_quality.model_dump(mode="json"),
             },
             block=block_payload,
         )

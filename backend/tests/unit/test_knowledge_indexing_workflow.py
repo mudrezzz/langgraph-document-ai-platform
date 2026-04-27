@@ -11,10 +11,12 @@ from application.knowledge_indexing_service import KnowledgeIndexingApplicationS
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from domain_docs.parsing import CanonicalDocumentParser
+from infra.docs.ocr_gateway import SidecarPdfOcrGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.tei.embedding_gateway import TeiEmbeddingGateway
+from scripts.build_binary_demo_documents import build_binary_demo_documents
 from schemas.api.contracts import StartKnowledgeIndexingTaskRequest
 from schemas.workflow.states import KnowledgeIndexingState
 
@@ -44,18 +46,26 @@ def test_knowledge_indexing_workflow_persists_documents(tmp_path: Path) -> None:
 def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
+    build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
     store = PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
     canonical_document_service = CanonicalDocumentApplicationService(store=store)
 
-    service = KnowledgeIndexingApplicationService(canonical_document_service=canonical_document_service)
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=canonical_document_service,
+        parser=CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway()),
+    )
     result = service.index_paths([dataset_dir])
 
-    assert len(result.indexed_doc_ids) == 6
+    assert len(result.indexed_doc_ids) == 7
     assert result.quality_summary["gate_status"] in {"passed", "warning"}
-    assert result.quality_summary["documents_total"] == 6
+    assert result.quality_summary["documents_total"] == 7
+    assert "parser_families" in result.quality_summary
+    assert result.quality_summary["parser_issues_total"] >= 0
+    assert result.quality_summary["documents_needing_ocr"] >= 1
     loaded = canonical_document_service.get_document(result.indexed_doc_ids[0])
     assert loaded.doc_id == result.indexed_doc_ids[0]
     assert loaded.content_blocks
+    assert loaded.parser_quality.blocks_total >= 0
     assert canonical_document_service.list_blocks(limit=100).total_returned >= 8
 
 
@@ -132,6 +142,7 @@ def test_knowledge_indexing_application_service_start_async_with_inline_dispatch
     payload = task_service.get_state_payload(started.task_id)
     assert payload["task_context"]["task_id"] == started.task_id
     assert payload["source_paths"] == [str(source)]
+    assert task.details["parser_quality"]
 
 
 def test_knowledge_indexing_application_service_start_async_marks_task_failed_on_dispatch_error(tmp_path: Path) -> None:

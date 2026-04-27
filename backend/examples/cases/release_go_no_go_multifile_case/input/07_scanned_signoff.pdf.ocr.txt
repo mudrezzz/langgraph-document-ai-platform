@@ -1,0 +1,5 @@
+Scanned Sign-off Record
+
+Security sign-off: APPROVED by release manager.
+Operations readiness: rollback runbook attached.
+Final note: scanned signature page recovered via OCR fallback.

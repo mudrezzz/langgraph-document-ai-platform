@@ -759,6 +759,41 @@ Fifth slice done:
 
 Цель: довести canonical ingestion до требований ТЗ по форматам, quality gates и production parsing behavior.
 
+First slice done:
+
+- добавлен typed parser quality read-model baseline для canonical ingestion:
+  - `ParserQualityIssue` и `ParserQualitySummary` в `schemas.documents`;
+  - `CanonicalDocument.parser_quality` теперь хранит parser family, extraction mode, page/block/heading/list/table counts и typed issues;
+- `CanonicalDocumentParser` теперь заполняет structured diagnostics для текущих `.md/.txt/.json/.docx/.pdf` adapters:
+  - markdown/text фиксируют headings/lists counts;
+  - DOCX помечает detected tables через `docx_tables_detected` и `table_extraction_not_implemented`;
+  - PDF без extractable text дополнительно помечается как `ocr_required`;
+- `KnowledgeIndexingApplicationService` task details и aggregated `quality_summary` расширены parser diagnostics полями:
+  - `parser_quality` по каждому `doc_id`;
+  - `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`;
+- retrieval/reporting/read-model path теперь тоже отдает `parser_quality` metadata для canonical sources;
+- smoke/report path обновлен:
+  - `smoke_knowledge_indexing.sh/.ps1` и `smoke_knowledge_indexing_api.sh/.ps1` выводят parser diagnostics;
+  - `release_readiness_report.md` показывает parser diagnostics внутри `Canonical Quality Summary`;
+- добавлен ADR `0072-canonical-parser-quality-read-model-baseline.md`;
+- targeted parser/indexing/retrieval/report tests: `78 passed`.
+
+Second slice done:
+
+- добавлен OCR preflight + scanned PDF fallback path для canonical parser:
+  - новый adapter boundary `domain_docs.parsing.ocr.PdfOcrGateway`;
+  - infra adapters `SidecarPdfOcrGateway` и optional `OcrmypdfGateway`;
+  - `CanonicalDocumentParser` теперь при `pdf_no_extractable_text` пытается OCR recovery и пишет `ocr_applied|ocr_provider:*|ocr_not_available|ocr_text_not_recovered` quality flags;
+- API/container wiring поддерживает env-driven OCR runtime:
+  - `APP_OCR_ENABLED=true|false`;
+  - `APP_OCR_PROVIDER=sidecar|ocrmypdf`;
+  - optional `APP_OCR_LANGUAGE`, `APP_OCR_TIMEOUT_SEC` для real CLI path;
+- demo input расширен OCR сценарием:
+  - `07_scanned_signoff.pdf`;
+  - `07_scanned_signoff.pdf.ocr.txt` как deterministic OCR sidecar fixture;
+- smoke/report/tests теперь показывают OCR path в Knowledge Indexing details и canonical quality summary;
+- targeted OCR/parser/indexing/API/report tests: `78 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
