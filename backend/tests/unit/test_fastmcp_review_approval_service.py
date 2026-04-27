@@ -150,6 +150,10 @@ def test_fastmcp_review_approval_service_metadata_contains_tools() -> None:
     metadata = service.metadata()
 
     assert metadata['service_name'] == 'review-approval-mcp'
+    assert metadata['transport'] == 'fastmcp'
+    assert metadata['policy_version'] == 'mcp-policy-v1'
+    assert metadata['service_scope'] == 'review-approval'
+    assert metadata['operation_scopes'] == {'get_hitl_observability_summary': 'read', 'get_hitl_status': 'read', 'list_hitl_actions': 'read', 'submit_hitl_review': 'write'}
     assert 'get_hitl_status' in metadata['tool_names']
     assert 'list_hitl_actions' in metadata['tool_names']
     assert 'submit_hitl_review' in metadata['tool_names']

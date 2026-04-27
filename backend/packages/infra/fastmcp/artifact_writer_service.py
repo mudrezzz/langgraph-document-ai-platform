@@ -25,16 +25,13 @@ class FastMcpArtifactWriterService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            "write_artifact": self.write_artifact,
-            "get_artifact": self.get_artifact,
-            "list_artifacts": self.list_artifacts,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload["tool_names"] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                "write_artifact": self.write_artifact,
+                "get_artifact": self.get_artifact,
+                "list_artifacts": self.list_artifacts,
+            }
+        )
 
     def write_artifact(self, payload: ArtifactWriterMcpWriteArtifactInput | dict[str, Any]) -> dict[str, Any]:
         """Создает или обновляет артефакт в artifact store."""
@@ -76,7 +73,7 @@ class FastMcpArtifactWriterService(BaseFastMcpService):
         try:
             loaded = self._artifact_service.get_artifact(validated_payload.artifact_id)
         except (ArtifactNotFoundError, KeyError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
 
         loaded_payload = loaded.payload
         response = ArtifactWriterMcpGetArtifactOutput(

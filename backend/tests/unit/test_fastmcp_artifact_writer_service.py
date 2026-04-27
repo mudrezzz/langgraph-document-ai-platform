@@ -96,6 +96,10 @@ def test_fastmcp_artifact_writer_service_metadata_contains_tools() -> None:
     metadata = mcp_service.metadata()
 
     assert metadata["service_name"] == "artifact-writer-mcp"
+    assert metadata["transport"] == "fastmcp"
+    assert metadata["policy_version"] == "mcp-policy-v1"
+    assert metadata["service_scope"] == "artifact-writer"
+    assert metadata["operation_scopes"] == {"get_artifact": "read", "list_artifacts": "read", "write_artifact": "write"}
     assert "write_artifact" in metadata["tool_names"]
     assert "get_artifact" in metadata["tool_names"]
     assert "list_artifacts" in metadata["tool_names"]

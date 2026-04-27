@@ -715,6 +715,15 @@ Second slice done:
 - добавлен ADR `0069-configuration-library-mcp-skeleton.md`;
 - targeted configuration MCP/persistence tests: `28 passed`;
 - manual smoke Configuration Library MCP: passed;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `265 passed`.
+
+Third slice done:
+
+- `BaseFastMcpService` получил unified MCP policy layer с валидируемым `tool_names`, `service_scope`, `operation_scopes`, `policy_version`, input/output validation markers и standard `audit_payload_fields`;
+- все current FastMCP services (`retrieval`, `repository`, `artifact-writer`, `template-library`, `review-approval`, `configuration-library`) переведены на общий `_register_toolset(...)` и единый error mapping helper `_operation_error(...)`;
+- `build_evidence_pack` зафиксирован как `operation_scope=action`, а read/write tools теперь получают consistent scope metadata автоматически;
+- добавлен ADR `0070-unified-fastmcp-service-policies.md`;
+- targeted MCP/framework tests: `53 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `TBD`.
 
 ## Increment 31: Knowledge Factory Hardening

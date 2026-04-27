@@ -177,6 +177,10 @@
   - persistence `PostgresConfigurationStore` + migration `0012_configuration_library.sql`;
   - MCP tools: `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
   - similarity и compare работают deterministic способом поверх persisted config records, без отдельного semantic/vector runtime.
+- unified FastMCP policy baseline:
+  - `BaseFastMcpService` централизует metadata contract, tool naming validation и operation-scope policy;
+  - service metadata теперь consistently содержит `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`, validation markers и `audit_payload_fields`;
+  - current MCP services используют единый helper для MCP-friendly error mapping вместо локального ручного `raise ValueError(str(exc))`.
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
@@ -326,6 +330,6 @@
 
 ## 5. План следующего инкремента
 
-1. После Configuration Library MCP закрыть unified MCP policies: naming, error mapping, audit payload, operation scope.
-2. Добавить базовые auth/RBAC boundaries для sensitive MCP/API endpoints.
+1. Добавить базовые auth/RBAC boundaries для sensitive MCP/API endpoints.
+2. Расширить unified MCP policy layer до auth/audit-aware operational envelope.
 3. Подготовить production runbook/handoff для следующего increment production-boundary работ.

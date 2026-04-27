@@ -80,3 +80,4 @@
 - `0067-structured-logging-and-hitl-observability-summary.md`
 - `0068-review-approval-mcp-boundary.md`
 - `0069-configuration-library-mcp-skeleton.md`
+- `0070-unified-fastmcp-service-policies.md`

@@ -29,18 +29,15 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            "upsert_template": self.upsert_template,
-            "publish_template": self.publish_template,
-            "set_template_status": self.set_template_status,
-            "get_template": self.get_template,
-            "list_templates": self.list_templates,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload["tool_names"] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                "upsert_template": self.upsert_template,
+                "publish_template": self.publish_template,
+                "set_template_status": self.set_template_status,
+                "get_template": self.get_template,
+                "list_templates": self.list_templates,
+            }
+        )
 
     def upsert_template(self, payload: TemplateLibraryMcpUpsertTemplateInput | dict[str, Any]) -> dict[str, Any]:
         """Создает или обновляет reusable template в template library."""
@@ -77,7 +74,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         try:
             published = self._template_library_service.publish_template(validated.template_id, validated.version)
         except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
 
         response = TemplateLibraryMcpPublishTemplateOutput(
             template_id=published.template_id,
@@ -104,7 +101,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
                 metadata=validated.metadata,
             )
         except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
 
         response = TemplateLibraryMcpSetTemplateStatusOutput(
             template_id=updated.template_id,
@@ -124,7 +121,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         try:
             loaded = self._template_library_service.get_template(validated.template_id, validated.version)
         except (TemplateNotFoundError, KeyError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
 
         response = TemplateLibraryMcpGetTemplateOutput(
             template_id=loaded.template_id,

@@ -59,6 +59,10 @@ def test_fastmcp_repository_service_metadata_contains_tools() -> None:
     metadata = mcp_service.metadata()
 
     assert metadata["service_name"] == "repository-mcp"
+    assert metadata["transport"] == "fastmcp"
+    assert metadata["policy_version"] == "mcp-policy-v1"
+    assert metadata["service_scope"] == "repository"
+    assert metadata["operation_scopes"] == {"get_document": "read", "list_documents": "read", "upsert_document": "write"}
     assert "upsert_document" in metadata["tool_names"]
     assert "get_document" in metadata["tool_names"]
     assert "list_documents" in metadata["tool_names"]

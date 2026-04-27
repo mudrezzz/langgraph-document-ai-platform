@@ -303,4 +303,52 @@ def test_base_fastmcp_service_metadata_is_stable() -> None:
 
     service.register_tools()
 
-    assert service.metadata() == {"service_name": "contract-test", "version": "1.2.3"}
+    assert service.metadata() == {
+        "service_name": "contract-test",
+        "version": "1.2.3",
+        "transport": "fastmcp",
+        "service_scope": "contract-test",
+        "policy_version": "mcp-policy-v1",
+        "tool_names": [],
+        "operation_scopes": {},
+        "input_validation": "pydantic_model_validate",
+        "output_validation": "pydantic_response_model",
+        "error_mapping": "value_error",
+        "audit_payload_fields": ["service_name", "service_version", "tool_name", "operation_scope"],
+    }
+
+
+def test_base_fastmcp_service_register_toolset_infers_operation_scopes() -> None:
+    service = BaseFastMcpService(service_name="policy-test")
+
+    tools = service._register_toolset(  # type: ignore[attr-defined]
+        {
+            "get_item": object(),
+            "upsert_item": object(),
+            "run_sync": object(),
+        },
+        operation_scopes={"run_sync": "action"},
+    )
+
+    assert sorted(tools) == ["get_item", "run_sync", "upsert_item"]
+    assert service.metadata()["operation_scopes"] == {
+        "get_item": "read",
+        "run_sync": "action",
+        "upsert_item": "write",
+    }
+
+
+def test_base_fastmcp_service_rejects_invalid_tool_names() -> None:
+    service = BaseFastMcpService(service_name="policy-test")
+
+    with pytest.raises(ValueError, match="Invalid MCP tool name"):
+        service._register_toolset({"BadTool": object()})  # type: ignore[attr-defined]
+
+
+def test_base_fastmcp_service_wraps_operation_errors_as_value_error() -> None:
+    service = BaseFastMcpService(service_name="policy-test")
+
+    wrapped = service._operation_error(RuntimeError("boom"))  # type: ignore[attr-defined]
+
+    assert isinstance(wrapped, ValueError)
+    assert str(wrapped) == "boom"

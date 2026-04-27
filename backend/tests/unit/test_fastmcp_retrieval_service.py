@@ -80,6 +80,10 @@ def test_fastmcp_retrieval_service_metadata_contains_tools() -> None:
     metadata = mcp_service.metadata()
 
     assert metadata["service_name"] == "retrieval-mcp"
+    assert metadata["transport"] == "fastmcp"
+    assert metadata["policy_version"] == "mcp-policy-v1"
+    assert metadata["service_scope"] == "retrieval"
+    assert metadata["operation_scopes"] == {"build_evidence_pack": "action", "lookup_source": "read", "search_blocks": "read", "search_summaries": "read"}
     assert "build_evidence_pack" in metadata["tool_names"]
     assert "search_summaries" in metadata["tool_names"]
     assert "search_blocks" in metadata["tool_names"]

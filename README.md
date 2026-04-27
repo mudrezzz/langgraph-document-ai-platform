@@ -119,6 +119,9 @@
   - `ConfigurationLibraryApplicationService` + `PostgresConfigurationStore` + миграция `backend/migrations/0012_configuration_library.sql`;
   - скрипты `run_configuration_library_mcp.sh/.ps1` и `smoke_configuration_library_mcp.sh/.ps1`;
   - skeleton дает persisted/versioned config artifacts и deterministic compare/similarity path без отдельного vector/runtime stack.
+- унифицирован MCP policy layer:
+  - `BaseFastMcpService` теперь отдает common metadata (`transport`, `service_scope`, `policy_version`, `operation_scopes`, validation/audit markers);
+  - FastMCP services используют общий `_register_toolset(...)` для naming/scope policy и общий `_operation_error(...)` для MCP-friendly error mapping.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -956,6 +959,7 @@ Structured runtime logging:
 
 - Retrieval MCP:
   - tools `build_evidence_pack`, `search_summaries`, `search_blocks`, `lookup_source`;
+  - `metadata()` теперь также отдает `transport=fastmcp`, `service_scope`, `policy_version`, `operation_scopes`;
   - smoke scripts `backend/scripts/smoke_retrieval_mcp.sh/.ps1`;
   - схемы `backend/packages/schemas/mcp/retrieval.py`.
 - Repository MCP:
@@ -973,6 +977,13 @@ Structured runtime logging:
 - Configuration Library MCP:
   - tools `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
   - схемы `backend/packages/schemas/mcp/configuration_library.py`.
+
+Unified FastMCP policy baseline:
+
+- metadata содержит `service_name`, `version`, `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`;
+- `operation_scopes` нормализованы в `read|write|action`;
+- input/output validation marker фиксирован как `pydantic_model_validate` / `pydantic_response_model`;
+- application ошибки маппятся в MCP-friendly `ValueError` через общий helper base service.
 
 ## Knowledge Factory MVP
 

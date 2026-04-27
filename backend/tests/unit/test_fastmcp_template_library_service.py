@@ -175,6 +175,10 @@ def test_fastmcp_template_library_service_metadata_contains_tools() -> None:
     metadata = mcp_service.metadata()
 
     assert metadata["service_name"] == "template-library-mcp"
+    assert metadata["transport"] == "fastmcp"
+    assert metadata["policy_version"] == "mcp-policy-v1"
+    assert metadata["service_scope"] == "template-library"
+    assert metadata["operation_scopes"] == {"get_template": "read", "list_templates": "read", "publish_template": "write", "set_template_status": "write", "upsert_template": "write"}
     assert "upsert_template" in metadata["tool_names"]
     assert "publish_template" in metadata["tool_names"]
     assert "set_template_status" in metadata["tool_names"]

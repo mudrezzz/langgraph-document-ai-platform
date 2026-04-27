@@ -40,17 +40,17 @@ class FastMcpRetrievalService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            "build_evidence_pack": self.build_evidence_pack,
-            "lookup_source": self.lookup_source,
-            "search_blocks": self.search_blocks,
-            "search_summaries": self.search_summaries,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload["tool_names"] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                "build_evidence_pack": self.build_evidence_pack,
+                "lookup_source": self.lookup_source,
+                "search_blocks": self.search_blocks,
+                "search_summaries": self.search_summaries,
+            },
+            operation_scopes={
+                "build_evidence_pack": "action",
+            },
+        )
 
     def build_evidence_pack(self, payload: RetrievalMcpBuildEvidencePackInput | dict[str, Any]) -> dict[str, Any]:
         """Запускает retrieval задачу и сразу возвращает собранный evidence pack."""

@@ -30,18 +30,15 @@ class FastMcpConfigurationLibraryService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            "upsert_config": self.upsert_config,
-            "get_config": self.get_config,
-            "list_configs": self.list_configs,
-            "find_similar_configs": self.find_similar_configs,
-            "compare_configs": self.compare_configs,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload["tool_names"] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                "upsert_config": self.upsert_config,
+                "get_config": self.get_config,
+                "list_configs": self.list_configs,
+                "find_similar_configs": self.find_similar_configs,
+                "compare_configs": self.compare_configs,
+            }
+        )
 
     def upsert_config(self, payload: ConfigurationLibraryMcpUpsertConfigInput | dict[str, Any]) -> dict[str, Any]:
         validated = ConfigurationLibraryMcpUpsertConfigInput.model_validate(payload)
@@ -62,7 +59,7 @@ class FastMcpConfigurationLibraryService(BaseFastMcpService):
         try:
             loaded = self._configuration_library_service.get_config(validated.config_id, validated.version)
         except ConfigurationNotFoundError as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ConfigurationLibraryMcpGetConfigOutput.model_validate(loaded.model_dump(mode="json"))
         return response.model_dump(mode="json")
 
@@ -99,7 +96,7 @@ class FastMcpConfigurationLibraryService(BaseFastMcpService):
                 offset=validated.offset,
             )
         except ConfigurationNotFoundError as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ConfigurationLibraryMcpFindSimilarConfigsOutput(
             items=[
                 ConfigurationLibraryMcpSimilarConfigItem.model_validate(item.model_dump(mode="json"))
@@ -121,7 +118,7 @@ class FastMcpConfigurationLibraryService(BaseFastMcpService):
                 right_version=validated.right_version,
             )
         except ConfigurationNotFoundError as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ConfigurationLibraryMcpCompareConfigsOutput.model_validate(comparison.model_dump(mode="json"))
         return response.model_dump(mode="json")
 

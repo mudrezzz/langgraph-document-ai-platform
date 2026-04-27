@@ -25,16 +25,13 @@ class FastMcpRepositoryService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            "upsert_document": self.upsert_document,
-            "get_document": self.get_document,
-            "list_documents": self.list_documents,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload["tool_names"] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                "upsert_document": self.upsert_document,
+                "get_document": self.get_document,
+                "list_documents": self.list_documents,
+            }
+        )
 
     def upsert_document(self, payload: RepositoryMcpUpsertDocumentInput | dict[str, Any]) -> dict[str, Any]:
         """Создает или обновляет документ в repository."""
@@ -62,7 +59,7 @@ class FastMcpRepositoryService(BaseFastMcpService):
         try:
             loaded = self._document_service.get_document(validated_payload.doc_id)
         except (DocumentNotFoundError, KeyError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
 
         response = RepositoryMcpGetDocumentOutput(doc_id=loaded.doc_id, payload=loaded.payload)
         return response.model_dump(mode="json")

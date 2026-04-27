@@ -22,6 +22,10 @@ def test_fastmcp_configuration_library_service_metadata_contains_tools() -> None
     metadata = service.metadata()
 
     assert metadata["service_name"] == "configuration-library-mcp"
+    assert metadata["transport"] == "fastmcp"
+    assert metadata["policy_version"] == "mcp-policy-v1"
+    assert metadata["service_scope"] == "configuration-library"
+    assert metadata["operation_scopes"] == {"compare_configs": "read", "find_similar_configs": "read", "get_config": "read", "list_configs": "read", "upsert_config": "write"}
     assert "upsert_config" in metadata["tool_names"]
     assert "get_config" in metadata["tool_names"]
     assert "list_configs" in metadata["tool_names"]

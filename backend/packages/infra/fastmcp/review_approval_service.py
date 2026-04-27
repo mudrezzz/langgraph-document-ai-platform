@@ -35,17 +35,14 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
         self._tools: dict[str, Callable[..., Any]] = {}
 
     def register_tools(self) -> None:
-        self._tools = {
-            'get_hitl_status': self.get_hitl_status,
-            'list_hitl_actions': self.list_hitl_actions,
-            'submit_hitl_review': self.submit_hitl_review,
-            'get_hitl_observability_summary': self.get_hitl_observability_summary,
-        }
-
-    def metadata(self) -> dict[str, Any]:
-        payload = super().metadata()
-        payload['tool_names'] = sorted(self._tools.keys())
-        return payload
+        self._tools = self._register_toolset(
+            {
+                'get_hitl_status': self.get_hitl_status,
+                'list_hitl_actions': self.list_hitl_actions,
+                'submit_hitl_review': self.submit_hitl_review,
+                'get_hitl_observability_summary': self.get_hitl_observability_summary,
+            }
+        )
 
     def get_hitl_status(self, payload: ReviewApprovalMcpGetHitlStatusInput | dict[str, Any]) -> dict[str, Any]:
         """Возвращает текущий HITL-статус authoring задачи."""
@@ -54,7 +51,7 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
         try:
             result = self._authoring_service.hitl_status(validated.task_id)
         except (InvalidTaskStateError, TaskNotFoundError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ReviewApprovalMcpGetHitlStatusOutput.model_validate(result.model_dump(mode='json'))
         return response.model_dump(mode='json')
 
@@ -81,7 +78,7 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
                 created_to=validated.created_to,
             )
         except InvalidCursorError as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ReviewApprovalMcpListHitlActionsOutput.model_validate(result.model_dump(mode='json'))
         return response.model_dump(mode='json')
 
@@ -103,7 +100,7 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
                 dispatcher=self._dispatcher,
             )
         except (InvalidTaskStateError, TaskNotFoundError, WorkflowExecutionError) as exc:
-            raise ValueError(str(exc)) from exc
+            raise self._operation_error(exc) from exc
         response = ReviewApprovalMcpSubmitHitlReviewOutput.model_validate(result.model_dump(mode='json'))
         return response.model_dump(mode='json')
 
