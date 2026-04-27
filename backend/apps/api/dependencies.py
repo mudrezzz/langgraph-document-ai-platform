@@ -14,6 +14,7 @@ from application.async_dispatcher import (
 )
 from application.authoring_service import AuthoringApplicationService
 from application.canonical_document_service import CanonicalDocumentApplicationService
+from application.configuration_library_service import ConfigurationLibraryApplicationService
 from application.artifact_service import ArtifactApplicationService
 from application.document_service import DocumentApplicationService
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
@@ -35,6 +36,7 @@ from infra.celery import (
 from infra.openrouter import OpenRouterChatModelGateway
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
+from infra.postgres.configuration_store import PostgresConfigurationStore
 from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.canonical_document_store import PostgresCanonicalDocumentStore
 from infra.postgres.hitl_action_store import PostgresHitlActionStore
@@ -256,6 +258,10 @@ class ApiContainer:
             settings,
             use_fallback_if_unset=use_fallback,
         )
+        configuration_store = PostgresConfigurationStore.from_settings(
+            settings,
+            use_fallback_if_unset=use_fallback,
+        )
         vector_store = PgVectorStoreAdapter.from_settings(
             settings,
             use_fallback_if_unset=use_fallback,
@@ -266,6 +272,7 @@ class ApiContainer:
         task_service = TaskApplicationService(registry=registry, checkpoint_store=checkpoint_store)
         canonical_document_service = CanonicalDocumentApplicationService(store=canonical_document_store)
         template_library_service = TemplateLibraryApplicationService(store=template_store)
+        configuration_library_service = ConfigurationLibraryApplicationService(store=configuration_store)
         retrieval_service = RetrievalApplicationService(
             task_service=task_service,
             canonical_document_service=canonical_document_service,
@@ -279,6 +286,7 @@ class ApiContainer:
         self.document_service = DocumentApplicationService(repository=document_repository)
         self.canonical_document_service = canonical_document_service
         self.template_library_service = template_library_service
+        self.configuration_library_service = configuration_library_service
         self.embedding_gateway = embedding_gateway
         self.rerank_gateway = rerank_gateway
         self.vector_store = vector_store

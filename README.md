@@ -113,6 +113,12 @@
   - `FastMcpReviewApprovalService` с tool-ами `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
   - скрипты `run_review_approval_mcp.sh/.ps1` и `smoke_review_approval_mcp.sh/.ps1`;
   - boundary переиспользует existing `AuthoringApplicationService`, `PostgresHitlActionStore` и existing async dispatcher plane без отдельного review-specific runtime stack.
+- добавлен Configuration Library MCP skeleton:
+  - `apps/mcp_configuration_library/main.py`;
+  - `FastMcpConfigurationLibraryService` с tool-ами `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
+  - `ConfigurationLibraryApplicationService` + `PostgresConfigurationStore` + миграция `backend/migrations/0012_configuration_library.sql`;
+  - скрипты `run_configuration_library_mcp.sh/.ps1` и `smoke_configuration_library_mcp.sh/.ps1`;
+  - skeleton дает persisted/versioned config artifacts и deterministic compare/similarity path без отдельного vector/runtime stack.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -208,10 +214,12 @@ backend/
   apps/
     api/
     mcp_artifact_writer/
+    mcp_configuration_library/
     mcp_repository/
     mcp_retrieval/
     mcp_template_library/
     mcp_review_approval/
+    mcp_configuration_library/
     worker/
   examples/
     cases/
@@ -447,7 +455,33 @@ bash ./backend/scripts/smoke_review_approval_mcp.sh
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_review_approval_mcp.ps1
 ```
 
-30. Smoke Authoring API (Linux):
+30. Запуск Configuration Library MCP (Linux):
+
+```bash
+pip install fastmcp
+bash ./backend/scripts/run_configuration_library_mcp.sh
+```
+
+31. Запуск Configuration Library MCP (Windows):
+
+```powershell
+pip install fastmcp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\run_configuration_library_mcp.ps1
+```
+
+32. Smoke Configuration Library MCP (Linux):
+
+```bash
+bash ./backend/scripts/smoke_configuration_library_mcp.sh
+```
+
+33. Smoke Configuration Library MCP (Windows):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_configuration_library_mcp.ps1
+```
+
+34. Smoke Authoring API (Linux):
 
 ```bash
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
@@ -459,7 +493,7 @@ bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --wor
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_authoring_api.ps1 -HostName 127.0.0.1 -Port 8030 -WorkflowMode multi_step
 ```
 
-32. Smoke Authoring API c обязательной LLM-генерацией (Linux):
+36. Smoke Authoring API c обязательной LLM-генерацией (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -467,13 +501,13 @@ APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
 bash ./backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
-33. Demo Authoring + Traceability (Linux):
+37. Demo Authoring + Traceability (Linux):
 
 ```bash
 bash ./backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.1 --port 8040
 ```
 
-34. Demo Authoring + Traceability (Windows):
+38. Demo Authoring + Traceability (Windows):
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_release_authoring_traceability_case.ps1 -HostName 127.0.0.1 -Port 8040
@@ -496,7 +530,7 @@ APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
 
-37. Demo Async Authoring + HITL (Linux):
+41. Demo Async Authoring + HITL (Linux):
 
 ```bash
 set -a && source backend/.env && set +a
@@ -936,6 +970,9 @@ Structured runtime logging:
 - Review/Approval MCP:
   - tools `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
   - схемы `backend/packages/schemas/mcp/review_approval.py`.
+- Configuration Library MCP:
+  - tools `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
+  - схемы `backend/packages/schemas/mcp/configuration_library.py`.
 
 ## Knowledge Factory MVP
 

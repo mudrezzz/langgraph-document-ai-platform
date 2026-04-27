@@ -79,3 +79,4 @@
 - `0066-task-observability-summary-and-execution-metadata.md`
 - `0067-structured-logging-and-hitl-observability-summary.md`
 - `0068-review-approval-mcp-boundary.md`
+- `0069-configuration-library-mcp-skeleton.md`

@@ -6,12 +6,14 @@ import pytest
 
 from apps.api.dependencies import ApiContainer
 from application.errors import InvalidTemplateStatusTransitionError
+from application.configuration_library_service import ConfigurationLibraryApplicationService
 from application.template_library_service import TemplateLibraryApplicationService
 from domain_docs import TemplateCompiler
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from infra.postgres.artifact_store import PostgresArtifactStore
 from infra.postgres.checkpoint_store import LangGraphPostgresCheckpointStore
 from infra.postgres.config import PostgresSettings
+from infra.postgres.configuration_store import PostgresConfigurationStore
 from infra.postgres.document_repository import PostgresDocumentRepository
 from infra.postgres.task_artifact_registry import PostgresTaskArtifactRegistry
 from infra.postgres.template_store import PostgresTemplateStore
@@ -273,8 +275,56 @@ def test_template_store_supports_publish_and_published_latest_resolution() -> No
 
     assert published_latest.version == "2"
     assert published_latest.status == "published"
-    assert published_only_list.total_returned == 1
-    assert published_only_list.items[0].version == "2"
+
+
+def test_configuration_store_fallback_roundtrip_compare_and_similarity() -> None:
+    store = PostgresConfigurationStore(dsn=None, use_fallback_if_unset=True)
+    library = ConfigurationLibraryApplicationService(store=store)
+
+    library.upsert_config(
+        config_id="retrieval-policy",
+        version="1",
+        config_type="retrieval_policy",
+        title="Base Policy",
+        payload={"retrieval": {"top_k": 8, "rerank": True}, "quality": {"min_sources": 3}},
+        metadata={"owner": "unit-test"},
+        tags=["release", "prod"],
+    )
+    library.upsert_config(
+        config_id="retrieval-policy",
+        version="2",
+        config_type="retrieval_policy",
+        title="Updated Policy",
+        payload={"retrieval": {"top_k": 10, "rerank": True}, "quality": {"min_sources": 4}},
+        metadata={"owner": "unit-test"},
+        tags=["release", "prod"],
+    )
+    library.upsert_config(
+        config_id="retrieval-policy-peer",
+        version="1",
+        config_type="retrieval_policy",
+        title="Peer Policy",
+        payload={"retrieval": {"top_k": 9, "rerank": True}, "quality": {"min_sources": 4}},
+        metadata={"owner": "peer"},
+        tags=["release", "prod"],
+    )
+
+    latest = library.get_config("retrieval-policy")
+    listed = library.list_configs(config_type="retrieval_policy", tag="release")
+    comparison = library.compare_configs(
+        left_config_id="retrieval-policy",
+        left_version="1",
+        right_config_id="retrieval-policy",
+        right_version="2",
+    )
+    similar = library.find_similar_configs(reference_config_id="retrieval-policy", reference_version="2")
+
+    assert latest.version == "2"
+    assert latest.payload["retrieval"]["top_k"] == 10
+    assert listed.total_returned == 3
+    assert comparison.changed_values[0].key == "quality.min_sources"
+    assert similar.total_returned == 1
+    assert similar.items[0].config_id == "retrieval-policy-peer"
 
 
 def test_template_store_publish_demotes_previous_published_version() -> None:

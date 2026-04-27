@@ -406,6 +406,45 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_review_approval_mcp.sh
 - доступны tools `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
 - процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
 
+## 13.2.3. Smoke Configuration Library MCP (versioned config artifacts)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_configuration_library_mcp.sh
+```
+
+Что увидеть в JSON:
+
+- `tool_names` содержит `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
+- `loaded_config_id` и `loaded_version` заполнены;
+- `updated_version` показывает вторую persisted version;
+- `list_total_returned >= 2` и `list_contains_config=true`;
+- `similar_total_returned >= 1`;
+- `top_similar_config_id` заполнен;
+- `compare_changed_keys` содержит как минимум `retrieval.top_k` или `quality_gates.min_sources`.
+
+Как интерпретировать:
+
+- это подтверждает, что versioned configuration artifacts доступны через MCP service boundary, а не только как внутренние JSON payloads;
+- `upsert_config/get_config/list_configs` работают поверх persisted `configuration_library` store;
+- `find_similar_configs` позволяет найти похожий config bundle deterministic-эвристикой без нового runtime stack;
+- `compare_configs` показывает изменившиеся настройки между версиями или разными config artifacts.
+
+## 13.2.4. (Опционально) Проверка Configuration Library MCP runtime
+
+```bash
+PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_configuration_library_mcp.sh
+```
+
+Что увидеть:
+
+- MCP-сервис `configuration-library-mcp` стартует без ошибки импорта;
+- доступны tools `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
+- процесс остается запущенным и слушает MCP runtime до `Ctrl+C`.
+
 ## 13.3. Smoke Knowledge Indexing
 
 Этот smoke проверяет реальный вход demo-кейса:

@@ -35,3 +35,7 @@ class TemplateNotFoundError(KeyError):
 
 class InvalidTemplateStatusTransitionError(ValueError):
     """Некорректный переход статуса шаблона."""
+
+
+class ConfigurationNotFoundError(KeyError):
+    """Конфигурация не найдена в configuration library."""

@@ -1,6 +1,6 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-26
+Дата обновления: 2026-04-27
 Статус: Increment 30
 
 ## 1. Целевой архитектурный ориентир
@@ -170,6 +170,13 @@
   - сервис `FastMcpReviewApprovalService`;
   - MCP tools: `get_hitl_status`, `list_hitl_actions`, `submit_hitl_review`, `get_hitl_observability_summary`;
   - boundary использует existing `AuthoringApplicationService`, existing HITL read-model и existing async dispatcher plane без отдельного reviewer-specific runtime stack.
+- Configuration Library MCP skeleton:
+  - app entrypoint `apps/mcp_configuration_library/main.py`;
+  - сервис `FastMcpConfigurationLibraryService`;
+  - application boundary `ConfigurationLibraryApplicationService`;
+  - persistence `PostgresConfigurationStore` + migration `0012_configuration_library.sql`;
+  - MCP tools: `upsert_config`, `get_config`, `list_configs`, `find_similar_configs`, `compare_configs`;
+  - similarity и compare работают deterministic способом поверх persisted config records, без отдельного semantic/vector runtime.
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
@@ -319,6 +326,6 @@
 
 ## 5. План следующего инкремента
 
-1. Продолжить Increment 30 после Review/Approval MCP следующими slices production-boundary.
-2. Добавить Configuration Library MCP skeleton и унифицировать MCP policies.
+1. После Configuration Library MCP закрыть unified MCP policies: naming, error mapping, audit payload, operation scope.
+2. Добавить базовые auth/RBAC boundaries для sensitive MCP/API endpoints.
 3. Подготовить production runbook/handoff для следующего increment production-boundary работ.

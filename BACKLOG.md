@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-26
+Дата обновления: 2026-04-27
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -25,6 +25,7 @@
 - `backend/scripts/smoke_authoring_async_api.sh`
 - `backend/scripts/demo_release_authoring_async_hitl_case.sh`
 - `backend/scripts/smoke_review_approval_mcp.sh`
+- `backend/scripts/smoke_configuration_library_mcp.sh`
 
 Минимальный критерий: после каждого backend-инкремента demo показывает связку `input documents -> retrieval/evidence -> authoring artifact -> traceability -> task events -> HITL/read-model`, если изменяемый слой влияет на этот путь.
 
@@ -693,6 +694,28 @@ First slice done:
 - targeted MCP/authoring/API tests: `78 passed`;
 - manual smoke Review/Approval MCP: passed;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `259 passed`.
+
+Second slice done:
+
+- добавлен Configuration Library MCP skeleton:
+  - `backend/apps/mcp_configuration_library/main.py`;
+  - `backend/packages/application/configuration_library_service.py`;
+  - `backend/packages/infra/postgres/configuration_store.py`;
+  - `backend/packages/infra/fastmcp/configuration_library_service.py`;
+  - `backend/packages/schemas/mcp/configuration_library.py`;
+- MCP tools покрывают persisted configuration artifacts без знания internal storage payload:
+  - `upsert_config`;
+  - `get_config`;
+  - `list_configs`;
+  - `find_similar_configs`;
+  - `compare_configs`;
+- boundary использует PostgreSQL/fallback persistence pattern через новую таблицу `app.configuration_library` и migration `backend/migrations/0012_configuration_library.sql`;
+- similarity path реализован как deterministic heuristic поверх existing persisted config records, а compare path как deterministic diff по flattened JSON keys, без отдельного vector/runtime stack;
+- добавлены operational scripts `run_configuration_library_mcp.sh/.ps1` и `smoke_configuration_library_mcp.sh/.ps1`;
+- добавлен ADR `0069-configuration-library-mcp-skeleton.md`;
+- targeted configuration MCP/persistence tests: `28 passed`;
+- manual smoke Configuration Library MCP: passed;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `TBD`.
 
 ## Increment 31: Knowledge Factory Hardening
 
