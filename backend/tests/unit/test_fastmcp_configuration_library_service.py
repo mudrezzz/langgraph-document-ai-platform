@@ -26,6 +26,13 @@ def test_fastmcp_configuration_library_service_metadata_contains_tools() -> None
     assert metadata["policy_version"] == "mcp-policy-v1"
     assert metadata["service_scope"] == "configuration-library"
     assert metadata["operation_scopes"] == {"compare_configs": "read", "find_similar_configs": "read", "get_config": "read", "list_configs": "read", "upsert_config": "write"}
+    assert metadata["tool_required_roles"] == {
+        "compare_configs": [],
+        "find_similar_configs": [],
+        "get_config": [],
+        "list_configs": [],
+        "upsert_config": ["config_admin"],
+    }
     assert "upsert_config" in metadata["tool_names"]
     assert "get_config" in metadata["tool_names"]
     assert "list_configs" in metadata["tool_names"]
@@ -130,3 +137,22 @@ def test_fastmcp_configuration_library_service_get_not_found_raises_value_error(
 
     with pytest.raises(ValueError, match="missing-config"):
         service.get_config({"config_id": "missing-config"})
+
+
+def test_fastmcp_configuration_library_service_upsert_requires_role_when_auth_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+    service = _build_service()
+
+    with pytest.raises(ValueError, match="Authentication required"):
+        service.upsert_config({"config_id": "cfg-1", "payload": {"k": "v"}})
+
+    result = service.upsert_config(
+        {
+            "config_id": "cfg-1",
+            "payload": {"k": "v"},
+            "actor": "alice",
+            "roles": ["config_admin"],
+        }
+    )
+
+    assert result["config_id"] == "cfg-1"

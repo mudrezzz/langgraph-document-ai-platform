@@ -36,13 +36,19 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
                 "set_template_status": self.set_template_status,
                 "get_template": self.get_template,
                 "list_templates": self.list_templates,
-            }
+            },
+            required_roles={
+                "upsert_template": ("template_admin",),
+                "publish_template": ("template_admin",),
+                "set_template_status": ("template_admin",),
+            },
         )
 
     def upsert_template(self, payload: TemplateLibraryMcpUpsertTemplateInput | dict[str, Any]) -> dict[str, Any]:
         """Создает или обновляет reusable template в template library."""
 
         validated = TemplateLibraryMcpUpsertTemplateInput.model_validate(payload)
+        self._authorize_tool("upsert_template", actor=validated.actor, roles=validated.roles)
         compiled = self._template_library_service.compile_template(
             template_id=validated.template_id,
             version=validated.version,
@@ -71,6 +77,7 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         """Публикует конкретную version reusable template."""
 
         validated = TemplateLibraryMcpPublishTemplateInput.model_validate(payload)
+        self._authorize_tool("publish_template", actor=validated.actor, roles=validated.roles)
         try:
             published = self._template_library_service.publish_template(validated.template_id, validated.version)
         except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
@@ -91,13 +98,14 @@ class FastMcpTemplateLibraryService(BaseFastMcpService):
         """Применяет lifecycle transition к reusable template."""
 
         validated = TemplateLibraryMcpSetTemplateStatusInput.model_validate(payload)
+        actor_context = self._authorize_tool("set_template_status", actor=validated.actor, roles=validated.roles)
         try:
             updated = self._template_library_service.set_template_status(
                 validated.template_id,
                 validated.version,
                 validated.status,
                 reason=validated.reason,
-                actor=validated.actor,
+                actor=actor_context.actor_id or validated.actor,
                 metadata=validated.metadata,
             )
         except (TemplateNotFoundError, InvalidTemplateStatusTransitionError) as exc:
@@ -186,6 +194,8 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
         template_id: str,
         version: str = "1",
         status: str = "draft",
+        actor: str | None = None,
+        roles: list[str] | None = None,
         sections: list[dict[str, Any]] | None = None,
         validation_rules: list[dict[str, Any]] | None = None,
         assembly_rules: list[dict[str, Any]] | None = None,
@@ -198,6 +208,8 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
                 "template_id": template_id,
                 "version": version,
                 "status": status,
+                "actor": actor,
+                "roles": roles or [],
                 "sections": sections or [],
                 "validation_rules": validation_rules or [],
                 "assembly_rules": assembly_rules or [],
@@ -206,10 +218,17 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
         )
 
     @server.tool()
-    def publish_template(template_id: str, version: str) -> dict[str, Any]:
+    def publish_template(
+        template_id: str,
+        version: str,
+        actor: str | None = None,
+        roles: list[str] | None = None,
+    ) -> dict[str, Any]:
         """MCP tool: publish_template."""
 
-        return service.publish_template({"template_id": template_id, "version": version})
+        return service.publish_template(
+            {"template_id": template_id, "version": version, "actor": actor, "roles": roles or []}
+        )
 
     @server.tool()
     def set_template_status(
@@ -218,6 +237,7 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
         status: str,
         reason: str | None = None,
         actor: str | None = None,
+        roles: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """MCP tool: set_template_status."""
@@ -229,6 +249,7 @@ def create_fastmcp_template_library_server(service: FastMcpTemplateLibraryServic
                 "status": status,
                 "reason": reason,
                 "actor": actor,
+                "roles": roles or [],
                 "metadata": metadata or {},
             }
         )

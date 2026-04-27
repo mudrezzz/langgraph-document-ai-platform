@@ -122,6 +122,10 @@
 - унифицирован MCP policy layer:
   - `BaseFastMcpService` теперь отдает common metadata (`transport`, `service_scope`, `policy_version`, `operation_scopes`, validation/audit markers);
   - FastMCP services используют общий `_register_toolset(...)` для naming/scope policy и общий `_operation_error(...)` для MCP-friendly error mapping.
+- добавлен baseline auth/RBAC boundary для sensitive API/MCP operations:
+  - shared policy layer `framework.security.rbac` с `ActorContext` и `RoleBasedAccessPolicy`;
+  - API использует headers `X-Actor-Id` и `X-Actor-Roles` для template governance/HITL submit endpoints;
+  - FastMCP metadata теперь также отдает `auth_policy` и `tool_required_roles`, а sensitive MCP write/approval tools принимают typed `actor`/`roles` payload.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -980,10 +984,23 @@ Structured runtime logging:
 
 Unified FastMCP policy baseline:
 
-- metadata содержит `service_name`, `version`, `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`;
+- metadata содержит `service_name`, `version`, `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`, `auth_policy`, `tool_required_roles`;
 - `operation_scopes` нормализованы в `read|write|action`;
 - input/output validation marker фиксирован как `pydantic_model_validate` / `pydantic_response_model`;
 - application ошибки маппятся в MCP-friendly `ValueError` через общий helper base service.
+
+RBAC baseline:
+
+- включается через `APP_AUTH_ENABLED=true`;
+- API sensitive endpoints используют headers `X-Actor-Id` / `X-Actor-Roles`;
+- MCP sensitive tools используют typed payload fields `actor` и `roles`;
+- текущие baseline roles:
+  - `template_admin` для template governance API/MCP;
+  - `reviewer` для HITL submit API/MCP;
+  - `config_admin` для `upsert_config`;
+  - `artifact_writer` для `write_artifact`;
+  - `repository_writer` для `upsert_document`;
+- при `APP_AUTH_ENABLED=false` backward compatibility текущих smoke/demo paths сохраняется.
 
 ## Knowledge Factory MVP
 

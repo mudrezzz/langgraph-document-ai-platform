@@ -30,7 +30,8 @@ class FastMcpArtifactWriterService(BaseFastMcpService):
                 "write_artifact": self.write_artifact,
                 "get_artifact": self.get_artifact,
                 "list_artifacts": self.list_artifacts,
-            }
+            },
+            required_roles={"write_artifact": ("artifact_writer",)},
         )
 
     def write_artifact(self, payload: ArtifactWriterMcpWriteArtifactInput | dict[str, Any]) -> dict[str, Any]:
@@ -40,6 +41,12 @@ class FastMcpArtifactWriterService(BaseFastMcpService):
             validated_payload = ArtifactWriterMcpWriteArtifactInput.model_validate(payload)
         else:
             validated_payload = payload
+
+        self._authorize_tool(
+            "write_artifact",
+            actor=validated_payload.actor,
+            roles=validated_payload.roles,
+        )
 
         saved = self._artifact_service.write_artifact(
             artifact_id=validated_payload.artifact_id,
@@ -143,6 +150,8 @@ def create_fastmcp_artifact_writer_server(service: FastMcpArtifactWriterService)
         artifact_id: str | None = None,
         title: str | None = None,
         format: str = "markdown",
+        actor: str | None = None,
+        roles: list[str] | None = None,
         metadata: dict | None = None,
     ) -> dict[str, Any]:
         """MCP tool: write_artifact."""
@@ -154,6 +163,8 @@ def create_fastmcp_artifact_writer_server(service: FastMcpArtifactWriterService)
                 "title": title,
                 "content": content,
                 "format": format,
+                "actor": actor,
+                "roles": roles or [],
                 "metadata": metadata or {},
             }
         )

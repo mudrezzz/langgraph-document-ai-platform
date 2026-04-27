@@ -70,6 +70,7 @@ APP_CELERY_INDEXING_QUEUE=knowledge-indexing
 APP_CELERY_RETRIEVAL_QUEUE=retrieval
 APP_HITL_MAX_ITERATIONS=2
 APP_HITL_WAIT_TIMEOUT_SEC=1800
+APP_AUTH_ENABLED=false
 REDIS_PORT=56379
 
 POSTGRES_DB=langgraph
@@ -83,6 +84,32 @@ EOF
 
 - `prod` профиль запрещает in-memory fallback persistence;
 - проверяется именно реальный PostgreSQL-контур.
+- `APP_AUTH_ENABLED=false` сохраняет существующий smoke/demo path без обязательных actor headers; для ручной RBAC-проверки можно временно включить `true`.
+
+### Опционально: ручная RBAC-проверка sensitive API
+
+Если хотите руками убедиться, что RBAC boundary работает:
+
+1. В `backend/.env` выставьте `APP_AUTH_ENABLED=true`.
+2. Перезапустите API smoke/server.
+3. Проверьте template write endpoint без роли и с ролью:
+
+```bash
+curl -i -X PUT "http://127.0.0.1:8010/api/v1/templates/rbac_demo" \
+  -H 'Content-Type: application/json' \
+  -d '{"version":"1","sections":[{"section_id":"overview","title":"Overview"}]}'
+
+curl -i -X PUT "http://127.0.0.1:8010/api/v1/templates/rbac_demo" \
+  -H 'Content-Type: application/json' \
+  -H 'X-Actor-Id: alice' \
+  -H 'X-Actor-Roles: template_admin' \
+  -d '{"version":"1","sections":[{"section_id":"overview","title":"Overview"}]}'
+```
+
+Что увидеть:
+
+- первый запрос возвращает `401 Unauthorized`;
+- второй запрос возвращает `200 OK` и template payload.
 
 ## 3. Поднять PostgreSQL и применить миграции
 

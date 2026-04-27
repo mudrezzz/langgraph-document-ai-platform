@@ -198,6 +198,29 @@ def test_template_api_publish_and_filter_flow(client: TestClient) -> None:
     assert listed_payload["items"][0]["status"] == "published"
 
 
+def test_template_api_write_requires_auth_when_enabled(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+
+    unauthorized = client.put(
+        "/api/v1/templates/auth_template",
+        json={"version": "1", "sections": [{"section_id": "overview", "title": "Overview"}]},
+    )
+    forbidden = client.put(
+        "/api/v1/templates/auth_template",
+        headers={"X-Actor-Id": "alice", "X-Actor-Roles": "reader"},
+        json={"version": "1", "sections": [{"section_id": "overview", "title": "Overview"}]},
+    )
+    authorized = client.put(
+        "/api/v1/templates/auth_template",
+        headers={"X-Actor-Id": "alice", "X-Actor-Roles": "template_admin"},
+        json={"version": "1", "sections": [{"section_id": "overview", "title": "Overview"}]},
+    )
+
+    assert unauthorized.status_code == 401
+    assert forbidden.status_code == 403
+    assert authorized.status_code == 200
+
+
 def test_template_api_publish_demotes_previous_published_version(client: TestClient) -> None:
     upsert_v1 = client.put(
         "/api/v1/templates/decision_memo",
@@ -1183,6 +1206,45 @@ def test_authoring_async_endpoint_and_hitl_submit_flow(client: TestClient) -> No
     assert artifact_payload["metadata"]["workflow_mode"] == "multi_step"
     assert artifact_payload["metadata"]["hitl_iteration"] == 1
     assert len(artifact_payload["traceability"]["sections"]) >= 3
+
+
+def test_authoring_hitl_submit_requires_reviewer_role_when_auth_enabled(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+    task_id = _create_authoring_task_async(client, hitl_required=True)
+
+    status_payload: dict = {}
+    for _ in range(20):
+        response = client.get(f"/api/v1/tasks/{task_id}")
+        assert response.status_code == 200
+        status_payload = response.json()
+        if status_payload["status"] in {"waiting_human", "completed", "failed"}:
+            break
+        time.sleep(0.05)
+
+    assert status_payload["status"] == "waiting_human"
+
+    unauthorized = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        json={"decision": "approve", "comment": "ship it"},
+    )
+    forbidden = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        headers={"X-Actor-Id": "alice", "X-Actor-Roles": "reader"},
+        json={"decision": "approve", "comment": "ship it"},
+    )
+    authorized = client.post(
+        f"/api/v1/tasks/{task_id}/hitl/submit",
+        headers={"X-Actor-Id": "alice", "X-Actor-Roles": "reviewer"},
+        json={"decision": "approve", "comment": "ship it", "metadata": {"source": "integration"}},
+    )
+
+    assert unauthorized.status_code == 401
+    assert forbidden.status_code == 403
+    assert authorized.status_code == 200
+    assert authorized.json()["status"] in {"queued", "running", "completed"}
 
     actions_response = client.get(f"/api/v1/hitl/actions?task_id={task_id}&decision=approve")
     assert actions_response.status_code == 200

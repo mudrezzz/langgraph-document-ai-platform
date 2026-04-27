@@ -179,6 +179,13 @@ def test_fastmcp_template_library_service_metadata_contains_tools() -> None:
     assert metadata["policy_version"] == "mcp-policy-v1"
     assert metadata["service_scope"] == "template-library"
     assert metadata["operation_scopes"] == {"get_template": "read", "list_templates": "read", "publish_template": "write", "set_template_status": "write", "upsert_template": "write"}
+    assert metadata["tool_required_roles"] == {
+        "get_template": [],
+        "list_templates": [],
+        "publish_template": ["template_admin"],
+        "set_template_status": ["template_admin"],
+        "upsert_template": ["template_admin"],
+    }
     assert "upsert_template" in metadata["tool_names"]
     assert "publish_template" in metadata["tool_names"]
     assert "set_template_status" in metadata["tool_names"]
@@ -314,3 +321,33 @@ def test_fastmcp_template_library_service_invalid_status_transition_raises_value
                 "status": "draft",
             }
         )
+
+
+def test_fastmcp_template_library_service_write_tools_require_role_when_auth_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+    mcp_service = FastMcpTemplateLibraryService(_FakeTemplateLibraryService())  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    with pytest.raises(ValueError, match="Authentication required"):
+        mcp_service.upsert_template({"template_id": "board_memo"})
+
+    upserted = mcp_service.upsert_template(
+        {
+            "template_id": "board_memo",
+            "actor": "alice",
+            "roles": ["template_admin"],
+        }
+    )
+    published = mcp_service.publish_template(
+        {
+            "template_id": "board_memo",
+            "version": "1",
+            "actor": "alice",
+            "roles": ["template_admin"],
+        }
+    )
+
+    assert upserted["template_id"] == "board_memo"
+    assert published["status"] == "published"

@@ -100,6 +100,11 @@ def test_fastmcp_artifact_writer_service_metadata_contains_tools() -> None:
     assert metadata["policy_version"] == "mcp-policy-v1"
     assert metadata["service_scope"] == "artifact-writer"
     assert metadata["operation_scopes"] == {"get_artifact": "read", "list_artifacts": "read", "write_artifact": "write"}
+    assert metadata["tool_required_roles"] == {
+        "get_artifact": [],
+        "list_artifacts": [],
+        "write_artifact": ["artifact_writer"],
+    }
     assert "write_artifact" in metadata["tool_names"]
     assert "get_artifact" in metadata["tool_names"]
     assert "list_artifacts" in metadata["tool_names"]
@@ -111,3 +116,21 @@ def test_fastmcp_artifact_writer_service_get_not_found_raises_value_error() -> N
 
     with pytest.raises(ValueError, match="ART-MISSING"):
         mcp_service.get_artifact({"artifact_id": "ART-MISSING"})
+
+
+def test_fastmcp_artifact_writer_service_write_requires_role_when_auth_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+    mcp_service = FastMcpArtifactWriterService(_FakeArtifactService())  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    with pytest.raises(ValueError, match="Authentication required"):
+        mcp_service.write_artifact({"content": "hello"})
+
+    with pytest.raises(ValueError, match="artifact_writer"):
+        mcp_service.write_artifact({"content": "hello", "actor": "alice", "roles": ["reader"]})
+
+    written = mcp_service.write_artifact(
+        {"content": "hello", "actor": "alice", "roles": ["artifact_writer"]}
+    )
+
+    assert written["content"] == "hello"

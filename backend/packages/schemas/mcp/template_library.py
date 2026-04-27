@@ -15,6 +15,8 @@ class TemplateLibraryMcpUpsertTemplateInput(BaseModel):
     template_id: str
     version: str = "1"
     status: TemplateLifecycleStatus = "draft"
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
     sections: list[dict[str, Any]] = Field(default_factory=list)
     validation_rules: list[dict[str, Any]] = Field(default_factory=list)
     assembly_rules: list[dict[str, Any]] = Field(default_factory=list)
@@ -62,6 +64,8 @@ class TemplateLibraryMcpPublishTemplateInput(BaseModel):
 
     template_id: str
     version: str
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
 
 
 class TemplateLibraryMcpPublishTemplateOutput(TemplateLibraryMcpTemplateItem):
@@ -76,6 +80,7 @@ class TemplateLibraryMcpSetTemplateStatusInput(BaseModel):
     status: TemplateLifecycleStatus
     reason: str | None = None
     actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

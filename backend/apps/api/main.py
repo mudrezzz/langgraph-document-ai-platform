@@ -14,6 +14,8 @@ from application.errors import (
     WorkflowExecutionError,
 )
 from apps.api.dependencies import ApiContainer, get_container
+from apps.api.security import require_api_roles
+from framework.security import ActorContext
 from infra.logging import configure_runtime_logging, log_runtime_event
 from schemas.api.contracts import (
     EvidencePackResponse,
@@ -55,6 +57,7 @@ def healthcheck() -> dict:
 def upsert_template(
     template_id: str,
     request: UpsertTemplateRequest,
+    actor_context: ActorContext = Depends(require_api_roles("template_admin")),
     container: ApiContainer = Depends(get_container),
 ) -> TemplateResponse:
     """Создает или обновляет reusable template в template library."""
@@ -114,6 +117,7 @@ def get_template(
 def publish_template(
     template_id: str,
     request: PublishTemplateRequest,
+    actor_context: ActorContext = Depends(require_api_roles("template_admin")),
     container: ApiContainer = Depends(get_container),
 ) -> TemplateResponse:
     """Публикует конкретную reusable template version."""
@@ -140,6 +144,7 @@ def publish_template(
 def set_template_status(
     template_id: str,
     request: SetTemplateStatusRequest,
+    actor_context: ActorContext = Depends(require_api_roles("template_admin")),
     container: ApiContainer = Depends(get_container),
 ) -> TemplateResponse:
     """Применяет explicit lifecycle transition к reusable template version."""
@@ -150,7 +155,7 @@ def set_template_status(
             request.version,
             request.status,
             reason=request.reason,
-            actor=request.actor,
+            actor=actor_context.actor_id or request.actor,
             metadata=request.metadata,
         )
     except TemplateNotFoundError as exc:
@@ -573,14 +578,19 @@ def get_hitl_observability_summary(
 def submit_task_hitl(
     task_id: str,
     request: SubmitHitlReviewRequest,
+    actor_context: ActorContext = Depends(require_api_roles("reviewer")),
     container: ApiContainer = Depends(get_container),
 ) -> TaskStatusResponse:
     """Принимает ручное решение reviewer и продолжает authoring flow."""
 
     try:
+        effective_metadata = dict(request.metadata)
+        if actor_context.actor_id is not None:
+            effective_metadata["reviewer"] = actor_context.actor_id
+        effective_request = request.model_copy(update={"metadata": effective_metadata})
         response = container.authoring_service.submit_hitl(
             task_id,
-            request,
+            effective_request,
             dispatcher=container.authoring_dispatcher,
         )
         log_runtime_event(
@@ -591,8 +601,8 @@ def submit_task_hitl(
             task_id=task_id,
             status=response.status,
             task_type="authoring_pack",
-            decision=request.decision,
-            reviewer=(request.metadata or {}).get("reviewer"),
+            decision=effective_request.decision,
+            reviewer=(effective_request.metadata or {}).get("reviewer"),
             endpoint=f"/api/v1/tasks/{task_id}/hitl/submit",
         )
         return response

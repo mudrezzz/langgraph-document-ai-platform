@@ -10,6 +10,7 @@ from framework.agents.specialized import HumanGateAgent, ReviewAgent, Supervisor
 from framework.db.repository import BaseRepository, DummyUnitOfWork, RepositoryFactory
 from framework.mcp.service import BaseFastMcpService
 from framework.models.interfaces import IChatModelGateway
+from framework.security import ActorContext, AuthenticationRequiredError, AuthorizationError, RoleBasedAccessPolicy
 from framework.stores.base import BaseArtifactStore, BaseDocumentStore, BaseKnowledgeStore, BaseVectorStore
 from framework.tools.base import BaseTool
 from framework.tools.executor import InMemoryToolExecutionAuditSink, ToolExecutionPolicy, ToolExecutor
@@ -258,6 +259,36 @@ def test_workflow_factory_reports_duplicate_and_missing_keys() -> None:
     with pytest.raises(WorkflowRegistrationError, match="already registered"):
         factory.register("factory_workflow", _FactoryWorkflow)
 
+
+class _DummyMcpService(BaseFastMcpService):
+    def __init__(self) -> None:
+        super().__init__("dummy-mcp")
+
+
+def test_fastmcp_base_service_registers_required_roles_metadata() -> None:
+    service = _DummyMcpService()
+    service._register_toolset(
+        {"get_item": lambda: None, "write_item": lambda: None},
+        required_roles={"write_item": ("artifact_writer",)},
+    )
+
+    metadata = service.metadata()
+
+    assert metadata["auth_policy"] == "disabled"
+    assert metadata["tool_required_roles"] == {"get_item": [], "write_item": ["artifact_writer"]}
+
+
+def test_role_based_access_policy_requires_actor_and_role() -> None:
+    policy = RoleBasedAccessPolicy(enabled=True)
+
+    with pytest.raises(AuthenticationRequiredError):
+        policy.require_any_role(ActorContext(), ["reviewer"], resource="api:hitl")
+
+    with pytest.raises(AuthorizationError):
+        policy.require_any_role(ActorContext(actor_id="alice", roles=("reader",)), ["reviewer"], resource="api:hitl")
+
+    policy.require_any_role(ActorContext(actor_id="alice", roles=("reviewer",)), ["reviewer"], resource="api:hitl")
+
     with pytest.raises(WorkflowNotRegisteredError, match="not registered"):
         factory.build("missing")
 
@@ -311,6 +342,8 @@ def test_base_fastmcp_service_metadata_is_stable() -> None:
         "policy_version": "mcp-policy-v1",
         "tool_names": [],
         "operation_scopes": {},
+        "auth_policy": "disabled",
+        "tool_required_roles": {},
         "input_validation": "pydantic_model_validate",
         "output_validation": "pydantic_response_model",
         "error_mapping": "value_error",
@@ -352,3 +385,37 @@ def test_base_fastmcp_service_wraps_operation_errors_as_value_error() -> None:
 
     assert isinstance(wrapped, ValueError)
     assert str(wrapped) == "boom"
+
+
+def test_base_fastmcp_service_registers_required_roles_metadata() -> None:
+    service = BaseFastMcpService(service_name="policy-test")
+
+    service._register_toolset(  # type: ignore[attr-defined]
+        {"get_item": object(), "write_item": object()},
+        required_roles={"write_item": ("artifact_writer",)},
+    )
+
+    metadata = service.metadata()
+
+    assert metadata["auth_policy"] == "disabled"
+    assert metadata["tool_required_roles"] == {"get_item": [], "write_item": ["artifact_writer"]}
+
+
+def test_role_based_access_policy_requires_actor_and_role() -> None:
+    policy = RoleBasedAccessPolicy(enabled=True)
+
+    with pytest.raises(AuthenticationRequiredError):
+        policy.require_any_role(ActorContext(), ["reviewer"], resource="api:hitl")
+
+    with pytest.raises(AuthorizationError):
+        policy.require_any_role(
+            ActorContext(actor_id="alice", roles=("reader",)),
+            ["reviewer"],
+            resource="api:hitl",
+        )
+
+    policy.require_any_role(
+        ActorContext(actor_id="alice", roles=("reviewer",)),
+        ["reviewer"],
+        resource="api:hitl",
+    )

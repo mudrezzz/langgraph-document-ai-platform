@@ -63,6 +63,11 @@ def test_fastmcp_repository_service_metadata_contains_tools() -> None:
     assert metadata["policy_version"] == "mcp-policy-v1"
     assert metadata["service_scope"] == "repository"
     assert metadata["operation_scopes"] == {"get_document": "read", "list_documents": "read", "upsert_document": "write"}
+    assert metadata["tool_required_roles"] == {
+        "get_document": [],
+        "list_documents": [],
+        "upsert_document": ["repository_writer"],
+    }
     assert "upsert_document" in metadata["tool_names"]
     assert "get_document" in metadata["tool_names"]
     assert "list_documents" in metadata["tool_names"]
@@ -74,3 +79,23 @@ def test_fastmcp_repository_service_get_not_found_raises_value_error() -> None:
 
     with pytest.raises(ValueError, match="DOC-MISSING"):
         mcp_service.get_document({"doc_id": "DOC-MISSING"})
+
+
+def test_fastmcp_repository_service_upsert_requires_role_when_auth_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_AUTH_ENABLED", "1")
+    mcp_service = FastMcpRepositoryService(_FakeDocumentService())  # type: ignore[arg-type]
+    mcp_service.register_tools()
+
+    with pytest.raises(ValueError, match="Authentication required"):
+        mcp_service.upsert_document({"doc_id": "DOC-1", "payload": {"title": "Release Plan"}})
+
+    saved = mcp_service.upsert_document(
+        {
+            "doc_id": "DOC-1",
+            "payload": {"title": "Release Plan"},
+            "actor": "alice",
+            "roles": ["repository_writer"],
+        }
+    )
+
+    assert saved["doc_id"] == "DOC-1"

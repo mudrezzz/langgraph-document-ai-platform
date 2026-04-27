@@ -14,6 +14,8 @@ class ArtifactWriterMcpWriteArtifactInput(BaseModel):
     title: str | None = None
     content: str
     format: str = "markdown"
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

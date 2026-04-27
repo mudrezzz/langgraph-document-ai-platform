@@ -41,7 +41,8 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
                 'list_hitl_actions': self.list_hitl_actions,
                 'submit_hitl_review': self.submit_hitl_review,
                 'get_hitl_observability_summary': self.get_hitl_observability_summary,
-            }
+            },
+            required_roles={'submit_hitl_review': ('reviewer',)},
         )
 
     def get_hitl_status(self, payload: ReviewApprovalMcpGetHitlStatusInput | dict[str, Any]) -> dict[str, Any]:
@@ -86,10 +87,14 @@ class FastMcpReviewApprovalService(BaseFastMcpService):
         """Принимает reviewer-решение и ставит continuation в existing async dispatcher plane."""
 
         validated = ReviewApprovalMcpSubmitHitlReviewInput.model_validate(payload)
+        actor_context = self._authorize_tool('submit_hitl_review', actor=validated.actor, roles=validated.roles)
+        metadata = dict(validated.metadata)
+        if actor_context.actor_id is not None:
+            metadata['reviewer'] = actor_context.actor_id
         request = SubmitHitlReviewRequest(
             decision=validated.decision,
             comment=validated.comment,
-            metadata=validated.metadata,
+            metadata=metadata,
             idempotency_key=validated.idempotency_key,
             expected_iteration=validated.expected_iteration,
         )
@@ -180,6 +185,8 @@ def create_fastmcp_review_approval_server(service: FastMcpReviewApprovalService)
         metadata: dict[str, Any] | None = None,
         idempotency_key: str | None = None,
         expected_iteration: int | None = None,
+        actor: str | None = None,
+        roles: list[str] | None = None,
     ) -> dict[str, Any]:
         """MCP tool: submit_hitl_review."""
 
@@ -191,6 +198,8 @@ def create_fastmcp_review_approval_server(service: FastMcpReviewApprovalService)
                 'metadata': metadata or {},
                 'idempotency_key': idempotency_key,
                 'expected_iteration': expected_iteration,
+                'actor': actor,
+                'roles': roles or [],
             }
         )
 

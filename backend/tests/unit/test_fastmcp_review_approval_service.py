@@ -154,6 +154,7 @@ def test_fastmcp_review_approval_service_metadata_contains_tools() -> None:
     assert metadata['policy_version'] == 'mcp-policy-v1'
     assert metadata['service_scope'] == 'review-approval'
     assert metadata['operation_scopes'] == {'get_hitl_observability_summary': 'read', 'get_hitl_status': 'read', 'list_hitl_actions': 'read', 'submit_hitl_review': 'write'}
+    assert metadata['tool_required_roles'] == {'get_hitl_observability_summary': [], 'get_hitl_status': [], 'list_hitl_actions': [], 'submit_hitl_review': ['reviewer']}
     assert 'get_hitl_status' in metadata['tool_names']
     assert 'list_hitl_actions' in metadata['tool_names']
     assert 'submit_hitl_review' in metadata['tool_names']
@@ -201,6 +202,8 @@ def test_fastmcp_review_approval_service_submit_hitl_review_uses_existing_dispat
             'metadata': {'reviewer': 'alice'},
             'idempotency_key': 'mcp-1',
             'expected_iteration': 1,
+            'actor': 'alice',
+            'roles': ['reviewer'],
         }
     )
 
@@ -209,6 +212,7 @@ def test_fastmcp_review_approval_service_submit_hitl_review_uses_existing_dispat
     assert fake.submit_calls[0]['dispatcher'] is dispatcher
     assert fake.submit_calls[0]['request'].decision == 'approve'
     assert fake.submit_calls[0]['request'].idempotency_key == 'mcp-1'
+    assert fake.submit_calls[0]['request'].metadata['reviewer'] == 'alice'
 
 
 def test_fastmcp_review_approval_service_submit_hitl_review_maps_invalid_state_to_value_error() -> None:
@@ -218,7 +222,20 @@ def test_fastmcp_review_approval_service_submit_hitl_review_maps_invalid_state_t
     service.register_tools()
 
     with pytest.raises(ValueError, match='submit not allowed'):
+        service.submit_hitl_review({'task_id': 'task-1', 'decision': 'approve', 'actor': 'alice', 'roles': ['reviewer']})
+
+
+def test_fastmcp_review_approval_service_submit_requires_reviewer_role_when_auth_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv('APP_AUTH_ENABLED', '1')
+    service = FastMcpReviewApprovalService(_FakeAuthoringService(), dispatcher=_build_dispatcher())  # type: ignore[arg-type]
+    service.register_tools()
+
+    with pytest.raises(ValueError, match='Authentication required'):
         service.submit_hitl_review({'task_id': 'task-1', 'decision': 'approve'})
+
+    result = service.submit_hitl_review({'task_id': 'task-1', 'decision': 'approve', 'actor': 'alice', 'roles': ['reviewer']})
+
+    assert result['status'] == 'queued'
 
 
 def test_fastmcp_review_approval_service_list_hitl_actions_invalid_cursor_maps_to_value_error() -> None:

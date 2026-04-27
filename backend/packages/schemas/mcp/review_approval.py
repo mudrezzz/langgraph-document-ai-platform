@@ -48,6 +48,8 @@ class ReviewApprovalMcpSubmitHitlReviewInput(SubmitHitlReviewRequest):
     """Контракт входа MCP tool для отправки reviewer-решения."""
 
     task_id: str
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
 
 
 class ReviewApprovalMcpSubmitHitlReviewOutput(TaskStatusResponse):

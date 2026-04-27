@@ -724,6 +724,17 @@ Third slice done:
 - `build_evidence_pack` зафиксирован как `operation_scope=action`, а read/write tools теперь получают consistent scope metadata автоматически;
 - добавлен ADR `0070-unified-fastmcp-service-policies.md`;
 - targeted MCP/framework tests: `53 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `268 passed`.
+
+Fourth slice done:
+
+- добавлены базовые auth/RBAC boundaries для sensitive API/MCP operations через shared `framework.security.rbac` policy layer;
+- FastAPI template governance endpoints (`upsert/publish/set status`) и authoring HITL submit endpoint теперь поддерживают header-based actor context (`X-Actor-Id`, `X-Actor-Roles`) и при `APP_AUTH_ENABLED=true` возвращают `401/403` для unauthorized access;
+- `BaseFastMcpService` расширен auth-aware metadata (`auth_policy`, `tool_required_roles`) и unified `_authorize_tool(...)` helper;
+- sensitive FastMCP tools теперь требуют explicit roles в typed payloads: `template_admin`, `reviewer`, `config_admin`, `artifact_writer`, `repository_writer`;
+- при выключенном auth (`APP_AUTH_ENABLED=false`) сохранена backward compatibility для текущих smoke/demo paths;
+- добавлен ADR `0071-rbac-boundaries-for-sensitive-api-and-mcp-operations.md`;
+- targeted auth/MCP/API tests: `101 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `TBD`.
 
 ## Increment 31: Knowledge Factory Hardening

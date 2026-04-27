@@ -27,6 +27,8 @@ class ConfigurationLibraryMcpUpsertConfigInput(BaseModel):
     version: str = "1"
     config_type: str = "generic"
     title: str | None = None
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)

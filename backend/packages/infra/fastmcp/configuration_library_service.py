@@ -37,11 +37,13 @@ class FastMcpConfigurationLibraryService(BaseFastMcpService):
                 "list_configs": self.list_configs,
                 "find_similar_configs": self.find_similar_configs,
                 "compare_configs": self.compare_configs,
-            }
+            },
+            required_roles={"upsert_config": ("config_admin",)},
         )
 
     def upsert_config(self, payload: ConfigurationLibraryMcpUpsertConfigInput | dict[str, Any]) -> dict[str, Any]:
         validated = ConfigurationLibraryMcpUpsertConfigInput.model_validate(payload)
+        self._authorize_tool("upsert_config", actor=validated.actor, roles=validated.roles)
         saved = self._configuration_library_service.upsert_config(
             config_id=validated.config_id,
             version=validated.version,
@@ -142,6 +144,8 @@ def create_fastmcp_configuration_library_server(service: FastMcpConfigurationLib
         version: str = "1",
         config_type: str = "generic",
         title: str | None = None,
+        actor: str | None = None,
+        roles: list[str] | None = None,
         payload: dict[str, Any] | None = None,
         metadata: dict[str, Any] | None = None,
         tags: list[str] | None = None,
@@ -154,6 +158,8 @@ def create_fastmcp_configuration_library_server(service: FastMcpConfigurationLib
                 "version": version,
                 "config_type": config_type,
                 "title": title,
+                "actor": actor,
+                "roles": roles or [],
                 "payload": payload or {},
                 "metadata": metadata or {},
                 "tags": tags or [],

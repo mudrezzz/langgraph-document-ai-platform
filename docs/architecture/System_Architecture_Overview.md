@@ -179,8 +179,13 @@
   - similarity и compare работают deterministic способом поверх persisted config records, без отдельного semantic/vector runtime.
 - unified FastMCP policy baseline:
   - `BaseFastMcpService` централизует metadata contract, tool naming validation и operation-scope policy;
-  - service metadata теперь consistently содержит `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`, validation markers и `audit_payload_fields`;
+  - service metadata теперь consistently содержит `transport`, `service_scope`, `policy_version`, `tool_names`, `operation_scopes`, `auth_policy`, `tool_required_roles`, validation markers и `audit_payload_fields`;
   - current MCP services используют единый helper для MCP-friendly error mapping вместо локального ручного `raise ValueError(str(exc))`.
+- RBAC boundary baseline:
+  - shared `framework.security.rbac` normalizes `ActorContext` и role parsing для API/MCP boundaries;
+  - FastAPI sensitive endpoints используют header-based actor context (`X-Actor-Id`, `X-Actor-Roles`) и при `APP_AUTH_ENABLED=true` enforce-ят minimal role checks;
+  - FastMCP sensitive tools используют typed `actor`/`roles` payload и тот же shared role policy helper;
+  - current protected operations: template governance (`template_admin`), reviewer/HITL submit (`reviewer`), config upsert (`config_admin`), artifact write (`artifact_writer`), repository upsert (`repository_writer`).
 - Authoring application flow:
   - `AuthoringApplicationService`;
   - orchestration `retrieval -> research -> writer -> reviewer -> assembly -> artifact`;
@@ -309,13 +314,14 @@
 
 ## 3. Архитектурные ограничения текущей версии
 
-- MCP-контур включает Retrieval/Repository/Artifact Writer/Template Library/Review Approval MCP, но пока без unified auth/rate-limit/observability политик;
+- MCP-контур уже имеет unified auth/policy metadata baseline для sensitive tools, но пока без rate-limit policy, signed auth и centralized audit decision logging;
 - framework runtime closure завершен на уровне reusable workflow/tool/subgraph primitives; следующий риск смещен в production retrieval adapters;
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
 - `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary, closed template governance lifecycle (`draft|published|deprecated|archived`) и exclusive published-version policy для templates;
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async execution plane уже покрывает authoring, retrieval и knowledge indexing, но пока без общего policy слоя для остальных production workflows;
+- RBAC baseline уже закрывает наиболее sensitive API/MCP operations, но пока нет SSO, signed tokens, tenant-aware permissions и service-to-service auth;
 - нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
 
@@ -332,4 +338,5 @@
 
 1. Добавить базовые auth/RBAC boundaries для sensitive MCP/API endpoints.
 2. Расширить unified MCP policy layer до auth/audit-aware operational envelope.
-3. Подготовить production runbook/handoff для следующего increment production-boundary работ.
+3. Добавить signed auth / audit decision propagation поверх текущего RBAC baseline.
+4. Подготовить production runbook/handoff для следующего increment production-boundary работ.

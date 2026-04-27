@@ -30,7 +30,8 @@ class FastMcpRepositoryService(BaseFastMcpService):
                 "upsert_document": self.upsert_document,
                 "get_document": self.get_document,
                 "list_documents": self.list_documents,
-            }
+            },
+            required_roles={"upsert_document": ("repository_writer",)},
         )
 
     def upsert_document(self, payload: RepositoryMcpUpsertDocumentInput | dict[str, Any]) -> dict[str, Any]:
@@ -40,6 +41,12 @@ class FastMcpRepositoryService(BaseFastMcpService):
             validated_payload = RepositoryMcpUpsertDocumentInput.model_validate(payload)
         else:
             validated_payload = payload
+
+        self._authorize_tool(
+            "upsert_document",
+            actor=validated_payload.actor,
+            roles=validated_payload.roles,
+        )
 
         saved = self._document_service.upsert_document(
             doc_id=validated_payload.doc_id,
@@ -109,10 +116,10 @@ def create_fastmcp_repository_server(service: FastMcpRepositoryService) -> Any:
     server = FastMCP("repository-mcp")
 
     @server.tool()
-    def upsert_document(doc_id: str, payload: dict) -> dict[str, Any]:
+    def upsert_document(doc_id: str, payload: dict, actor: str | None = None, roles: list[str] | None = None) -> dict[str, Any]:
         """MCP tool: upsert_document."""
 
-        return service.upsert_document({"doc_id": doc_id, "payload": payload})
+        return service.upsert_document({"doc_id": doc_id, "payload": payload, "actor": actor, "roles": roles or []})
 
     @server.tool()
     def get_document(doc_id: str) -> dict[str, Any]:

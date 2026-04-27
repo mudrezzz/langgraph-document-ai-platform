@@ -81,3 +81,4 @@
 - `0068-review-approval-mcp-boundary.md`
 - `0069-configuration-library-mcp-skeleton.md`
 - `0070-unified-fastmcp-service-policies.md`
+- `0071-rbac-boundaries-for-sensitive-api-and-mcp-operations.md`

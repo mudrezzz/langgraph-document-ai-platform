@@ -10,6 +10,8 @@ class RepositoryMcpUpsertDocumentInput(BaseModel):
     """Контракт входа MCP tool для upsert документа."""
 
     doc_id: str
+    actor: str | None = None
+    roles: list[str] = Field(default_factory=list)
     payload: dict[str, Any] = Field(default_factory=dict)
 
 

@@ -64,10 +64,11 @@
 1. Добавить MCP schemas в `backend/packages/schemas/mcp`.
 2. Реализовать service adapter от `framework.mcp.BaseFastMcpService`.
 3. Сервис должен принимать application/domain service как dependency.
-4. `metadata()` должен возвращать `service_name`, `version` и список tool names.
+4. `metadata()` должен возвращать `service_name`, `version`, список tool names и policy metadata (`operation_scopes`, а для sensitive tools также `auth_policy`/`tool_required_roles`).
 5. Добавить runtime entrypoint в `backend/apps/mcp_*`.
 6. Добавить run/smoke scripts для Linux и Windows, если сервис ручной или демонстрационный.
 7. Добавить tests на прямой service-call без запуска MCP runtime.
+8. Если MCP tool изменяет persisted state или выполняет approval-sensitive action, использовать shared role policy baseline через `_register_toolset(required_roles=...)` и `_authorize_tool(...)`.
 
 ## Как Добавить Persistence Adapter
 
