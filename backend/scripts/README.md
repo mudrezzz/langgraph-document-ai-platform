@@ -167,3 +167,18 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `demo_release_authoring_traceability_case.ps1`
 - `smoke_authoring_async_api.ps1`
 - `demo_release_authoring_async_hitl_case.ps1`
+
+## Production Runbook
+
+Полный stage/prod rehearsal path для Increment 30 вынесен в `docs/production_runbook.md`.
+
+Он связывает эти scripts в один operational checklist:
+
+- deploy/migrate PostgreSQL + pgvector;
+- FastAPI smoke;
+- async/Celery smoke;
+- MCP smoke;
+- RBAC rehearsal;
+- backup/restore;
+- rollback;
+- full release gate.

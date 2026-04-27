@@ -735,7 +735,25 @@ Fourth slice done:
 - при выключенном auth (`APP_AUTH_ENABLED=false`) сохранена backward compatibility для текущих smoke/demo paths;
 - добавлен ADR `0071-rbac-boundaries-for-sensitive-api-and-mcp-operations.md`;
 - targeted auth/MCP/API tests: `101 passed`;
-- full suite with Docker async e2e and OpenRouter external LLM enabled: `TBD`.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `278 passed`.
+
+Fifth slice done:
+
+- добавлен production runbook `docs/production_runbook.md` для stage/prod rehearsal:
+  - deploy;
+  - migrate;
+  - FastAPI smoke;
+  - async/Celery smoke;
+  - MCP smoke;
+  - RBAC rehearsal;
+  - backup/restore;
+  - rollback;
+  - release gate;
+- добавлен handoff checklist `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md`;
+- добавлены contract tests `backend/tests/unit/test_production_runbook_contracts.py`, которые проверяют, что runbook ссылается на существующие scripts и покрывает обязательные operational sections/env flags;
+- Increment 30 production boundary теперь имеет documented stage/prod rehearsal path перед переходом к Knowledge Factory Hardening;
+- targeted runbook contract tests: `3 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `281 passed`.
 
 ## Increment 31: Knowledge Factory Hardening
 

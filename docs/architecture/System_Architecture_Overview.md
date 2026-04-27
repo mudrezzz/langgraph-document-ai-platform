@@ -137,6 +137,9 @@
   - `backend/docker-compose.postgres.yml`;
   - scripts: `postgres_up/down/migrate` (`.ps1` + `.sh`), `apply_migrations` (`.ps1` + `.sh`), smoke/demo.
   - smoke/demo дополнены проверкой `events/summary`.
+- production runbook/handoff baseline:
+  - `docs/production_runbook.md` описывает deploy/migrate/smoke/backup/restore/rollback/release gate для stage/prod rehearsal;
+  - `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md` фиксирует handoff checklist для Increment 30.
 - file-based demo pipeline для release readiness:
   - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
   - запуск retrieval через `case_dataset_path`;
@@ -322,7 +325,7 @@
 - `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
 - async execution plane уже покрывает authoring, retrieval и knowledge indexing, но пока без общего policy слоя для остальных production workflows;
 - RBAC baseline уже закрывает наиболее sensitive API/MCP operations, но пока нет SSO, signed tokens, tenant-aware permissions и service-to-service auth;
-- нет полноценного production deployment runbook с эксплуатационными SLO/SLI метриками;
+- production deployment runbook baseline добавлен, но эксплуатационные SLO/SLI метрики и dashboard остаются вне текущего среза;
 - нет отдельного materialized read-model/дашборда по аудит-метрикам за периоды.
 
 ## 4. GAP к целевой архитектуре
@@ -336,7 +339,7 @@
 
 ## 5. План следующего инкремента
 
-1. Добавить базовые auth/RBAC boundaries для sensitive MCP/API endpoints.
-2. Расширить unified MCP policy layer до auth/audit-aware operational envelope.
-3. Добавить signed auth / audit decision propagation поверх текущего RBAC baseline.
-4. Подготовить production runbook/handoff для следующего increment production-boundary работ.
+1. Начать Increment 31: Knowledge Factory Hardening.
+2. Добавить OCR/rich layout/table extraction и parser hardening.
+3. Перевести quality gates в конфигурируемый production policy layer.
+4. Позже расширить RBAC baseline до signed auth / audit decision propagation.

@@ -126,6 +126,9 @@
   - shared policy layer `framework.security.rbac` с `ActorContext` и `RoleBasedAccessPolicy`;
   - API использует headers `X-Actor-Id` и `X-Actor-Roles` для template governance/HITL submit endpoints;
   - FastMCP metadata теперь также отдает `auth_policy` и `tool_required_roles`, а sensitive MCP write/approval tools принимают typed `actor`/`roles` payload.
+- добавлен production runbook/handoff для Increment 30:
+  - `docs/production_runbook.md` описывает deploy, migrate, FastAPI/MCP/async smoke, RBAC rehearsal, backup/restore, rollback и full release gate;
+  - `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md` фиксирует checklist передачи production-boundary baseline.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -1001,6 +1004,12 @@ RBAC baseline:
   - `artifact_writer` для `write_artifact`;
   - `repository_writer` для `upsert_document`;
 - при `APP_AUTH_ENABLED=false` backward compatibility текущих smoke/demo paths сохраняется.
+
+Production runbook:
+
+- основной rehearsal path описан в `docs/production_runbook.md`;
+- handoff checklist Increment 30: `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md`;
+- runbook покрывает PostgreSQL/pgvector, FastAPI, Celery/Redis, MCP smokes, RBAC rehearsal, backup/restore, rollback и полный pytest gate.
 
 ## Knowledge Factory MVP
 
