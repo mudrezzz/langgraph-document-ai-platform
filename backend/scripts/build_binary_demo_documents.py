@@ -68,9 +68,28 @@ def _write_docx(path: Path) -> None:
     document.add_heading("Deployment Scope", level=2)
     document.add_paragraph("Payments v2 release includes API rollout, monitoring updates, and support handover.")
     document.add_paragraph("Feature flag rollout remains constrained until SRE approval is recorded.")
+    document.add_paragraph("1. Confirm deployment window with SRE.", style="List Number")
+    document.add_paragraph("2. Confirm rollback owner is on-call.", style="List Number")
+    document.add_heading("Approval Matrix", level=2)
+    table = document.add_table(rows=4, cols=3)
+    table.cell(0, 0).text = "Check"
+    table.cell(0, 1).text = "Owner"
+    table.cell(0, 2).text = "Status"
+    table.cell(1, 0).text = "Security sign-off"
+    table.cell(1, 1).text = "Security Lead"
+    table.cell(1, 2).text = "PENDING"
+    table.cell(2, 0).text = "Rollback readiness"
+    table.cell(2, 1).text = "SRE"
+    table.cell(2, 2).text = "READY"
+    table.cell(3, 0).text = "Customer notification"
+    table.cell(3, 1).text = "Product Owner"
+    table.cell(3, 2).text = "APPROVED"
     document.add_heading("Known Limitations", level=2)
     document.add_paragraph("A rollback drill is documented, but the final go/no-go meeting must verify production readiness.")
     document.add_paragraph("Customer notification copy is ready and waiting for product owner sign-off.")
+    document.add_heading("Appendix A: Rollback Contacts", level=2)
+    document.add_paragraph("Primary on-call: sre-primary@example.com")
+    document.add_paragraph("Secondary on-call: sre-secondary@example.com")
     document.save(path)
 
 

@@ -194,5 +194,20 @@ def _wait_for_health(base_url: str, timeout_sec: int, process: subprocess.Popen[
     raise TimeoutError("API сервер не поднялся за ожидаемое время")
 
 
+def _wait_for_task_completion(base_url: str, task_id: str, timeout_sec: int) -> tuple[int, dict]:
+    deadline = time.time() + timeout_sec
+    last_payload: dict = {}
+
+    while time.time() < deadline:
+        status_code, status_payload = _request("GET", f"{base_url}/api/v1/tasks/{urllib.parse.quote(task_id)}")
+        if status_code == 200:
+            last_payload = status_payload
+            if status_payload.get("status") in {"completed", "failed"}:
+                return status_code, status_payload
+        time.sleep(0.5)
+
+    raise TimeoutError(f"Knowledge indexing task {task_id} не завершился вовремя. last={last_payload}")
+
+
 if __name__ == "__main__":
     main()

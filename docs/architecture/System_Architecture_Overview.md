@@ -67,6 +67,11 @@
   - default/demo OCR path использует deterministic sidecar OCR fixture, а production-like path поддерживает `ocrmypdf` CLI;
   - PDF parser теперь пытается OCR fallback после `pdf_no_extractable_text` и пишет `ocr_applied`, `ocr_provider:*`, `ocr_not_available`, `ocr_text_not_recovered` quality flags;
   - multifile demo теперь включает scanned PDF fixture для ручной проверки OCR сценария.
+- Knowledge Factory Hardening / DOCX structure slice:
+  - DOCX parser теперь извлекает `CanonicalTable` и table rows как canonical `table_row` blocks;
+  - numbered/list paragraphs нормализуются как semantic list blocks;
+  - appendix-like headings помечаются через `appendix_section_detected`;
+  - multifile demo DOCX fixture теперь содержит реальную approval matrix table, checklist и appendix section.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;

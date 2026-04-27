@@ -67,6 +67,9 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     assert loaded.content_blocks
     assert loaded.parser_quality.blocks_total >= 0
     assert canonical_document_service.list_blocks(limit=100).total_returned >= 8
+    docx_document = next(document for document in result.documents if document.file_type == "docx")
+    assert docx_document.extracted_tables
+    assert any(block.block_type == "table_row" for block in docx_document.content_blocks)
 
 
 def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Path) -> None:

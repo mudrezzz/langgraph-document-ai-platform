@@ -532,6 +532,10 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     assert details["quality_summary"]["quality_flags_total"] >= 0
     assert details["quality_summary"]["documents_needing_ocr"] >= 1
     assert details["parser_quality"]
+    state_payload = get_container().task_service.get_state_payload(payload["task_id"])
+    docx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "docx")
+    assert docx_doc["extracted_tables"]
+    assert any(block["block_type"] == "table_row" for block in docx_doc["content_blocks"])
 
     summary_response = client.get(
         f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"

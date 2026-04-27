@@ -5,7 +5,6 @@ import json
 from pathlib import Path
 
 from apps.api.dependencies import ApiContainer
-from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from scripts.build_binary_demo_documents import build_binary_demo_documents
 
 
@@ -30,12 +29,7 @@ def main() -> None:
         _build_binary_demo_docs(Path(args.input_path))
 
     container = ApiContainer()
-    service = KnowledgeIndexingApplicationService(
-        canonical_document_service=container.canonical_document_service,
-        embedding_gateway=container.embedding_gateway,
-        vector_store=container.vector_store,
-    )
-    result = service.index_paths(
+    result = container.knowledge_indexing_service.index_paths(
         [Path(args.input_path)],
         task_context={"smoke": "knowledge_indexing"},
     )

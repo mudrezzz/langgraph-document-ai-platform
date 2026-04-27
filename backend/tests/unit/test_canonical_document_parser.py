@@ -100,9 +100,30 @@ def test_canonical_parser_reports_docx_table_quality_flags(tmp_path: Path) -> No
     parsed = CanonicalDocumentParser().parse_path(source)
 
     assert "docx_tables_detected" in parsed.quality_flags
-    assert "table_extraction_not_implemented" in parsed.quality_flags
     assert parsed.parser_quality.tables_total == 1
-    assert any(issue.code == "table_extraction_not_implemented" for issue in parsed.parser_quality.issues)
+    assert len(parsed.extracted_tables) == 1
+    assert parsed.extracted_tables[0].columns == ["Check", "Status"]
+    assert parsed.extracted_tables[0].rows[0]["Check"] == "Security sign-off"
+    assert any(block.block_type == "table_row" for block in parsed.content_blocks)
+
+
+def test_canonical_parser_detects_docx_lists_and_appendix(tmp_path: Path) -> None:
+    pytest.importorskip("docx")
+    from docx import Document
+
+    source = tmp_path / "appendix_notes.docx"
+    document = Document()
+    document.add_heading("Main", level=1)
+    document.add_paragraph("1. Review rollout", style="List Number")
+    document.add_heading("Appendix A: Contacts", level=2)
+    document.add_paragraph("Primary: sre@example.com")
+    document.save(source)
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert parsed.parser_quality.lists_total >= 1
+    assert "appendix_section_detected" in parsed.quality_flags
+    assert any(block.block_type == "bullet" for block in parsed.content_blocks)
 
 
 def test_canonical_parser_reports_empty_pdf_as_ocr_candidate(tmp_path: Path) -> None:

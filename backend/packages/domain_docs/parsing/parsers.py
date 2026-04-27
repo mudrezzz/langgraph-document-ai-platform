@@ -9,6 +9,7 @@ from domain_docs.parsing.ocr import PdfOcrGateway
 from schemas.documents.contracts import (
     CanonicalContentBlock,
     CanonicalDocument,
+    CanonicalTable,
     CanonicalSectionSummary,
     CanonicalStructureNode,
     ParserQualityIssue,
@@ -60,13 +61,14 @@ class CanonicalDocumentParser:
         elif extension == ".docx":
             parser_family = "docx"
             extraction_mode = "structured"
-            blocks, structure = self._parse_docx(path, quality_flags=quality_flags, metrics=metrics)
+            blocks, structure, tables = self._parse_docx(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
         elif extension == ".pdf":
             parser_family = "pdf"
             extraction_mode = "page_text"
             blocks, structure = self._parse_pdf(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
+            tables = []
         else:
             raw_text = path.read_text(encoding="utf-8")
             parser_family = "markdown" if extension == ".md" else "text"
@@ -77,6 +79,10 @@ class CanonicalDocumentParser:
                 quality_flags=quality_flags,
                 metrics=metrics,
             )
+            tables = []
+
+        if extension == ".json":
+            tables = []
 
         if not raw_text.strip():
             quality_flags.append("empty_document")
@@ -101,7 +107,7 @@ class CanonicalDocumentParser:
             },
             structure_tree=structure,
             content_blocks=blocks,
-            extracted_tables=[],
+            extracted_tables=tables,
             section_summaries=summaries,
             quality_flags=unique_flags,
             parser_quality=_build_parser_quality_summary(
@@ -242,7 +248,7 @@ class CanonicalDocumentParser:
         *,
         quality_flags: list[str],
         metrics: dict[str, int | None],
-    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode, list[CanonicalTable]]:
         try:
             from docx import Document
         except Exception as exc:  # pragma: no cover - depends on optional runtime package
@@ -250,13 +256,13 @@ class CanonicalDocumentParser:
 
         document = Document(str(path))
         blocks: list[CanonicalContentBlock] = []
+        tables: list[CanonicalTable] = []
         root = CanonicalStructureNode(node_id="root", title="DOCX Document", level=0)
         current_node = root
         current_heading_path: list[str] = []
         tables_detected = len(document.tables)
         if tables_detected:
             quality_flags.append("docx_tables_detected")
-            quality_flags.append("table_extraction_not_implemented")
         metrics["tables_total"] = tables_detected
 
         for paragraph in document.paragraphs:
@@ -274,14 +280,18 @@ class CanonicalDocumentParser:
                 )
                 root.children.append(current_node)
                 metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
+                if _looks_like_appendix_heading(text):
+                    quality_flags.append("appendix_section_detected")
                 continue
 
+            block_type = "paragraph"
             if _looks_like_list_paragraph(style_name, text):
                 metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
+                block_type = "bullet"
 
             block = _build_block(
                 text=text,
-                block_type="paragraph",
+                block_type=block_type,
                 index=len(blocks) + 1,
                 heading_path=current_heading_path,
                 metadata={"style": style_name} if style_name else None,
@@ -289,10 +299,21 @@ class CanonicalDocumentParser:
             blocks.append(block)
             current_node.block_ids.append(block.block_id)
 
+        for table_index, table in enumerate(document.tables, start=1):
+            parsed_table = _parse_docx_table(
+                table,
+                table_index=table_index,
+                current_heading_path=current_heading_path,
+                block_index_start=len(blocks) + 1,
+            )
+            tables.append(parsed_table.table)
+            blocks.extend(parsed_table.blocks)
+            current_node.block_ids.extend(block.block_id for block in parsed_table.blocks)
+
         if not root.children:
             quality_flags.append("no_structural_headings")
             root.block_ids = [block.block_id for block in blocks]
-        return blocks, root
+        return blocks, root, tables
 
     def _parse_pdf(
         self,
@@ -477,6 +498,12 @@ def _build_quality_issue(
             message="DOCX contains tables that were detected during parsing",
             metadata={"tables_total": metrics.get("tables_total", 0)},
         )
+    if flag == "appendix_section_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="Appendix-like section detected in DOCX structure",
+        )
     if flag == "table_extraction_not_implemented":
         return ParserQualityIssue(
             code=flag,
@@ -490,6 +517,69 @@ def _build_quality_issue(
 def _looks_like_list_paragraph(style_name: str, text: str) -> bool:
     lowered_style = style_name.lower()
     return lowered_style.startswith("list") or bool(_BULLET_RE.match(text))
+
+
+def _looks_like_appendix_heading(text: str) -> bool:
+    lowered = text.strip().lower()
+    return lowered.startswith(("appendix", "annex", "приложение"))
+
+
+class _ParsedDocxTable:
+    def __init__(self, *, table: CanonicalTable, blocks: list[CanonicalContentBlock]) -> None:
+        self.table = table
+        self.blocks = blocks
+
+
+def _parse_docx_table(
+    table: Any,
+    *,
+    table_index: int,
+    current_heading_path: list[str],
+    block_index_start: int,
+) -> _ParsedDocxTable:
+    rows = [[_normalize_text(cell.text) for cell in row.cells] for row in table.rows]
+    rows = [row for row in rows if any(cell for cell in row)]
+    if not rows:
+        return _ParsedDocxTable(
+            table=CanonicalTable(table_id=f"T-{table_index}", title=f"Table {table_index}"),
+            blocks=[],
+        )
+
+    header = rows[0]
+    data_rows = rows[1:] if len(rows) > 1 else []
+    if not any(header):
+        header = [f"column_{index + 1}" for index in range(len(rows[0]))]
+
+    normalized_rows: list[dict[str, Any]] = []
+    blocks: list[CanonicalContentBlock] = []
+    for row_index, row in enumerate(data_rows, start=1):
+        padded = list(row) + [""] * max(0, len(header) - len(row))
+        item = {header[index] or f"column_{index + 1}": padded[index] for index in range(len(header))}
+        normalized_rows.append(item)
+        pairs = [f"{key}: {value}" for key, value in item.items() if value]
+        row_text = _normalize_text("; ".join(pairs))
+        if row_text:
+            blocks.append(
+                _build_block(
+                    text=row_text,
+                    block_type="table_row",
+                    index=block_index_start + len(blocks),
+                    heading_path=current_heading_path,
+                    metadata={"table_id": f"T-{table_index}", "row_index": row_index},
+                )
+            )
+
+    title = current_heading_path[-1] if current_heading_path else f"Table {table_index}"
+    return _ParsedDocxTable(
+        table=CanonicalTable(
+            table_id=f"T-{table_index}",
+            title=title,
+            columns=[column or f"column_{index + 1}" for index, column in enumerate(header)],
+            rows=normalized_rows,
+            metadata={"heading_path": list(current_heading_path), "table_index": table_index},
+        ),
+        blocks=blocks,
+    )
 
 
 def _build_block(

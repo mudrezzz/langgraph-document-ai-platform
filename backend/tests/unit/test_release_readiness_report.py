@@ -22,22 +22,22 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                 "file_types": ["docx", "pdf"],
                 "embeddings_indexed": 3,
                 "quality_gate_status": "warning",
-                "quality_flags": ["PDF-1:low_text_density", "PDF-2:ocr_applied"],
+                "quality_flags": ["DOCX-1:docx_tables_detected", "DOCX-1:appendix_section_detected", "PDF-1:low_text_density", "PDF-2:ocr_applied"],
                 "quality_summary": {
                     "gate_status": "warning",
-                    "quality_flags_total": 2,
+                    "quality_flags_total": 4,
                     "parser_families": ["docx", "pdf"],
                     "extraction_modes": ["page_text", "structured"],
-                    "parser_issues_total": 3,
+                    "parser_issues_total": 5,
                     "documents_with_tables": 1,
                     "documents_needing_ocr": 1,
                 },
                 "parser_quality": {
                     "DOCX-1": {
                         "parser_family": "docx",
-                        "blocks_total": 3,
+                        "blocks_total": 6,
                         "tables_total": 1,
-                        "issues": [{"code": "table_extraction_not_implemented"}],
+                        "issues": [{"code": "docx_tables_detected"}, {"code": "appendix_section_detected"}],
                     },
                     "PDF-1": {
                         "parser_family": "pdf",
@@ -106,6 +106,7 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "documents_needing_ocr: `1`" in report
     assert "### Parser Diagnostics" in report
     assert "doc_id=`DOCX-1`, parser_family=`docx`" in report
+    assert "`DOCX-1:docx_tables_detected`" in report
     assert "## Canonical Source Mapping" in report
     assert "source_path=`input/05_release_notes.docx`" in report
     assert "source_path=`input/06_audit_summary.pdf`" in report

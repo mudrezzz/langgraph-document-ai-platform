@@ -511,10 +511,13 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`;
 - `quality_flags` содержит `07SCANNE-*:ocr_required` и `07SCANNE-*:ocr_applied` для scanned PDF fixture;
 - `ocr_recovered_doc_ids` содержит OCR fixture `07SCANNE-*`.
+- для `07SCANNE-*` больше не должно быть `ocr_not_available` в direct smoke при `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar`;
+- в `parser_quality` для DOCX видно `tables_total >= 1`, а в canonical DOCX есть `table_row` blocks из approval matrix.
 
 Как интерпретировать:
 
 - это подтверждает, что Knowledge Factory строит canonical documents из text, markdown, JSON, DOCX, обычного PDF и scanned PDF через OCR fallback;
+- DOCX approval matrix и checklist реально попадают в canonical retrieval corpus, а не только помечаются quality flags;
 - canonical documents сохраняются в `app.canonical_documents`;
 - derived content blocks сохраняются в `app.knowledge_blocks`;
 - embedding vectors для content blocks пишутся в `app.embeddings`.

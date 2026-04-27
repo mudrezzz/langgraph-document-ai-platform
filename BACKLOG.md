@@ -794,6 +794,28 @@ Second slice done:
 - smoke/report/tests теперь показывают OCR path в Knowledge Indexing details и canonical quality summary;
 - targeted OCR/parser/indexing/API/report tests: `78 passed`.
 
+Third slice done:
+
+- усилен DOCX parser hardening path:
+  - `CanonicalDocumentParser` теперь извлекает `CanonicalTable` в `extracted_tables`;
+  - строки DOCX tables становятся canonical `table_row` blocks и попадают в indexing/retrieval corpus;
+  - numbered/list paragraphs нормализуются как `bullet` blocks;
+  - appendix-like headings помечаются через `appendix_section_detected`;
+- demo DOCX fixture `05_release_notes.docx` расширен реальными структурами:
+  - numbered deployment checklist;
+  - approval matrix table со статусами `PENDING/READY/APPROVED`;
+  - appendix section с rollback contacts;
+- tests и API smoke теперь проверяют, что demo DOCX реально отдает `extracted_tables` и `table_row` blocks, а не только quality flag;
+
+Fourth slice done:
+
+- исправлен parity bug между direct shell smoke и API/container indexing path:
+  - `backend/scripts/smoke_knowledge_indexing.py` теперь использует `ApiContainer().knowledge_indexing_service`, а не вручную собранный `KnowledgeIndexingApplicationService` без OCR-aware parser;
+  - direct smoke теперь совпадает с API smoke по env-driven OCR runtime и корректно показывает `ocr_applied`/`ocr_recovered_doc_ids` для scanned PDF fixture;
+- добавлен regression test `backend/tests/unit/test_smoke_knowledge_indexing_script.py`, который фиксирует container-managed behavior для direct smoke path;
+- manual smoke docs и README уточнены: при `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar` прямой smoke больше не должен возвращать `ocr_not_available` для `07_scanned_signoff.pdf`;
+- targeted tests + direct/API smoke verification + full suite with Docker async e2e and OpenRouter external LLM enabled: planned after slice finalization.
+
 Scope:
 
 - OCR path для scanned PDF:
