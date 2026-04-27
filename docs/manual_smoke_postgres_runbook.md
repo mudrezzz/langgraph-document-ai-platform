@@ -281,6 +281,7 @@ bash backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
 - `summary_candidates >= 1`;
 - `block_candidates >= 1`;
 - `lookup_found=true`;
+- для DOCX approval matrix lookup может показать `lookup_source_kind=table_row`, `lookup_table_title=Approval Matrix`, `lookup_row_index`;
 - `summary_backend=pgvector` и `block_backend=pgvector`;
 - `build_status=completed`;
 - `evidence_blocks >= 1`.

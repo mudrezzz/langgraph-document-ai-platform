@@ -72,6 +72,11 @@
   - numbered/list paragraphs нормализуются как semantic list blocks;
   - appendix-like headings помечаются через `appendix_section_detected`;
   - multifile demo DOCX fixture теперь содержит реальную approval matrix table, checklist и appendix section.
+- Knowledge Factory Hardening / retrieval provenance slice:
+  - canonical indexing и vector metadata теперь сохраняют table-aware provenance для `table_row` blocks;
+  - canonical retrieval/detail candidates отдают `source_kind`, `table_id`, `table_title`, `table_columns`, `row_index`, `row_values`;
+  - `lookup_source` возвращает typed source provenance и table payload для table-backed evidence;
+  - release readiness report показывает table-aware canonical source mapping для evidence, пришедшего из approval matrix.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;

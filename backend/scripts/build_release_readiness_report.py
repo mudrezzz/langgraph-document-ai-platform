@@ -277,13 +277,19 @@ def _build_report(
     if source_mappings:
         for item in source_mappings[:15]:
             quality = ", ".join(item.get("quality_flags", [])) or "none"
+            provenance_bits: list[str] = []
+            if item.get("table_title"):
+                provenance_bits.append(f"table_title=`{item.get('table_title')}`")
+            if item.get("table_row_refs"):
+                provenance_bits.append(f"table_rows=`{', '.join(item.get('table_row_refs', []))}`")
+            provenance_suffix = f", {' , '.join(provenance_bits)}" if provenance_bits else ""
             lines.append(
                 "- "
                 f"doc_id=`{item.get('doc_id')}`, "
                 f"file_type=`{item.get('file_type')}`, "
                 f"source_path=`{item.get('source_path')}`, "
                 f"evidence_blocks=`{item.get('evidence_blocks')}`, "
-                f"quality_flags=`{quality}`"
+                f"quality_flags=`{quality}`{provenance_suffix}"
             )
     else:
         lines.append("- Нет canonical source mapping")
@@ -376,6 +382,14 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
         for key in ("source_path", "file_type", "document_type", "doc_title"):
             if metadata.get(key) and not item.get(key):
                 item[key] = metadata.get(key)
+        if metadata.get("table_title") and not item.get("table_title"):
+            item["table_title"] = metadata.get("table_title")
+        if metadata.get("source_kind") == "table_row":
+            row_index = metadata.get("row_index")
+            row_ref = f"row_{row_index}" if row_index is not None else "row_unknown"
+            item.setdefault("table_row_refs", [])
+            if row_ref not in item["table_row_refs"]:
+                item["table_row_refs"].append(row_ref)
         for flag in metadata.get("quality_flags", []) or []:
             if flag not in item["quality_flags"]:
                 item["quality_flags"].append(flag)
@@ -388,6 +402,8 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
         normalized.setdefault("file_type", "")
         normalized.setdefault("document_type", "")
         normalized.setdefault("doc_title", "")
+        normalized.setdefault("table_title", "")
+        normalized["table_row_refs"] = sorted(normalized.get("table_row_refs", []))
         result.append(normalized)
 
     result.sort(key=lambda item: (-int(item.get("evidence_blocks", 0)), item.get("doc_id", "")))

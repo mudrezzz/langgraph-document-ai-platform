@@ -238,11 +238,13 @@ class KnowledgeIndexingApplicationService:
             for block in document.content_blocks:
                 block_ref = f"{document.doc_id}:{document.version}:{block.block_id}"
                 vector_key = f"knowledge_block:{block_ref}"
+                table_metadata = _table_metadata_for_block(document=document, block=block)
                 self._vector_store.upsert_vector(
                     vector_key,
                     self._embedding_gateway.embed(block.text),
                     {
                         **metadata_by_doc,
+                        **table_metadata,
                         **block.metadata,
                         "kind": "knowledge_block_embedding",
                         "block_ref": block_ref,
@@ -278,6 +280,35 @@ class KnowledgeIndexingApplicationService:
                 )
                 indexed += 1
         return indexed
+
+
+def _table_metadata_for_block(*, document: CanonicalDocument, block: CanonicalContentBlock) -> dict:
+    if block.block_type != "table_row":
+        return {}
+
+    table_id = str(block.metadata.get("table_id", "") or "").strip()
+    row_index = block.metadata.get("row_index")
+    if not table_id:
+        return {"source_kind": "table_row"}
+
+    table = next((item for item in document.extracted_tables if item.table_id == table_id), None)
+    if table is None:
+        return {
+            "source_kind": "table_row",
+            "table_title": block.heading_path[-1] if block.heading_path else None,
+        }
+
+    row_values = {}
+    if isinstance(row_index, int) and 1 <= row_index <= len(table.rows):
+        row_values = dict(table.rows[row_index - 1])
+
+    return {
+        "source_kind": "table_row",
+        "section_title": block.heading_path[-1] if block.heading_path else None,
+        "table_title": table.title,
+        "table_columns": list(table.columns),
+        "row_values": row_values,
+    }
 
 def _build_state_payload(
     *,

@@ -816,6 +816,19 @@ Fourth slice done:
 - manual smoke docs и README уточнены: при `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar` прямой smoke больше не должен возвращать `ocr_not_available` для `07_scanned_signoff.pdf`;
 - targeted tests + direct/API smoke verification + full suite with Docker async e2e and OpenRouter external LLM enabled: planned after slice finalization.
 
+Fifth slice done:
+
+- retrieval/source mapping обогащен table-aware provenance для canonical `table_row` blocks без новой retrieval архитектуры;
+- canonical indexing vector metadata и canonical dataset path теперь сохраняют/отдают:
+  - `source_kind=table_row`;
+  - `table_id`, `table_title`, `table_columns`;
+  - `row_index`, `row_values`;
+  - `section_title`;
+- `FastMcpRetrievalService.lookup_source` теперь возвращает typed provenance и typed table payload для table-backed evidence;
+- `release_readiness_report` и Retrieval MCP smoke теперь могут явно показать, что evidence пришел из approval matrix row, а не из абстрактного paragraph block;
+- добавлен ADR `0074-table-aware-canonical-retrieval-provenance.md`;
+- targeted provenance/retrieval/report tests: `18 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:

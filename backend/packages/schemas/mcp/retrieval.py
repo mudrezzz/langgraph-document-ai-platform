@@ -46,6 +46,43 @@ class RetrievalMcpSearchOutput(BaseModel):
     retrieval_backend: str = "pgvector"
 
 
+class RetrievalMcpSourceProvenance(BaseModel):
+    """Нормализованная provenance-сводка для source/block lookup."""
+
+    source_kind: str = "document"
+    heading_path: list[str] = Field(default_factory=list)
+    section_title: str | None = None
+    table_id: str | None = None
+    table_title: str | None = None
+    table_columns: list[str] = Field(default_factory=list)
+    row_index: int | None = None
+    row_values: dict = Field(default_factory=dict)
+    source_block_ids: list[str] = Field(default_factory=list)
+
+
+class RetrievalMcpLookupSourceBlock(BaseModel):
+    """Typed block payload для lookup_source ответа."""
+
+    block_id: str
+    block_ref: str
+    block_type: str
+    text: str
+    heading_path: list[str] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+    source_provenance: RetrievalMcpSourceProvenance | None = None
+
+
+class RetrievalMcpLookupSourceTable(BaseModel):
+    """Typed table payload для lookup_source ответа."""
+
+    table_id: str
+    title: str | None = None
+    columns: list[str] = Field(default_factory=list)
+    row_index: int | None = None
+    row_values: dict = Field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
+
+
 class RetrievalMcpLookupSourceInput(BaseModel):
     """Контракт входа MCP lookup_source tool."""
 
@@ -66,4 +103,6 @@ class RetrievalMcpLookupSourceOutput(BaseModel):
     source_path: str | None = None
     file_type: str | None = None
     document_metadata: dict = Field(default_factory=dict)
-    block: dict | None = None
+    source_provenance: RetrievalMcpSourceProvenance | None = None
+    block: RetrievalMcpLookupSourceBlock | None = None
+    table: RetrievalMcpLookupSourceTable | None = None

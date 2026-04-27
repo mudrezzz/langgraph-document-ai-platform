@@ -102,9 +102,36 @@ def test_canonical_parser_reports_docx_table_quality_flags(tmp_path: Path) -> No
     assert "docx_tables_detected" in parsed.quality_flags
     assert parsed.parser_quality.tables_total == 1
     assert len(parsed.extracted_tables) == 1
+    assert parsed.extracted_tables[0].title == "Release Notes"
     assert parsed.extracted_tables[0].columns == ["Check", "Status"]
     assert parsed.extracted_tables[0].rows[0]["Check"] == "Security sign-off"
     assert any(block.block_type == "table_row" for block in parsed.content_blocks)
+
+
+def test_canonical_parser_keeps_docx_table_under_nearest_heading(tmp_path: Path) -> None:
+    pytest.importorskip("docx")
+    from docx import Document
+
+    source = tmp_path / "release_notes.docx"
+    document = Document()
+    document.add_heading("Release Notes", level=1)
+    document.add_heading("Approval Matrix", level=2)
+    table = document.add_table(rows=2, cols=3)
+    table.cell(0, 0).text = "Check"
+    table.cell(0, 1).text = "Owner"
+    table.cell(0, 2).text = "Status"
+    table.cell(1, 0).text = "Customer notification"
+    table.cell(1, 1).text = "Product Owner"
+    table.cell(1, 2).text = "APPROVED"
+    document.add_heading("Appendix A: Contacts", level=2)
+    document.add_paragraph("Primary: sre@example.com")
+    document.save(source)
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    table_row = next(block for block in parsed.content_blocks if block.block_type == "table_row")
+    assert table_row.heading_path == ["Approval Matrix"]
+    assert parsed.extracted_tables[0].title == "Approval Matrix"
 
 
 def test_canonical_parser_detects_docx_lists_and_appendix(tmp_path: Path) -> None:

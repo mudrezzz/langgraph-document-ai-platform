@@ -30,3 +30,4 @@ def test_build_binary_demo_documents_are_parseable(tmp_path: Path) -> None:
     assert "ocr_applied" in scanned.quality_flags
     assert docx_document.extracted_tables
     assert any(block.block_type == "table_row" for block in docx_document.content_blocks)
+    assert docx_document.extracted_tables[0].title == "Approval Matrix"

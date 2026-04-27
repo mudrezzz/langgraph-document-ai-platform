@@ -265,50 +265,54 @@ class CanonicalDocumentParser:
             quality_flags.append("docx_tables_detected")
         metrics["tables_total"] = tables_detected
 
-        for paragraph in document.paragraphs:
-            text = _normalize_text(paragraph.text)
-            if not text:
-                continue
+        table_index = 0
+        for item_kind, item in _iter_docx_body_items(document):
+            if item_kind == "paragraph":
+                text = _normalize_text(item.text)
+                if not text:
+                    continue
 
-            style_name = getattr(paragraph.style, "name", "") or ""
-            if style_name.lower().startswith("heading"):
-                current_heading_path = [text]
-                current_node = CanonicalStructureNode(
-                    node_id=f"section-{len(root.children) + 1}",
-                    title=text,
-                    level=_parse_heading_level(style_name),
+                style_name = getattr(item.style, "name", "") or ""
+                if style_name.lower().startswith("heading"):
+                    current_heading_path = [text]
+                    current_node = CanonicalStructureNode(
+                        node_id=f"section-{len(root.children) + 1}",
+                        title=text,
+                        level=_parse_heading_level(style_name),
+                    )
+                    root.children.append(current_node)
+                    metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
+                    if _looks_like_appendix_heading(text):
+                        quality_flags.append("appendix_section_detected")
+                    continue
+
+                block_type = "paragraph"
+                if _looks_like_list_paragraph(style_name, text):
+                    metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
+                    block_type = "bullet"
+
+                block = _build_block(
+                    text=text,
+                    block_type=block_type,
+                    index=len(blocks) + 1,
+                    heading_path=current_heading_path,
+                    metadata={"style": style_name} if style_name else None,
                 )
-                root.children.append(current_node)
-                metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
-                if _looks_like_appendix_heading(text):
-                    quality_flags.append("appendix_section_detected")
+                blocks.append(block)
+                current_node.block_ids.append(block.block_id)
                 continue
 
-            block_type = "paragraph"
-            if _looks_like_list_paragraph(style_name, text):
-                metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
-                block_type = "bullet"
-
-            block = _build_block(
-                text=text,
-                block_type=block_type,
-                index=len(blocks) + 1,
-                heading_path=current_heading_path,
-                metadata={"style": style_name} if style_name else None,
-            )
-            blocks.append(block)
-            current_node.block_ids.append(block.block_id)
-
-        for table_index, table in enumerate(document.tables, start=1):
-            parsed_table = _parse_docx_table(
-                table,
-                table_index=table_index,
-                current_heading_path=current_heading_path,
-                block_index_start=len(blocks) + 1,
-            )
-            tables.append(parsed_table.table)
-            blocks.extend(parsed_table.blocks)
-            current_node.block_ids.extend(block.block_id for block in parsed_table.blocks)
+            if item_kind == "table":
+                table_index += 1
+                parsed_table = _parse_docx_table(
+                    item,
+                    table_index=table_index,
+                    current_heading_path=current_heading_path,
+                    block_index_start=len(blocks) + 1,
+                )
+                tables.append(parsed_table.table)
+                blocks.extend(parsed_table.blocks)
+                current_node.block_ids.extend(block.block_id for block in parsed_table.blocks)
 
         if not root.children:
             quality_flags.append("no_structural_headings")
@@ -683,6 +687,26 @@ def _build_tags(path: Path) -> list[str]:
 
 def _normalize_text(value: str) -> str:
     return _WHITESPACE_RE.sub(" ", value).strip()
+
+
+def _iter_docx_body_items(document: Any) -> list[tuple[str, Any]]:
+    try:
+        from docx.document import Document as DocxDocument
+        from docx.oxml.table import CT_Tbl
+        from docx.oxml.text.paragraph import CT_P
+        from docx.table import Table
+        from docx.text.paragraph import Paragraph
+    except Exception as exc:  # pragma: no cover - depends on optional runtime package
+        raise RuntimeError("Для DOCX parsing требуется зависимость python-docx") from exc
+
+    items: list[tuple[str, Any]] = []
+    parent = document if isinstance(document, DocxDocument) else document._body  # noqa: SLF001
+    for child in parent.element.body.iterchildren():
+        if isinstance(child, CT_P):
+            items.append(("paragraph", Paragraph(child, parent)))
+        elif isinstance(child, CT_Tbl):
+            items.append(("table", Table(child, parent)))
+    return items
 
 
 def _is_ocr_sidecar(path: Path) -> bool:

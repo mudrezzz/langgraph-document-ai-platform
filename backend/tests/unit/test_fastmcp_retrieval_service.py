@@ -133,6 +133,28 @@ def test_fastmcp_retrieval_service_search_blocks_returns_detail_candidates() -> 
     assert candidate["metadata"]["block_ref"] == "DOC-1:1:B-1"
 
 
+def test_fastmcp_retrieval_service_search_blocks_returns_table_row_provenance() -> None:
+    mcp_service = _build_indexed_mcp_service()
+
+    result = mcp_service.search_blocks(
+        {
+            "query": "customer notification approved",
+            "project_id": "p1",
+            "document_types": ["governance"],
+            "canonical_doc_ids": ["DOC-TABLE"],
+            "limit": 5,
+        }
+    )
+
+    assert result["total_returned"] == 1
+    candidate = result["candidates"][0]
+    assert candidate["metadata"]["source_kind"] == "table_row"
+    assert candidate["metadata"]["table_id"] == "T-1"
+    assert candidate["metadata"]["table_title"] == "Approval Matrix"
+    assert candidate["metadata"]["row_index"] == 2
+    assert candidate["metadata"]["row_values"]["Status"] == "APPROVED"
+
+
 def test_fastmcp_retrieval_service_search_blocks_applies_tags_filter() -> None:
     mcp_service = _build_indexed_mcp_service()
 
@@ -176,6 +198,23 @@ def test_fastmcp_retrieval_service_lookup_source_returns_block_mapping() -> None
     assert result["file_type"] == "md"
     assert result["document_metadata"]["document_type"] == "security"
     assert result["block"]["text"] == "Security approval is still pending."
+
+
+def test_fastmcp_retrieval_service_lookup_source_returns_table_row_mapping() -> None:
+    mcp_service = _build_indexed_mcp_service()
+
+    result = mcp_service.lookup_source({"block_ref": "DOC-TABLE:1:B-2"})
+
+    assert result["found"] is True
+    assert result["block"]["block_type"] == "table_row"
+    assert result["source_provenance"]["source_kind"] == "table_row"
+    assert result["source_provenance"]["table_id"] == "T-1"
+    assert result["source_provenance"]["table_title"] == "Approval Matrix"
+    assert result["source_provenance"]["row_index"] == 2
+    assert result["source_provenance"]["row_values"]["Owner"] == "Product Owner"
+    assert result["table"]["table_id"] == "T-1"
+    assert result["table"]["columns"] == ["Check", "Owner", "Status"]
+    assert result["table"]["row_values"]["Status"] == "APPROVED"
 
 
 def test_fastmcp_retrieval_service_lookup_source_returns_document_mapping_for_doc_id() -> None:
@@ -260,6 +299,47 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
             parser_quality={"parser_family": "text", "extraction_mode": "text", "blocks_total": 1},
         )
     )
+    canonical_service.save_document(
+        CanonicalDocument(
+            doc_id="DOC-TABLE",
+            source_path="input/05_release_notes.docx",
+            version="1",
+            file_type="docx",
+            metadata_profile={"project_id": "p1", "document_type": "governance", "title": "Release Notes"},
+            content_blocks=[
+                CanonicalContentBlock(
+                    block_id="B-2",
+                    block_type="table_row",
+                    text="Check: Customer notification; Owner: Product Owner; Status: APPROVED",
+                    heading_path=["Approval Matrix"],
+                    metadata={"table_id": "T-1", "row_index": 2},
+                )
+            ],
+            extracted_tables=[
+                {
+                    "table_id": "T-1",
+                    "title": "Approval Matrix",
+                    "columns": ["Check", "Owner", "Status"],
+                    "rows": [
+                        {"Check": "Rollback readiness", "Owner": "SRE", "Status": "READY"},
+                        {"Check": "Customer notification", "Owner": "Product Owner", "Status": "APPROVED"},
+                    ],
+                    "metadata": {"heading_path": ["Approval Matrix"], "table_index": 1},
+                }
+            ],
+            section_summaries=[
+                CanonicalSectionSummary(
+                    section_id="S-T1",
+                    title="Approval Matrix",
+                    summary="Approval matrix includes customer notification approved.",
+                    source_block_ids=["B-2"],
+                    metadata={"project_id": "p1", "document_type": "governance", "tags": ["approval"]},
+                )
+            ],
+            quality_flags=["docx_tables_detected"],
+            parser_quality={"parser_family": "docx", "extraction_mode": "structured", "blocks_total": 1, "tables_total": 1},
+        )
+    )
     vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)
     vector_store.upsert_vector(
         "summary:DOC-1:S-1",
@@ -299,6 +379,33 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
             "file_type": "md",
             "block_type": "paragraph",
             "heading_path": ["Security"],
+        },
+    )
+    vector_store.upsert_vector(
+        "block:DOC-TABLE:B-2",
+        [0.0, 1.0],
+        {
+            "kind": "knowledge_block_embedding",
+            "block_ref": "DOC-TABLE:1:B-2",
+            "doc_id": "DOC-TABLE",
+            "version": "1",
+            "block_id": "B-2",
+            "text": "Check: Customer notification; Owner: Product Owner; Status: APPROVED",
+            "project_id": "p1",
+            "document_type": "governance",
+            "tags": ["approval"],
+            "doc_title": "Release Notes",
+            "source_path": "input/05_release_notes.docx",
+            "file_type": "docx",
+            "block_type": "table_row",
+            "heading_path": ["Approval Matrix"],
+            "source_kind": "table_row",
+            "section_title": "Approval Matrix",
+            "table_id": "T-1",
+            "table_title": "Approval Matrix",
+            "table_columns": ["Check", "Owner", "Status"],
+            "row_index": 2,
+            "row_values": {"Check": "Customer notification", "Owner": "Product Owner", "Status": "APPROVED"},
         },
     )
     mcp_service = FastMcpRetrievalService(

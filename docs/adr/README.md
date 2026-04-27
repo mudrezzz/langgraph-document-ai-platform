@@ -84,3 +84,4 @@
 - `0071-rbac-boundaries-for-sensitive-api-and-mcp-operations.md`
 - `0072-canonical-parser-quality-read-model-baseline.md`
 - `0073-scanned-pdf-ocr-fallback-path.md`
+- `0074-table-aware-canonical-retrieval-provenance.md`

@@ -1044,6 +1044,11 @@ Parser quality baseline текущего hardening-среза:
 - demo input теперь содержит scanned PDF `07_scanned_signoff.pdf` и sidecar OCR text для ручной проверки OCR path;
 - demo DOCX fixture теперь содержит approval matrix table, numbered checklist и appendix section для ручной проверки DOCX hardening path;
 - Knowledge Indexing task details и smoke/report path теперь показывают parser diagnostics по `doc_id` и aggregate поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`.
+- retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
+  - `source_kind=table_row`;
+  - `table_id`, `table_title`, `table_columns`;
+  - `row_index`, `row_values`;
+  - `lookup_source` и `Canonical Source Mapping` теперь могут явно показать, что evidence пришел из approval matrix row, а не из абстрактного paragraph block.
 
 Smoke текущего demo input:
 

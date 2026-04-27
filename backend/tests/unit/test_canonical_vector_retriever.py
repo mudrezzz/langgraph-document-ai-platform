@@ -132,3 +132,45 @@ def test_canonical_summary_vector_retriever_returns_section_summaries() -> None:
     assert results[0].metadata["block_kind"] == "section_summary"
     assert results[0].metadata["section_title"] == "Release Decision"
     assert results[0].metadata["source_block_ids"] == ["B-1", "B-2"]
+
+
+def test_canonical_vector_retriever_preserves_table_row_metadata() -> None:
+    gateway = TeiEmbeddingGateway(vector_dim=16)
+    vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)
+    vector_store.upsert_vector(
+        "knowledge_block:DOC-TABLE:1:B-2",
+        gateway.embed("customer notification approved"),
+        {
+            "kind": "knowledge_block_embedding",
+            "block_ref": "DOC-TABLE:1:B-2",
+            "doc_id": "DOC-TABLE",
+            "version": "1",
+            "block_id": "B-2",
+            "block_type": "table_row",
+            "text": "Check: Customer notification; Owner: Product Owner; Status: APPROVED",
+            "project_id": "p1",
+            "document_type": "governance",
+            "tags": ["approval"],
+            "heading_path": ["Approval Matrix"],
+            "source_kind": "table_row",
+            "section_title": "Approval Matrix",
+            "table_id": "T-1",
+            "table_title": "Approval Matrix",
+            "table_columns": ["Check", "Owner", "Status"],
+            "row_index": 2,
+            "row_values": {"Check": "Customer notification", "Owner": "Product Owner", "Status": "APPROVED"},
+        },
+    )
+
+    retriever = CanonicalVectorRetriever(embedding_gateway=gateway, vector_store=vector_store)
+    results = retriever.retrieve(
+        "customer notification approved",
+        RetrievalFilter(project_id="p1", document_types=["governance"]),
+    )
+
+    assert len(results) == 1
+    assert results[0].metadata["source_kind"] == "table_row"
+    assert results[0].metadata["table_id"] == "T-1"
+    assert results[0].metadata["table_title"] == "Approval Matrix"
+    assert results[0].metadata["row_index"] == 2
+    assert results[0].metadata["row_values"]["Status"] == "APPROVED"

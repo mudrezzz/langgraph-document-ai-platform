@@ -70,6 +70,9 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                             "file_type": "docx",
                             "source_path": "input/05_release_notes.docx",
                             "quality_flags": [],
+                            "source_kind": "table_row",
+                            "table_title": "Approval Matrix",
+                            "row_index": 2,
                         },
                     },
                     {
@@ -110,3 +113,5 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "## Canonical Source Mapping" in report
     assert "source_path=`input/05_release_notes.docx`" in report
     assert "source_path=`input/06_audit_summary.pdf`" in report
+    assert "table_title=`Approval Matrix`" in report
+    assert "table_rows=`row_2`" in report

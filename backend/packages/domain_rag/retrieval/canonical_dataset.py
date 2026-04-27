@@ -77,6 +77,19 @@ def _document_to_summary_blocks(document: CanonicalDocument) -> list[RetrievedBl
 
 def _block_to_retrieved_block(block: KnowledgeBlockRecord, document: CanonicalDocument | None) -> RetrievedBlock:
     metadata = _document_metadata(document) if document else {"project_id": "p1"}
+    metadata_payload = {
+        **metadata,
+        **block.metadata,
+        "block_kind": "content_block",
+        "block_type": block.block_type,
+        "heading_path": block.heading_path,
+    }
+    if block.block_type == "table_row":
+        metadata_payload["source_kind"] = "table_row"
+        metadata_payload["section_title"] = block.heading_path[-1] if block.heading_path else None
+        metadata_payload["table_title"] = _resolve_table_title(document, block)
+        metadata_payload["row_values"] = _resolve_table_row_values(document, block)
+
     return RetrievedBlock.model_validate(
         {
             "text": block.text,
@@ -86,13 +99,7 @@ def _block_to_retrieved_block(block: KnowledgeBlockRecord, document: CanonicalDo
                 "block_id": block.block_id,
             },
             "score": 0.0,
-            "metadata": {
-                **metadata,
-                **block.metadata,
-                "block_kind": "content_block",
-                "block_type": block.block_type,
-                "heading_path": block.heading_path,
-            },
+            "metadata": metadata_payload,
         }
     )
 
@@ -112,3 +119,26 @@ def _document_metadata(document: CanonicalDocument | None) -> dict:
         "quality_flags": list(document.quality_flags),
         "parser_quality": document.parser_quality.model_dump(mode="json"),
     }
+
+
+def _resolve_table_title(document: CanonicalDocument | None, block: KnowledgeBlockRecord) -> str | None:
+    if document is None:
+        return None
+    table_id = str(block.metadata.get("table_id", "") or "").strip()
+    if not table_id:
+        return None
+    table = next((item for item in document.extracted_tables if item.table_id == table_id), None)
+    return table.title if table is not None else None
+
+
+def _resolve_table_row_values(document: CanonicalDocument | None, block: KnowledgeBlockRecord) -> dict:
+    if document is None:
+        return {}
+    table_id = str(block.metadata.get("table_id", "") or "").strip()
+    row_index = block.metadata.get("row_index")
+    if not table_id or not isinstance(row_index, int) or row_index < 1:
+        return {}
+    table = next((item for item in document.extracted_tables if item.table_id == table_id), None)
+    if table is None or row_index > len(table.rows):
+        return {}
+    return dict(table.rows[row_index - 1])

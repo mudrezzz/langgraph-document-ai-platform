@@ -13,8 +13,11 @@ from schemas.api.contracts import StartRetrievalTaskRequest
 from schemas.mcp.retrieval import (
     RetrievalMcpBuildEvidencePackInput,
     RetrievalMcpBuildEvidencePackOutput,
+    RetrievalMcpLookupSourceBlock,
     RetrievalMcpLookupSourceInput,
     RetrievalMcpLookupSourceOutput,
+    RetrievalMcpLookupSourceTable,
+    RetrievalMcpSourceProvenance,
     RetrievalMcpSearchInput,
     RetrievalMcpSearchOutput,
 )
@@ -160,7 +163,9 @@ class FastMcpRetrievalService(BaseFastMcpService):
                 block_ref=block_ref,
             ).model_dump(mode="json")
 
-        block_payload: dict[str, Any] | None = None
+        block_payload: RetrievalMcpLookupSourceBlock | None = None
+        table_payload: RetrievalMcpLookupSourceTable | None = None
+        source_provenance = RetrievalMcpSourceProvenance(source_kind="document")
         resolved_block_ref = block_ref
         if block_id:
             block = next((item for item in document.content_blocks if item.block_id == block_id), None)
@@ -177,10 +182,23 @@ class FastMcpRetrievalService(BaseFastMcpService):
                     document_metadata=document.metadata_profile,
                 ).model_dump(mode="json")
             resolved_block_ref = resolved_block_ref or _build_block_ref(document.doc_id, document.version, block.block_id)
-            block_payload = {
-                **block.model_dump(mode="json"),
-                "block_ref": resolved_block_ref,
-            }
+            source_provenance = _build_source_provenance(document=document, block=block)
+            if block.block_type == "table_row":
+                table_payload = _build_lookup_table(document=document, block=block)
+            block_payload = RetrievalMcpLookupSourceBlock(
+                block_id=block.block_id,
+                block_ref=resolved_block_ref,
+                block_type=block.block_type,
+                text=block.text,
+                heading_path=list(block.heading_path),
+                metadata=dict(block.metadata),
+                source_provenance=source_provenance,
+            )
+        else:
+            source_provenance = RetrievalMcpSourceProvenance(
+                source_kind="document",
+                heading_path=[],
+            )
 
         response = RetrievalMcpLookupSourceOutput(
             found=True,
@@ -195,7 +213,9 @@ class FastMcpRetrievalService(BaseFastMcpService):
                 "quality_flags": document.quality_flags,
                 "parser_quality": document.parser_quality.model_dump(mode="json"),
             },
+            source_provenance=source_provenance,
             block=block_payload,
+            table=table_payload,
         )
         return response.model_dump(mode="json")
 
@@ -327,3 +347,67 @@ def _parse_block_ref(block_ref: str) -> tuple[str | None, str | None]:
 
 def _build_block_ref(doc_id: str, version: str, block_id: str) -> str:
     return f"{doc_id}:{version}:{block_id}"
+
+
+def _build_source_provenance(
+    *,
+    document: Any,
+    block: Any,
+) -> RetrievalMcpSourceProvenance:
+    if block.block_type != "table_row":
+        return RetrievalMcpSourceProvenance(
+            source_kind="content_block",
+            heading_path=list(block.heading_path),
+            section_title=block.heading_path[-1] if block.heading_path else None,
+        )
+
+    table = _find_table(document, str(block.metadata.get("table_id", "") or "").strip())
+    row_index = block.metadata.get("row_index") if isinstance(block.metadata.get("row_index"), int) else None
+    row_values = _resolve_table_row_values(table=table, row_index=row_index)
+    return RetrievalMcpSourceProvenance(
+        source_kind="table_row",
+        heading_path=list(block.heading_path),
+        section_title=block.heading_path[-1] if block.heading_path else None,
+        table_id=str(block.metadata.get("table_id", "") or "") or None,
+        table_title=table.title if table is not None else (block.heading_path[-1] if block.heading_path else None),
+        table_columns=list(table.columns) if table is not None else [],
+        row_index=row_index,
+        row_values=row_values,
+    )
+
+
+def _build_lookup_table(*, document: Any, block: Any) -> RetrievalMcpLookupSourceTable | None:
+    table_id = str(block.metadata.get("table_id", "") or "").strip()
+    if not table_id:
+        return None
+    table = _find_table(document, table_id)
+    row_index = block.metadata.get("row_index") if isinstance(block.metadata.get("row_index"), int) else None
+    if table is None:
+        return RetrievalMcpLookupSourceTable(
+            table_id=table_id,
+            title=block.heading_path[-1] if block.heading_path else None,
+            columns=[],
+            row_index=row_index,
+            row_values={},
+            metadata={},
+        )
+    return RetrievalMcpLookupSourceTable(
+        table_id=table.table_id,
+        title=table.title,
+        columns=list(table.columns),
+        row_index=row_index,
+        row_values=_resolve_table_row_values(table=table, row_index=row_index),
+        metadata=dict(table.metadata),
+    )
+
+
+def _find_table(document: Any, table_id: str) -> Any | None:
+    if not table_id:
+        return None
+    return next((item for item in document.extracted_tables if item.table_id == table_id), None)
+
+
+def _resolve_table_row_values(*, table: Any | None, row_index: int | None) -> dict[str, Any]:
+    if table is None or row_index is None or row_index < 1 or row_index > len(table.rows):
+        return {}
+    return dict(table.rows[row_index - 1])
