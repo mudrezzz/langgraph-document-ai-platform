@@ -29,6 +29,22 @@ def test_normalize_worker_payload_updates_source_paths_only() -> None:
     assert normalized["task_context"] == {"requester": "unit-test"}
 
 
+def test_normalize_worker_payload_keeps_document_version() -> None:
+    payload = {
+        "source_paths": ["/root/langgraph-document-ai-platform/backend/examples/cases/release_go_no_go_multifile_case/input"],
+        "document_version": "3",
+        "task_context": {"requester": "unit-test"},
+    }
+
+    normalized = _normalize_worker_payload(payload)
+
+    assert normalized["source_paths"] == [
+        "/workspace/backend/examples/cases/release_go_no_go_multifile_case/input"
+    ]
+    assert normalized["document_version"] == "3"
+    assert normalized["task_context"] == {"requester": "unit-test"}
+
+
 class _FakeAsyncResult:
     def __init__(self, task_id: str) -> None:
         self.id = task_id

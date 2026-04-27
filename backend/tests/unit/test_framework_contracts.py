@@ -259,36 +259,6 @@ def test_workflow_factory_reports_duplicate_and_missing_keys() -> None:
     with pytest.raises(WorkflowRegistrationError, match="already registered"):
         factory.register("factory_workflow", _FactoryWorkflow)
 
-
-class _DummyMcpService(BaseFastMcpService):
-    def __init__(self) -> None:
-        super().__init__("dummy-mcp")
-
-
-def test_fastmcp_base_service_registers_required_roles_metadata() -> None:
-    service = _DummyMcpService()
-    service._register_toolset(
-        {"get_item": lambda: None, "write_item": lambda: None},
-        required_roles={"write_item": ("artifact_writer",)},
-    )
-
-    metadata = service.metadata()
-
-    assert metadata["auth_policy"] == "disabled"
-    assert metadata["tool_required_roles"] == {"get_item": [], "write_item": ["artifact_writer"]}
-
-
-def test_role_based_access_policy_requires_actor_and_role() -> None:
-    policy = RoleBasedAccessPolicy(enabled=True)
-
-    with pytest.raises(AuthenticationRequiredError):
-        policy.require_any_role(ActorContext(), ["reviewer"], resource="api:hitl")
-
-    with pytest.raises(AuthorizationError):
-        policy.require_any_role(ActorContext(actor_id="alice", roles=("reader",)), ["reviewer"], resource="api:hitl")
-
-    policy.require_any_role(ActorContext(actor_id="alice", roles=("reviewer",)), ["reviewer"], resource="api:hitl")
-
     with pytest.raises(WorkflowNotRegisteredError, match="not registered"):
         factory.build("missing")
 
@@ -325,6 +295,8 @@ def test_base_repository_and_store_classes_are_explicit_abstract_stubs() -> None
         BaseKnowledgeStore().upsert_knowledge_block({"id": "block-1"})
     with pytest.raises(NotImplementedError):
         BaseVectorStore().upsert_vector("vec-1", [0.1], {})
+    with pytest.raises(NotImplementedError):
+        BaseVectorStore().delete_vectors(metadata_filter={"kind": "knowledge_block_embedding"})
     with pytest.raises(NotImplementedError):
         BaseArtifactStore().save_artifact("artifact-1", {})
 

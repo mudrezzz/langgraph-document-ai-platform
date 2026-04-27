@@ -552,6 +552,40 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     )
 
 
+def test_knowledge_indexing_endpoint_accepts_document_version(client: TestClient) -> None:
+    repo_root = Path(__file__).resolve().parents[3]
+    dataset_dir = (
+        repo_root
+        / "backend"
+        / "examples"
+        / "cases"
+        / "release_go_no_go_multifile_case"
+        / "input"
+    )
+    pytest.importorskip("openpyxl")
+    build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
+
+    response = client.post(
+        "/api/v1/tasks/knowledge-indexing/start",
+        json={
+            "source_paths": [str(dataset_dir)],
+            "document_version": "2",
+            "task_context": {"requester": "integration-knowledge-indexing-version-test"},
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    status_payload = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
+    details = status_payload["details"]
+    checkpoint = get_container().task_service.get_state_payload(payload["task_id"])
+
+    assert status_payload["status"] == "completed"
+    assert set(details["document_versions"].values()) == {"2"}
+    assert checkpoint["document_version"] == "2"
+    assert all(document["version"] == "2" for document in checkpoint["documents"])
+
+
 def test_knowledge_indexing_start_async_endpoint_queues_and_completes_inline(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

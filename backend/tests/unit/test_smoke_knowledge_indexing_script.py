@@ -18,8 +18,14 @@ class _FakeKnowledgeIndexingService:
         self._result = result
         self.calls: list[tuple[list[Path], dict]] = []
 
-    def index_paths(self, paths: list[Path], *, task_context: dict | None = None) -> object:
-        self.calls.append((paths, task_context or {}))
+    def index_paths(
+        self,
+        paths: list[Path],
+        *,
+        task_context: dict | None = None,
+        document_version: str = "1",
+    ) -> object:
+        self.calls.append((paths, task_context or {}, document_version))
         return self._result
 
 
@@ -86,7 +92,7 @@ def test_smoke_knowledge_indexing_uses_container_managed_service(monkeypatch, ca
     smoke_knowledge_indexing.main()
 
     output = json.loads(capsys.readouterr().out)
-    assert fake_container.knowledge_indexing_service.calls == [([Path("demo/input")], {"smoke": "knowledge_indexing"})]
+    assert fake_container.knowledge_indexing_service.calls == [([Path("demo/input")], {"smoke": "knowledge_indexing"}, "1")]
     assert output["ocr_recovered_doc_ids"] == ["07SCANNE-5225"]
     assert output["quality_flags"] == ["07SCANNE-5225:ocr_required", "07SCANNE-5225:ocr_applied"]
 

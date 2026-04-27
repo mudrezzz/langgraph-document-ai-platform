@@ -139,11 +139,13 @@ class FastMcpRetrievalService(BaseFastMcpService):
             ).model_dump(mode="json")
 
         doc_id = validated_payload.doc_id
+        version = validated_payload.version
         block_id = validated_payload.block_id
         block_ref = validated_payload.block_ref
         if block_ref:
-            parsed_doc_id, parsed_block_id = _parse_block_ref(block_ref)
+            parsed_doc_id, parsed_version, parsed_block_id = _parse_block_ref(block_ref)
             doc_id = doc_id or parsed_doc_id
+            version = version or parsed_version
             block_id = block_id or parsed_block_id
 
         if not doc_id:
@@ -153,12 +155,13 @@ class FastMcpRetrievalService(BaseFastMcpService):
             ).model_dump(mode="json")
 
         try:
-            document = self._canonical_document_service.get_document(doc_id)
+            document = self._canonical_document_service.get_document(doc_id, version=version)
         except DocumentNotFoundError:
             return RetrievalMcpLookupSourceOutput(
                 found=False,
-                error=f"canonical document {doc_id} not found",
+                error=f"canonical document {doc_id}{'@' + version if version else ''} not found",
                 doc_id=doc_id,
+                version=version,
                 block_id=block_id,
                 block_ref=block_ref,
             ).model_dump(mode="json")
@@ -309,6 +312,7 @@ def create_fastmcp_retrieval_server(service: FastMcpRetrievalService) -> Any:
     @server.tool()
     def lookup_source(
         doc_id: str | None = None,
+        version: str | None = None,
         block_id: str | None = None,
         block_ref: str | None = None,
     ) -> dict[str, Any]:
@@ -316,6 +320,7 @@ def create_fastmcp_retrieval_server(service: FastMcpRetrievalService) -> Any:
 
         payload = RetrievalMcpLookupSourceInput(
             doc_id=doc_id,
+            version=version,
             block_id=block_id,
             block_ref=block_ref,
         )
@@ -338,11 +343,11 @@ def _retrieval_filter(payload: RetrievalMcpSearchInput) -> RetrievalFilter:
     )
 
 
-def _parse_block_ref(block_ref: str) -> tuple[str | None, str | None]:
+def _parse_block_ref(block_ref: str) -> tuple[str | None, str | None, str | None]:
     parts = block_ref.split(":", 2)
     if len(parts) != 3:
-        return None, None
-    return parts[0] or None, parts[2] or None
+        return None, None, None
+    return parts[0] or None, parts[1] or None, parts[2] or None
 
 
 def _build_block_ref(doc_id: str, version: str, block_id: str) -> str:

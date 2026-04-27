@@ -836,7 +836,20 @@ Sixth slice done:
 - binary demo input расширен реальным fixture `08_release_tracker.xlsx`;
 - indexing/API tests и parser demo tests теперь проверяют, что XLSX проходит тот же canonical/indexing path, что и DOCX/PDF/JSON;
 - добавлен ADR `0075-xlsx-parser-baseline-for-canonical-ingestion.md`;
-- targeted parser/indexing/API tests: planned after slice finalization.
+- targeted parser/indexing/API tests: `70 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `296 passed`.
+
+Seventh slice done:
+
+- добавлена version-aware canonical document policy без ломки текущего latest-by-doc_id поведения;
+- `PostgresCanonicalDocumentStore` теперь хранит latest read-model отдельно от historical versions:
+  - latest tables: `app.canonical_documents`, `app.knowledge_blocks`;
+  - history tables: `app.canonical_document_versions`, `app.knowledge_block_versions`;
+- `CanonicalDocumentApplicationService` поддерживает explicit version lookup и `list_versions(...)`;
+- Knowledge Indexing API/request contracts и smoke scripts поддерживают `document_version`;
+- re-index semantics очищают latest vector entries по `doc_id`, но historical canonical versions остаются доступными для explicit lookup/source mapping;
+- Retrieval MCP `lookup_source` теперь принимает optional `version` и умеет резолвить historical `block_ref`;
+- targeted canonical-version-policy tests: `104 passed`.
 
 Scope:
 

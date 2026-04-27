@@ -83,6 +83,11 @@
   - табличные листы извлекаются в canonical `extracted_tables`;
   - строки sheet tables попадают в retrieval corpus как `table_row` blocks;
   - multifile demo input расширен `08_release_tracker.xlsx` для ручной проверки Excel ingestion path.
+- Knowledge Factory Hardening / canonical version policy slice:
+  - canonical store теперь разделяет latest read-model и version history для documents/knowledge blocks;
+  - `CanonicalDocumentApplicationService` поддерживает latest lookup по `doc_id`, explicit lookup по `doc_id + version` и `list_versions(...)`;
+  - knowledge indexing request поддерживает `document_version`;
+  - re-index semantics очищают старые vectors latest-version read-model по `doc_id`, но сохраняют historical canonical versions в dedicated version tables.
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
@@ -114,7 +119,8 @@
   - `backend/migrations/0006_artifact_store.sql`;
   - `backend/migrations/0007_task_artifacts.sql`;
   - `backend/migrations/0008_hitl_actions.sql`;
-  - `backend/migrations/0009_canonical_knowledge_store.sql`.
+  - `backend/migrations/0009_canonical_knowledge_store.sql`;
+  - `backend/migrations/0013_canonical_document_versions.sql`.
 - task history API:
   - `GET /api/v1/tasks`;
   - фильтры `status`, `task_type`, `from`, `to`;
@@ -327,6 +333,8 @@
   - `docs/adr/0068-review-approval-mcp-boundary.md`.
   - `docs/adr/0072-canonical-parser-quality-read-model-baseline.md`.
   - `docs/adr/0073-scanned-pdf-ocr-fallback-path.md`.
+  - `docs/adr/0075-xlsx-parser-baseline-for-canonical-ingestion.md`.
+  - `docs/adr/0076-canonical-document-version-read-model-policy.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;

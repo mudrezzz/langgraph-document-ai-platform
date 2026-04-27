@@ -75,10 +75,12 @@
 1. Начать с Protocol/contract в framework или application layer.
 2. Реализовать concrete adapter в `backend/packages/infra`.
 3. Если adapter пишет в PostgreSQL, добавить additive SQL migration.
-4. Поддержать fallback только для `dev/stage`, если это совместимо с runtime profile policy.
-5. Добавить tests:
+4. Если persistence layer хранит latest snapshot и history одновременно, latest-by-default contract должен оставаться backward-compatible, а historical lookup должен добавляться отдельным explicit API/contract.
+5. Поддержать fallback только для `dev/stage`, если это совместимо с runtime profile policy.
+6. Добавить tests:
    - in-memory/fallback behavior;
    - SQL payload mapping;
+   - latest vs explicit historical lookup, если это versioned read-model;
    - cursor/filter behavior, если это read-model.
 
 ## Как Добавить Domain Package

@@ -25,6 +25,9 @@ class BaseVectorStore(IVectorStore):
     def upsert_vector(self, key: str, vector: list[float], metadata: dict[str, Any]) -> None:
         raise NotImplementedError("BaseVectorStore.upsert_vector не реализован")
 
+    def delete_vectors(self, *, metadata_filter: dict[str, Any]) -> int:
+        raise NotImplementedError("BaseVectorStore.delete_vectors не реализован")
+
 
 class BaseArtifactStore(IArtifactStore):
     """Базовая in-memory заглушка artifact store."""

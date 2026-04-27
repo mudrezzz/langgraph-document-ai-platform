@@ -76,6 +76,20 @@ def test_pgvector_adapter_fallback_query_similar() -> None:
     assert results[0].score > results[1].score
 
 
+def test_pgvector_adapter_fallback_delete_vectors_by_metadata() -> None:
+    adapter = PgVectorStoreAdapter(dsn=None, use_fallback_if_unset=True)
+    adapter.upsert_vector("k-1", [1.0, 0.0], {"kind": "knowledge_block_embedding", "doc_id": "d-1", "version": "1"})
+    adapter.upsert_vector("k-2", [0.0, 1.0], {"kind": "knowledge_summary_embedding", "doc_id": "d-1", "version": "1"})
+    adapter.upsert_vector("k-3", [0.0, 1.0], {"kind": "knowledge_block_embedding", "doc_id": "d-2", "version": "1"})
+
+    deleted = adapter.delete_vectors(metadata_filter={"doc_id": "d-1", "kind": "knowledge_block_embedding"})
+
+    assert deleted == 1
+    assert adapter.get_vector("k-1") is None
+    assert adapter.get_vector("k-2") is not None
+    assert adapter.get_vector("k-3") is not None
+
+
 def test_artifact_store_fallback_roundtrip() -> None:
     store = PostgresArtifactStore(dsn=None, use_fallback_if_unset=True)
 

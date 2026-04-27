@@ -141,6 +141,7 @@ class StartKnowledgeIndexingTaskRequest(BaseModel):
     """Типизированный запрос на запуск canonical knowledge indexing."""
 
     source_paths: list[str] = Field(min_length=1)
+    document_version: str = "1"
     task_context: dict = Field(default_factory=dict)
 
 

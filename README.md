@@ -187,8 +187,9 @@
 - добавлен отдельный canonical persistence/read-model слой:
   - `PostgresCanonicalDocumentStore`;
   - `CanonicalDocumentApplicationService`;
-  - таблицы `app.canonical_documents` и `app.knowledge_blocks`;
-  - миграция `backend/migrations/0009_canonical_knowledge_store.sql`.
+  - latest-read tables `app.canonical_documents` и `app.knowledge_blocks`;
+  - version history tables `app.canonical_document_versions` и `app.knowledge_block_versions`;
+  - миграции `backend/migrations/0009_canonical_knowledge_store.sql` и `backend/migrations/0013_canonical_document_versions.sql`.
 - retrieval подключен к canonical Knowledge Factory output:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
@@ -837,6 +838,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 Поля запроса совпадают с `knowledge-indexing/start`:
 
 - `source_paths`
+- `document_version` (optional, default `"1"`)
 - `task_context`
 
 Ответ:
@@ -1021,7 +1023,9 @@ Canonical ingestion работает через отдельный persistence/r
 - API endpoints: `POST /api/v1/tasks/retrieval/start`, `POST /api/v1/tasks/retrieval/start_async`, `POST /api/v1/tasks/knowledge-indexing/start`, `POST /api/v1/tasks/knowledge-indexing/start_async`;
 - canonical boundary: `CanonicalDocumentApplicationService`;
 - storage: `PostgresCanonicalDocumentStore`;
-- SQL tables: `app.canonical_documents`, `app.knowledge_blocks`.
+- SQL tables latest read-model: `app.canonical_documents`, `app.knowledge_blocks`;
+- SQL tables version history: `app.canonical_document_versions`, `app.knowledge_block_versions`;
+- indexing request теперь поддерживает `document_version`, а canonical read-model умеет latest lookup по `doc_id` и explicit historical lookup по `doc_id + version`.
 
 Поддерживаемые форматы текущего среза:
 

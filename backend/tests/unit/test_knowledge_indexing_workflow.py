@@ -76,6 +76,48 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     assert any(block.block_type == "table_row" for block in xlsx_document.content_blocks)
 
 
+def test_knowledge_indexing_application_service_reindexes_latest_version_and_keeps_history(tmp_path: Path) -> None:
+    source = tmp_path / "security_findings.md"
+    source.write_text("## Security\n\n- Approval is pending", encoding="utf-8")
+    canonical_document_service = CanonicalDocumentApplicationService(
+        store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+    )
+    vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=canonical_document_service,
+        embedding_gateway=TeiEmbeddingGateway(vector_dim=8),
+        vector_store=vector_store,
+    )
+
+    first = service.index_paths([source], document_version="1")
+    doc_id = first.indexed_doc_ids[0]
+    v1_block_ref = f"{doc_id}:1:B-1"
+    source.write_text("## Security\n\n- Approval is approved", encoding="utf-8")
+    second = service.index_paths([source], document_version="2")
+    v2_block_ref = f"{doc_id}:2:B-1"
+
+    latest = canonical_document_service.get_document(doc_id)
+    explicit_v1 = canonical_document_service.get_document(doc_id, version="1")
+    versions = canonical_document_service.list_versions(doc_id, limit=10)
+    latest_blocks = canonical_document_service.list_blocks(limit=10, doc_id=doc_id)
+    versioned_blocks = canonical_document_service.list_blocks(limit=10, doc_id=doc_id, version="1")
+
+    assert first.embeddings_indexed == second.embeddings_indexed == 2
+    assert latest.version == "2"
+    assert latest.content_blocks[0].text == "Approval is approved"
+    assert explicit_v1.version == "1"
+    assert explicit_v1.content_blocks[0].text == "Approval is pending"
+    assert [item.version for item in versions.items] == ["2", "1"]
+    assert versions.items[0].is_latest is True
+    assert versions.items[1].is_latest is False
+    assert [item.block_ref for item in latest_blocks.items] == [v2_block_ref]
+    assert latest_blocks.items[0].is_latest is True
+    assert [item.block_ref for item in versioned_blocks.items] == [v1_block_ref]
+    assert versioned_blocks.items[0].is_latest is False
+    assert vector_store.get_vector(f"knowledge_block:{v1_block_ref}") is None
+    assert vector_store.get_vector(f"knowledge_block:{v2_block_ref}") is not None
+
+
 def test_knowledge_indexing_application_service_indexes_embeddings(tmp_path: Path) -> None:
     source = tmp_path / "security_findings.md"
     source.write_text("## Security\n\n- Critical vulnerability is fixed\n- Approval is pending", encoding="utf-8")
@@ -136,6 +178,7 @@ def test_knowledge_indexing_application_service_start_async_with_inline_dispatch
         StartKnowledgeIndexingTaskRequest(
             source_paths=[str(source)],
             task_context={"requester": "unit-test"},
+            document_version="3",
         ),
         dispatcher=dispatcher,
     )
@@ -145,10 +188,12 @@ def test_knowledge_indexing_application_service_start_async_with_inline_dispatch
     assert task.status == "completed"
     assert task.details["execution_mode"] == "async"
     assert task.details["dispatch_id"] == f"inline-knowledge-indexing-{started.task_id}"
+    assert task.details["document_versions"]
 
     payload = task_service.get_state_payload(started.task_id)
     assert payload["task_context"]["task_id"] == started.task_id
     assert payload["source_paths"] == [str(source)]
+    assert payload["document_version"] == "3"
     assert task.details["parser_quality"]
 
 
@@ -177,6 +222,7 @@ def test_knowledge_indexing_application_service_start_async_marks_task_failed_on
             StartKnowledgeIndexingTaskRequest(
                 source_paths=[str(source)],
                 task_context={"requester": "unit-test"},
+                document_version="7",
             ),
             dispatcher=_FailingDispatcher(),
         )
@@ -186,4 +232,5 @@ def test_knowledge_indexing_application_service_start_async_marks_task_failed_on
     task = tasks.items[0]
     assert task.status == "failed"
     assert task.details["execution_mode"] == "async"
+    assert task.details["document_version"] == "7"
     assert task.details["error"] == "broker unavailable"

@@ -20,6 +20,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Перед smoke сгенерировать DOCX/PDF demo input files",
     )
+    parser.add_argument(
+        "--document-version",
+        default="1",
+        help="Версия canonical documents для текущего indexing run",
+    )
     return parser.parse_args()
 
 
@@ -32,11 +37,13 @@ def main() -> None:
     result = container.knowledge_indexing_service.index_paths(
         [Path(args.input_path)],
         task_context={"smoke": "knowledge_indexing"},
+        document_version=args.document_version,
     )
 
     payload = {
         "documents_total": len(result.documents),
         "indexed_doc_ids": result.indexed_doc_ids,
+        "document_version": args.document_version,
         "quality_flags": result.quality_flags,
         "parser_quality": {
             document.doc_id: document.parser_quality.model_dump(mode="json") for document in result.documents

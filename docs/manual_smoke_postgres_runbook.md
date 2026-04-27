@@ -521,9 +521,11 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 
 - это подтверждает, что Knowledge Factory строит canonical documents из text, markdown, JSON, DOCX, XLSX, обычного PDF и scanned PDF через OCR fallback;
 - DOCX approval matrix и checklist реально попадают в canonical retrieval corpus, а не только помечаются quality flags;
-- canonical documents сохраняются в `app.canonical_documents`;
-- derived content blocks сохраняются в `app.knowledge_blocks`;
-- embedding vectors для content blocks пишутся в `app.embeddings`.
+- canonical documents latest-read сохраняются в `app.canonical_documents`;
+- historical canonical versions сохраняются в `app.canonical_document_versions`;
+- derived content blocks latest-read сохраняются в `app.knowledge_blocks`;
+- historical derived content blocks сохраняются в `app.knowledge_block_versions`;
+- embedding vectors для latest content blocks пишутся в `app.embeddings`.
 
 ## 13.4. Smoke Knowledge Indexing API Task Lifecycle
 
@@ -535,12 +537,14 @@ APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
+bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs --document-version 2
 ```
 
 Что увидеть в JSON:
 
 - `start_status=completed`;
 - `task_status=completed`;
+- `document_version` отражает запрошенную indexing version;
 - `documents_total=8`;
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`, `xlsx`;
 - `stored_blocks_total` около `40` или больше;

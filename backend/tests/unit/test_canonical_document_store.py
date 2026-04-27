@@ -24,10 +24,11 @@ def test_canonical_document_store_fallback_lists_documents_and_blocks(tmp_path: 
     assert documents_page.total_returned == 1
     assert blocks_page.total_returned == 2
     assert all(block.doc_id == saved_doc_id for block in blocks_page.items)
+    assert all(block.is_latest is True for block in blocks_page.items)
     assert loaded.parser_quality.blocks_total == 2
 
 
-def test_canonical_document_store_replaces_blocks_on_update(tmp_path: Path) -> None:
+def test_canonical_document_store_preserves_versions_and_latest_read_model(tmp_path: Path) -> None:
     source = tmp_path / "ops_readiness.txt"
     source.write_text("First paragraph", encoding="utf-8")
     parser = CanonicalDocumentParser()
@@ -35,12 +36,32 @@ def test_canonical_document_store_replaces_blocks_on_update(tmp_path: Path) -> N
         store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
     )
 
-    first = parser.parse_path(source)
+    first = parser.parse_path(source, version="1")
     service.save_document(first)
     source.write_text("First paragraph\n\nSecond paragraph", encoding="utf-8")
-    second = parser.parse_path(source)
+    second = parser.parse_path(source, version="2")
     service.save_document(second)
 
-    blocks_page = service.list_blocks(limit=10, doc_id=second.doc_id)
+    latest = service.get_document(second.doc_id)
+    explicit_v1 = service.get_document(second.doc_id, version="1")
+    documents_page = service.list_documents(limit=10)
+    versions_page = service.list_versions(second.doc_id, limit=10)
+    latest_blocks = service.list_blocks(limit=10, doc_id=second.doc_id)
+    versioned_blocks = service.list_blocks(limit=10, doc_id=second.doc_id, version="1")
 
-    assert blocks_page.total_returned == 2
+    assert latest.version == "2"
+    assert len(latest.content_blocks) == 2
+    assert explicit_v1.version == "1"
+    assert len(explicit_v1.content_blocks) == 1
+    assert documents_page.total_returned == 1
+    assert documents_page.items[0].version == "2"
+    assert versions_page.total_returned == 2
+    assert [item.version for item in versions_page.items] == ["2", "1"]
+    assert versions_page.items[0].is_latest is True
+    assert versions_page.items[1].is_latest is False
+    assert latest_blocks.total_returned == 2
+    assert all(item.version == "2" for item in latest_blocks.items)
+    assert all(item.is_latest is True for item in latest_blocks.items)
+    assert versioned_blocks.total_returned == 1
+    assert versioned_blocks.items[0].version == "1"
+    assert versioned_blocks.items[0].is_latest is False

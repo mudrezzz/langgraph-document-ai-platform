@@ -69,6 +69,28 @@ class PgVectorStoreAdapter(IVectorStore):
                     (key, vector_literal, metadata_json),
                 )
 
+    def delete_vectors(self, *, metadata_filter: dict[str, Any]) -> int:
+        """Deletes vectors matching metadata filter and returns deleted count."""
+
+        if not metadata_filter:
+            raise ValueError("metadata_filter обязателен для delete_vectors")
+
+        if self._use_fallback:
+            stale_keys = [key for key, (_, metadata) in self._storage.items() if _metadata_matches(metadata, metadata_filter)]
+            for key in stale_keys:
+                del self._storage[key]
+            return len(stale_keys)
+
+        psycopg, dict_row = _import_psycopg()
+        metadata_json = json.dumps(metadata_filter, ensure_ascii=False)
+        with psycopg.connect(self._dsn, autocommit=True, row_factory=dict_row) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"DELETE FROM {self._schema}.embeddings WHERE metadata @> %s::jsonb",
+                    (metadata_json,),
+                )
+                return int(cur.rowcount or 0)
+
     def get_vector(self, key: str) -> tuple[list[float], dict] | None:
         if self._use_fallback:
             return self._storage.get(key)

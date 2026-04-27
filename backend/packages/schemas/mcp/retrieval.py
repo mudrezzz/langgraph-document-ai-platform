@@ -87,6 +87,7 @@ class RetrievalMcpLookupSourceInput(BaseModel):
     """Контракт входа MCP lookup_source tool."""
 
     doc_id: str | None = None
+    version: str | None = None
     block_id: str | None = None
     block_ref: str | None = None
 

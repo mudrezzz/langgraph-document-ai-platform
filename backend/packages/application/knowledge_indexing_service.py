@@ -55,7 +55,13 @@ class KnowledgeIndexingApplicationService:
         self._vector_store = vector_store
         self._task_service = task_service
 
-    def start_task(self, paths: list[str | Path], *, task_context: dict | None = None) -> StartTaskResponse:
+    def start_task(
+        self,
+        paths: list[str | Path],
+        *,
+        task_context: dict | None = None,
+        document_version: str = "1",
+    ) -> StartTaskResponse:
         if self._task_service is None:
             raise WorkflowExecutionError("Knowledge indexing task lifecycle требует TaskApplicationService")
 
@@ -64,10 +70,11 @@ class KnowledgeIndexingApplicationService:
         initial_payload = {
             "task_context": effective_context,
             "source_paths": [str(path) for path in paths],
+            "document_version": document_version,
         }
 
         try:
-            result = self.index_paths(paths, task_context=effective_context)
+            result = self.index_paths(paths, task_context=effective_context, document_version=document_version)
         except Exception as exc:
             self._task_service.fail_task(
                 task_id=task.task_id,
@@ -78,7 +85,12 @@ class KnowledgeIndexingApplicationService:
 
         self._task_service.complete_task(
             task_id=task.task_id,
-            state_payload=_build_state_payload(result=result, task_context=effective_context, paths=paths),
+            state_payload=_build_state_payload(
+                result=result,
+                task_context=effective_context,
+                paths=paths,
+                document_version=document_version,
+            ),
             details=_build_task_details(result),
         )
         return StartTaskResponse(task_id=task.task_id, status="completed")
@@ -99,6 +111,7 @@ class KnowledgeIndexingApplicationService:
             details={
                 "execution_mode": "async",
                 "source_paths_total": len(request.source_paths),
+                "document_version": request.document_version,
             },
         )
         effective_context = {**request.task_context, "task_id": task.task_id}
@@ -108,6 +121,7 @@ class KnowledgeIndexingApplicationService:
                 task_id=task.task_id,
                 request_payload={
                     "source_paths": [str(path) for path in request.source_paths],
+                    "document_version": request.document_version,
                     "task_context": effective_context,
                 },
             )
@@ -116,7 +130,12 @@ class KnowledgeIndexingApplicationService:
                 task.task_id,
                 status="failed",
                 current_node="failed",
-                details={"error": str(exc), "execution_mode": "async"},
+                details={
+                    "error": str(exc),
+                    "execution_mode": "async",
+                    "source_paths_total": len(request.source_paths),
+                    "document_version": request.document_version,
+                },
             )
             raise WorkflowExecutionError(f"Не удалось поставить knowledge indexing задачу в async очередь: {exc}") from exc
 
@@ -135,6 +154,7 @@ class KnowledgeIndexingApplicationService:
                 "queue_name": queue_name,
                 "queued_at": current.created_at.isoformat() if current.created_at else None,
                 "source_paths_total": len(request.source_paths),
+                "document_version": request.document_version,
             },
         )
         return StartTaskResponse(task_id=task.task_id, status="queued")
@@ -165,10 +185,15 @@ class KnowledgeIndexingApplicationService:
         initial_payload = {
             "task_context": effective_context,
             "source_paths": [str(path) for path in request.source_paths],
+            "document_version": request.document_version,
         }
 
         try:
-            result = self.index_paths(request.source_paths, task_context=effective_context)
+            result = self.index_paths(
+                request.source_paths,
+                task_context=effective_context,
+                document_version=request.document_version,
+            )
         except Exception as exc:
             self._task_service.fail_task(
                 task_id=task_id,
@@ -184,19 +209,30 @@ class KnowledgeIndexingApplicationService:
         }
         self._task_service.complete_task(
             task_id=task_id,
-            state_payload=_build_state_payload(result=result, task_context=effective_context, paths=request.source_paths),
+            state_payload=_build_state_payload(
+                result=result,
+                task_context=effective_context,
+                paths=request.source_paths,
+                document_version=request.document_version,
+            ),
             details=details,
         )
         return StartTaskResponse(task_id=task_id, status="completed")
 
-    def index_paths(self, paths: list[str | Path], *, task_context: dict | None = None) -> KnowledgeIndexingResult:
+    def index_paths(
+        self,
+        paths: list[str | Path],
+        *,
+        task_context: dict | None = None,
+        document_version: str = "1",
+    ) -> KnowledgeIndexingResult:
         documents: list[CanonicalDocument] = []
         for path in paths:
             source_path = Path(path)
             if source_path.is_dir():
-                documents.extend(self._parser.parse_dir(source_path))
+                documents.extend(self._parser.parse_dir(source_path, version=document_version))
             else:
-                documents.append(self._parser.parse_path(source_path))
+                documents.append(self._parser.parse_path(source_path, version=document_version))
 
         workflow = build_knowledge_indexing_workflow(
             canonical_document_service=self._canonical_document_service,
@@ -224,6 +260,12 @@ class KnowledgeIndexingApplicationService:
 
         indexed = 0
         for document in documents:
+            self._vector_store.delete_vectors(
+                metadata_filter={"kind": "knowledge_block_embedding", "doc_id": document.doc_id}
+            )
+            self._vector_store.delete_vectors(
+                metadata_filter={"kind": "knowledge_summary_embedding", "doc_id": document.doc_id}
+            )
             metadata_by_doc = {
                 "project_id": document.metadata_profile.get("project_id", "p1"),
                 "document_type": document.metadata_profile.get("document_type", "requirements"),
@@ -315,10 +357,12 @@ def _build_state_payload(
     result: KnowledgeIndexingResult,
     task_context: dict,
     paths: list[str | Path],
+    document_version: str,
 ) -> dict:
     return {
         "task_context": task_context,
         "source_paths": [str(path) for path in paths],
+        "document_version": document_version,
         "documents": [document.model_dump(mode="json") for document in result.documents],
         "indexed_doc_ids": result.indexed_doc_ids,
         "quality_flags": result.quality_flags,
@@ -332,6 +376,8 @@ def _build_task_details(result: KnowledgeIndexingResult) -> dict:
     }
     return {
         "documents_total": len(result.documents),
+        "document_version": result.documents[0].version if result.documents else "1",
+        "document_versions": {document.doc_id: document.version for document in result.documents},
         "indexed_doc_ids": result.indexed_doc_ids,
         "content_blocks_total": sum(len(document.content_blocks) for document in result.documents),
         "section_summaries_total": sum(len(document.section_summaries) for document in result.documents),

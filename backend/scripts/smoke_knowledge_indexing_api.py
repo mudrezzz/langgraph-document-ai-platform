@@ -29,6 +29,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Перед smoke сгенерировать DOCX/PDF demo input files",
     )
+    parser.add_argument(
+        "--document-version",
+        default="1",
+        help="Версия canonical documents для текущего indexing task",
+    )
     return parser.parse_args()
 
 
@@ -78,6 +83,7 @@ def main() -> None:
             f"{base_url}{start_endpoint}",
             payload={
                 "source_paths": [str(input_path)],
+                "document_version": args.document_version,
                 "task_context": {
                     "requester": "smoke-knowledge-indexing-api",
                     "knowledge_source": "canonical",
@@ -129,7 +135,9 @@ def main() -> None:
             "start_endpoint": start_endpoint,
             "start_status": start_payload.get("status"),
             "task_status": status_payload.get("status"),
+            "document_version": args.document_version,
             "documents_total": details.get("documents_total"),
+            "document_versions": details.get("document_versions", {}),
             "indexed_doc_ids": details.get("indexed_doc_ids", []),
             "file_types": details.get("file_types", []),
             "stored_blocks_total": details.get("stored_blocks_total"),

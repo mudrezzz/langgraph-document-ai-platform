@@ -26,6 +26,9 @@ class IVectorStore(Protocol):
     def upsert_vector(self, key: str, vector: list[float], metadata: dict[str, Any]) -> None:
         """Сохраняет вектор и его метаданные."""
 
+    def delete_vectors(self, *, metadata_filter: dict[str, Any]) -> int:
+        """Удаляет векторы по metadata filter и возвращает количество удаленных записей."""
+
 
 @runtime_checkable
 class ICheckpointStore(Protocol):

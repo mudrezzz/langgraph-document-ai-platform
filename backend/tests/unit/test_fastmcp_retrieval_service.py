@@ -217,6 +217,24 @@ def test_fastmcp_retrieval_service_lookup_source_returns_table_row_mapping() -> 
     assert result["table"]["row_values"]["Status"] == "APPROVED"
 
 
+def test_fastmcp_retrieval_service_lookup_source_resolves_explicit_version() -> None:
+    mcp_service = _build_indexed_mcp_service_with_versions()
+
+    latest = mcp_service.lookup_source({"doc_id": "DOC-1"})
+    explicit = mcp_service.lookup_source({"doc_id": "DOC-1", "version": "1"})
+    by_ref = mcp_service.lookup_source({"block_ref": "DOC-1:1:B-1"})
+
+    assert latest["found"] is True
+    assert latest["version"] == "2"
+    assert latest["block"] is None
+    assert explicit["found"] is True
+    assert explicit["version"] == "1"
+    assert explicit["block"] is None
+    assert by_ref["found"] is True
+    assert by_ref["version"] == "1"
+    assert by_ref["block"]["text"] == "Security approval is still pending."
+
+
 def test_fastmcp_retrieval_service_lookup_source_returns_document_mapping_for_doc_id() -> None:
     mcp_service = _build_indexed_mcp_service()
 
@@ -265,6 +283,59 @@ def test_fastmcp_retrieval_service_search_requires_indexed_dependencies() -> Non
 
     with pytest.raises(RuntimeError, match="embedding_gateway and vector_store"):
         mcp_service.search_summaries({"query": "security approval", "limit": 5})
+
+
+def _build_indexed_mcp_service_with_versions() -> FastMcpRetrievalService:
+    canonical_store = PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+    canonical_service = CanonicalDocumentApplicationService(store=canonical_store)
+    canonical_service.save_document(
+        CanonicalDocument(
+            doc_id="DOC-1",
+            source_path="input/security-v1.md",
+            version="1",
+            file_type="md",
+            metadata_profile={"project_id": "p1", "document_type": "security", "title": "Security Readiness V1"},
+            content_blocks=[
+                CanonicalContentBlock(
+                    block_id="B-1",
+                    block_type="paragraph",
+                    text="Security approval is still pending.",
+                    heading_path=["Security"],
+                    metadata={"project_id": "p1", "document_type": "security", "tags": ["release"]},
+                )
+            ],
+            section_summaries=[],
+            quality_flags=[],
+            parser_quality={"parser_family": "text", "extraction_mode": "text", "blocks_total": 1},
+        )
+    )
+    canonical_service.save_document(
+        CanonicalDocument(
+            doc_id="DOC-1",
+            source_path="input/security-v2.md",
+            version="2",
+            file_type="md",
+            metadata_profile={"project_id": "p1", "document_type": "security", "title": "Security Readiness V2"},
+            content_blocks=[
+                CanonicalContentBlock(
+                    block_id="B-2",
+                    block_type="paragraph",
+                    text="Security approval is approved.",
+                    heading_path=["Security"],
+                    metadata={"project_id": "p1", "document_type": "security", "tags": ["release"]},
+                )
+            ],
+            section_summaries=[],
+            quality_flags=[],
+            parser_quality={"parser_family": "text", "extraction_mode": "text", "blocks_total": 1},
+        )
+    )
+    mcp_service = FastMcpRetrievalService(
+        _FakeRetrievalService(),  # type: ignore[arg-type]
+        canonical_document_service=canonical_service,
+    )
+    mcp_service.register_tools()
+    return mcp_service
 
 
 def _build_indexed_mcp_service() -> FastMcpRetrievalService:

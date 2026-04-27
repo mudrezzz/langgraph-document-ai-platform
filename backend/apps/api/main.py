@@ -270,6 +270,7 @@ def start_knowledge_indexing_task(
         response = container.knowledge_indexing_service.start_task(
             request.source_paths,
             task_context=request.task_context,
+            document_version=request.document_version,
         )
         log_runtime_event(
             "api.knowledge_indexing_start",
@@ -280,6 +281,7 @@ def start_knowledge_indexing_task(
             status=response.status,
             task_type="knowledge_indexing",
             source_paths_total=len(request.source_paths),
+            document_version=request.document_version,
             endpoint="/api/v1/tasks/knowledge-indexing/start",
         )
         return response
@@ -308,6 +310,7 @@ def start_knowledge_indexing_task_async(
             status=response.status,
             task_type="knowledge_indexing",
             source_paths_total=len(request.source_paths),
+            document_version=request.document_version,
             endpoint="/api/v1/tasks/knowledge-indexing/start_async",
         )
         return response
