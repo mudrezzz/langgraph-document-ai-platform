@@ -351,6 +351,7 @@ def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> 
 
     assert "pdf_table_like_blocks_detected" in parsed.quality_flags
     assert "pdf_tables_extracted" in parsed.quality_flags
+    assert "pdf_table_extraction_partial" not in parsed.quality_flags
     assert parsed.parser_quality.tables_total == 1
     assert len(parsed.extracted_tables) == 1
     assert parsed.extracted_tables[0].columns == ["Check", "Owner", "Status"]
@@ -390,6 +391,32 @@ def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) 
     assert any(block.block_type == "table_row" for block in parsed.content_blocks)
     assert any(block.metadata.get("pdf_table_kind") == "form_like" for block in parsed.content_blocks)
     assert any(issue.code == "pdf_form_like_blocks_detected" for issue in parsed.parser_quality.issues)
+
+
+def test_canonical_parser_marks_partial_pdf_table_extraction(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "partial_table_like.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_textbox(
+        fitz.Rect(72, 72, 520, 180),
+        "Check | Owner | Status\nCustomer notification | Product Owner | APPROVED",
+    )
+    page.insert_text((72, 220), "Malformed | table |")
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert "pdf_tables_extracted" in parsed.quality_flags
+    assert "pdf_table_extraction_partial" in parsed.quality_flags
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "pdf_table_extraction_partial")
+    assert issue.metadata["candidates_total"] >= 2
+    assert issue.metadata["candidates_extracted"] >= 1
+    assert issue.metadata["rows_failed"] >= 1
+    assert issue.metadata["coverage_percent"] < 100
 
 
 def test_canonical_parser_reports_missing_docx_dependency_when_needed(

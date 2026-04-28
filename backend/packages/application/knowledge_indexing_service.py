@@ -414,6 +414,12 @@ def _build_quality_summary(*, documents: list[CanonicalDocument], decision: Inde
     total_issues = sum(len(document.parser_quality.issues) for document in documents)
     documents_with_tables = sum(1 for document in documents if document.parser_quality.tables_total > 0)
     documents_needing_ocr = sum(1 for document in documents if "ocr_required" in document.parser_quality.flags)
+    documents_with_pdf_table_partial = sum(
+        1 for document in documents if "pdf_table_extraction_partial" in document.parser_quality.flags
+    )
+    documents_with_pdf_form_like = sum(
+        1 for document in documents if "pdf_form_like_blocks_detected" in document.parser_quality.flags
+    )
     summary = decision.model_dump(mode="json")
     summary.update(
         {
@@ -436,6 +442,8 @@ def _build_quality_summary(*, documents: list[CanonicalDocument], decision: Inde
         "parser_issues_total": total_issues,
         "documents_with_tables": documents_with_tables,
         "documents_needing_ocr": documents_needing_ocr,
+        "documents_with_pdf_table_partial": documents_with_pdf_table_partial,
+        "documents_with_pdf_form_like": documents_with_pdf_form_like,
         }
     )
     return summary

@@ -533,6 +533,8 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     assert details["quality_gate_status"] in {"passed", "warning"}
     assert details["quality_summary"]["quality_flags_total"] >= 0
     assert details["quality_summary"]["documents_needing_ocr"] >= 1
+    assert details["quality_summary"]["documents_with_pdf_table_partial"] >= 0
+    assert details["quality_summary"]["documents_with_pdf_form_like"] >= 0
     assert details["parser_quality"]
     state_payload = get_container().task_service.get_state_payload(payload["task_id"])
     docx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "docx")
@@ -541,6 +543,10 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     xlsx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "xlsx")
     assert xlsx_doc["extracted_tables"]
     assert any(block["block_type"] == "table_row" for block in xlsx_doc["content_blocks"])
+    pdf_doc = next(item for item in state_payload["documents"] if item["metadata_profile"]["file_name"] == "06_audit_summary.pdf")
+    assert pdf_doc["extracted_tables"]
+    assert any(block["block_type"] == "table_row" for block in pdf_doc["content_blocks"])
+    assert "pdf_form_like_blocks_detected" in pdf_doc["quality_flags"]
     pptx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "pptx")
     assert any(block["block_type"] == "slide_title" for block in pptx_doc["content_blocks"])
     assert any(block["block_type"] == "note" for block in pptx_doc["content_blocks"])

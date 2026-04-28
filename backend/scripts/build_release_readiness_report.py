@@ -216,6 +216,8 @@ def _build_report(
         lines.append(f"- parser_issues_total: `{quality_summary.get('parser_issues_total', 0)}`")
         lines.append(f"- documents_with_tables: `{quality_summary.get('documents_with_tables', 0)}`")
         lines.append(f"- documents_needing_ocr: `{quality_summary.get('documents_needing_ocr', 0)}`")
+        lines.append(f"- documents_with_pdf_table_partial: `{quality_summary.get('documents_with_pdf_table_partial', 0)}`")
+        lines.append(f"- documents_with_pdf_form_like: `{quality_summary.get('documents_with_pdf_form_like', 0)}`")
         flags = indexing_details.get("quality_flags", []) or quality_summary.get("warning_flags", []) or []
         if flags:
             lines.append("")

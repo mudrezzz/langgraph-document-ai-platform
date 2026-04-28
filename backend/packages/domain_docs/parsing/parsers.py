@@ -448,12 +448,41 @@ class CanonicalDocumentParser:
             if ocr_blocks:
                 root.block_ids = [block.block_id for block in ocr_blocks]
                 blocks = ocr_blocks
+        table_like_candidate_keys = {
+            str(block.metadata.get("table_candidate_key"))
+            for block in blocks
+            if str(block.metadata.get("layout_kind", "")).strip() == "table_like"
+            and str(block.metadata.get("table_candidate_key", "")).strip()
+        }
+        extracted_candidate_keys = {
+            str(block.metadata.get("table_candidate_key"))
+            for block in blocks
+            if block.block_type == "table_row"
+            and str(block.metadata.get("layout_kind", "")).strip() == "table_like"
+            and str(block.metadata.get("table_candidate_key", "")).strip()
+        }
+        candidates_total = len(table_like_candidate_keys)
+        candidates_extracted = len(extracted_candidate_keys)
+        candidates_failed = max(candidates_total - candidates_extracted, 0)
+        rows_extracted = sum(
+            1
+            for block in blocks
+            if block.block_type == "table_row" and str(block.metadata.get("layout_kind", "")).strip() == "table_like"
+        )
+        coverage_percent = int(round((candidates_extracted / candidates_total) * 100)) if candidates_total else 0
+        metrics["pdf_table_candidates_total"] = candidates_total
+        metrics["pdf_table_candidates_extracted"] = candidates_extracted
+        metrics["pdf_table_rows_extracted"] = rows_extracted
+        metrics["pdf_table_rows_failed"] = candidates_failed
+        metrics["pdf_table_coverage_percent"] = coverage_percent
         if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
             quality_flags.append("pdf_table_like_blocks_detected")
         if any(str(block.metadata.get("pdf_table_kind", "")).strip() == "form_like" for block in blocks):
             quality_flags.append("pdf_form_like_blocks_detected")
         if tables:
             quality_flags.append("pdf_tables_extracted")
+        if candidates_failed > 0:
+            quality_flags.append("pdf_table_extraction_partial")
         if blocks and len(blocks) < 2:
             quality_flags.append("low_text_density")
         return blocks, root, tables
@@ -487,6 +516,7 @@ class CanonicalDocumentParser:
             heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
             layout_kind = _infer_pdf_layout_kind(text)
             bbox = [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)]
+            table_candidate_key = f"{page_index}:{block_index}"
             if layout_kind == "table_like":
                 table_spec = _parse_pdf_table_spec(raw_block_text) or _parse_pdf_table_spec(text)
                 if table_spec is not None:
@@ -506,6 +536,7 @@ class CanonicalDocumentParser:
                             "layout_kind": layout_kind,
                             "reading_order_index": block_index,
                             "pdf_table_kind": table_kind,
+                            "table_candidate_key": table_candidate_key,
                         },
                         block_metadata={
                             "source_kind": "table_row",
@@ -515,6 +546,8 @@ class CanonicalDocumentParser:
                             "layout_kind": layout_kind,
                             "reading_order_index": block_index,
                             "pdf_table_kind": table_kind,
+                            "table_candidate_key": table_candidate_key,
+                            "table_extraction_status": "extracted",
                         },
                     )
                     for row_block in parsed_table.blocks:
@@ -534,6 +567,8 @@ class CanonicalDocumentParser:
                     "layout_kind": layout_kind,
                     "bbox": bbox,
                     "layout_source": "pdf_blocks",
+                    "table_candidate_key": table_candidate_key if layout_kind == "table_like" else "",
+                    "table_extraction_status": "failed" if layout_kind == "table_like" else "n/a",
                 },
             )
             block.page_number = page_index
@@ -552,6 +587,7 @@ class CanonicalDocumentParser:
                     current_section_title = heading_candidate
                 heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
                 layout_kind = _infer_pdf_layout_kind(text)
+                table_candidate_key = f"{page_index}:{block_index}"
                 if layout_kind == "table_like":
                     table_spec = _parse_pdf_table_spec(raw_paragraph) or _parse_pdf_table_spec(text)
                     if table_spec is not None:
@@ -570,6 +606,7 @@ class CanonicalDocumentParser:
                                 "layout_kind": layout_kind,
                                 "reading_order_index": block_index,
                                 "pdf_table_kind": table_kind,
+                                "table_candidate_key": table_candidate_key,
                             },
                             block_metadata={
                                 "source_kind": "table_row",
@@ -578,6 +615,8 @@ class CanonicalDocumentParser:
                                 "layout_kind": layout_kind,
                                 "reading_order_index": block_index,
                                 "pdf_table_kind": table_kind,
+                                "table_candidate_key": table_candidate_key,
+                                "table_extraction_status": "extracted",
                             },
                         )
                         for row_block in parsed_table.blocks:
@@ -596,6 +635,8 @@ class CanonicalDocumentParser:
                         "reading_order_index": block_index,
                         "layout_kind": layout_kind,
                         "layout_source": "pdf_text",
+                        "table_candidate_key": table_candidate_key if layout_kind == "table_like" else "",
+                        "table_extraction_status": "failed" if layout_kind == "table_like" else "n/a",
                     },
                 )
                 block.page_number = page_index
@@ -847,13 +888,31 @@ def _build_quality_issue(
             code=flag,
             severity="info",
             message="PDF parser extracted table rows into canonical table blocks",
-            metadata={"tables_total": metrics.get("tables_total", 0)},
+            metadata={
+                "tables_total": metrics.get("tables_total", 0),
+                "rows_extracted": metrics.get("pdf_table_rows_extracted", 0),
+                "rows_failed": metrics.get("pdf_table_rows_failed", 0),
+                "coverage_percent": metrics.get("pdf_table_coverage_percent", 0),
+            },
         )
     if flag == "pdf_form_like_blocks_detected":
         return ParserQualityIssue(
             code=flag,
             severity="info",
             message="PDF parser detected form-like key/value layout blocks",
+        )
+    if flag == "pdf_table_extraction_partial":
+        return ParserQualityIssue(
+            code=flag,
+            severity="warning",
+            message="PDF parser extracted only part of detected table-like blocks",
+            metadata={
+                "candidates_total": metrics.get("pdf_table_candidates_total", 0),
+                "candidates_extracted": metrics.get("pdf_table_candidates_extracted", 0),
+                "rows_extracted": metrics.get("pdf_table_rows_extracted", 0),
+                "rows_failed": metrics.get("pdf_table_rows_failed", 0),
+                "coverage_percent": metrics.get("pdf_table_coverage_percent", 0),
+            },
         )
     if flag == "no_structural_headings":
         return ParserQualityIssue(

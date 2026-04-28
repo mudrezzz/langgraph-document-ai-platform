@@ -957,6 +957,24 @@ Thirteenth slice done:
 - targeted retrieval/report tests: `20 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `305 passed`.
 
+Fourteenth slice done:
+
+- добавлены PDF extraction coverage/partial-failure quality gates:
+  - `pdf_table_candidates_total`;
+  - `pdf_table_candidates_extracted`;
+  - `pdf_table_rows_extracted`;
+  - `pdf_table_rows_failed`;
+  - `pdf_table_coverage_percent`;
+- введен quality flag `pdf_table_extraction_partial` для случаев частичного извлечения table-like blocks;
+- `parser_quality.issues` для `pdf_tables_extracted` и `pdf_table_extraction_partial` теперь отдает coverage/rows metadata;
+- indexing aggregate quality summary расширен полями:
+  - `documents_with_pdf_table_partial`;
+  - `documents_with_pdf_form_like`;
+- integration tests обновлены для проверки PDF table/form extraction в demo indexing path;
+- добавлен ADR `0083-pdf-extraction-coverage-and-partial-failure-gates.md`;
+- targeted parser/retrieval/indexing/integration tests: `99 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `306 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -971,7 +989,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline закрыт; следующий шаг — complex merged tables/rotated layouts/forms-confidence hardening;
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline и coverage gates закрыты; следующий шаг — complex merged tables/rotated layouts/forms-confidence hardening;
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

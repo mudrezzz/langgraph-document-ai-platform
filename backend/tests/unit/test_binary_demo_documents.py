@@ -41,6 +41,7 @@ def test_build_binary_demo_documents_are_parseable(tmp_path: Path) -> None:
     assert pdf_document.extracted_tables
     assert "pdf_tables_extracted" in pdf_document.quality_flags
     assert "pdf_form_like_blocks_detected" in pdf_document.quality_flags
+    assert "pdf_table_extraction_partial" not in pdf_document.quality_flags
     assert any(block.block_type == "table_row" for block in pdf_document.content_blocks)
     assert any(block.metadata.get("pdf_table_kind") == "form_like" for block in pdf_document.content_blocks)
     assert xlsx_document.extracted_tables

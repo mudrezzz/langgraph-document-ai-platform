@@ -31,6 +31,8 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                     "parser_issues_total": 5,
                     "documents_with_tables": 1,
                     "documents_needing_ocr": 1,
+                    "documents_with_pdf_table_partial": 0,
+                    "documents_with_pdf_form_like": 1,
                 },
                 "parser_quality": {
                     "DOCX-1": {
@@ -112,6 +114,8 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "parser_families: `docx, pdf`" in report
     assert "documents_with_tables: `1`" in report
     assert "documents_needing_ocr: `1`" in report
+    assert "documents_with_pdf_table_partial: `0`" in report
+    assert "documents_with_pdf_form_like: `1`" in report
     assert "### Parser Diagnostics" in report
     assert "doc_id=`DOCX-1`, parser_family=`docx`" in report
     assert "`DOCX-1:docx_tables_detected`" in report

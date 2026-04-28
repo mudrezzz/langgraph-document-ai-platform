@@ -1077,6 +1077,8 @@ Parser quality baseline текущего hardening-среза:
   - `accepted_documents_total` / `rejected_documents_total`;
   - `accepted_doc_ids` / `rejected_doc_ids`;
   - `blocking_flags` / `warning_flags`.
+  - `documents_with_pdf_table_partial`;
+  - `documents_with_pdf_form_like`.
 - retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
   - `source_kind=table_row`;
   - `table_id`, `table_title`, `table_columns`;
@@ -1091,6 +1093,7 @@ Parser quality baseline текущего hardening-среза:
   - при обнаружении table-like blocks выставляется `pdf_table_like_blocks_detected` в parser quality flags.
   - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
   - form-like key/value blocks извлекаются как tabular path с флагом `pdf_form_like_blocks_detected`.
+  - при частичном извлечении table-like candidates выставляется `pdf_table_extraction_partial`, а `parser_quality.issues[].metadata` содержит coverage/rows counters.
 
 Smoke текущего demo input:
 
