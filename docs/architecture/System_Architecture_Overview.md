@@ -98,6 +98,10 @@
   - parser diagnostics для `pdf_form_like_blocks_detected` теперь включают `key_value_pairs_total/extracted`, `field_fill_rate_percent` и `form_confidence_score`;
   - indexing quality policy добавляет synthetic flag `pdf_form_confidence_low` при score ниже env-threshold;
   - quality summary агрегирует `documents_with_pdf_form_confidence_low` и отдает `form_confidence_min_score` + `pdf_form_confidence_by_doc`.
+- Knowledge Factory Hardening / PDF multi-line & rotated hardening slice:
+  - form-like parser поддерживает ключи с пробелами/дефисами и multi-line continuation values;
+  - PDF metadata теперь помечает `rotated_text=true|false` для page/table blocks;
+  - parser quality flags включает `pdf_rotated_layout_detected` с rotated candidates diagnostics.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;

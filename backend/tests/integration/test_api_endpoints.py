@@ -548,6 +548,7 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     assert pdf_doc["extracted_tables"]
     assert any(block["block_type"] == "table_row" for block in pdf_doc["content_blocks"])
     assert "pdf_form_like_blocks_detected" in pdf_doc["quality_flags"]
+    assert "pdf_rotated_layout_detected" in pdf_doc["quality_flags"]
     pptx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "pptx")
     assert any(block["block_type"] == "slide_title" for block in pptx_doc["content_blocks"])
     assert any(block["block_type"] == "note" for block in pptx_doc["content_blocks"])

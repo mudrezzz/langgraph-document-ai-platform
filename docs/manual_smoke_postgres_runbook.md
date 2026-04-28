@@ -525,6 +525,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - `file_types` содержит `docx`, `json`, `md`, `pdf`, `pptx`, `txt`, `xlsx`;
 - `quality_flags` содержит `07SCANNE-*:ocr_required` и `07SCANNE-*:ocr_applied` для scanned PDF fixture;
 - `quality_flags` также может содержать `*:pdf_tables_extracted` и `*:pdf_form_like_blocks_detected` для `06_audit_summary.pdf`;
+- `quality_flags` также может содержать `*:pdf_rotated_layout_detected` для PDF с rotated text blocks;
 - `quality_flags` может содержать `*:pdf_table_extraction_partial`, если часть table-like блоков в PDF не извлеклась;
 - при включенном threshold (`APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE>0`) `quality_flags` может содержать `*:pdf_form_confidence_low`;
 - `ocr_recovered_doc_ids` содержит OCR fixture `07SCANNE-*`.
@@ -535,6 +536,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - в `parser_quality` для DOCX видно `tables_total >= 1`, а в canonical DOCX есть `table_row` blocks из approval matrix.
 - в `parser_quality` для XLSX видно `parser_family=xlsx`, а workbook sheet rows попадают в canonical corpus как `table_row` blocks.
 - в `parser_quality` для `06_audit_summary.pdf` видно `tables_total >= 1`, а в canonical PDF появляются `table_row` blocks из table-like и form-like layout.
+- в `parser_quality` для `06_audit_summary.pdf` по issue `pdf_form_like_blocks_detected` видны key/value + confidence diagnostics, включая multi-line form values.
 - в `quality_summary` видны aggregate counters `documents_with_pdf_table_partial` и `documents_with_pdf_form_like`.
 - в `quality_summary` также есть `documents_with_pdf_form_confidence_low`; при активном threshold также видно `form_confidence_min_score` и `pdf_form_confidence_by_doc`.
 

@@ -1097,8 +1097,10 @@ Parser quality baseline текущего hardening-среза:
 - baseline rich layout semantics для PDF:
   - parser помечает блоки `layout_kind=paragraph|table_like`;
   - при обнаружении table-like blocks выставляется `pdf_table_like_blocks_detected` в parser quality flags.
+  - при обнаружении rotated text blocks выставляется `pdf_rotated_layout_detected`, а metadata содержит `rotated_text=true|false`;
   - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
   - form-like key/value blocks извлекаются как tabular path с флагом `pdf_form_like_blocks_detected`.
+  - form-like parser поддерживает ключи с пробелами/дефисами и multi-line values.
   - при частичном извлечении table-like candidates выставляется `pdf_table_extraction_partial`, а `parser_quality.issues[].metadata` содержит coverage/rows counters.
   - для form-like extraction `parser_quality.issues` отдает:
     - `key_value_pairs_total`;

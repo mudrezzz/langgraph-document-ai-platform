@@ -95,3 +95,4 @@
 - `0082-pdf-form-like-extraction-and-demo-fixture-hardening.md`
 - `0083-pdf-extraction-coverage-and-partial-failure-gates.md`
 - `0084-pdf-form-confidence-policy-gate.md`
+- `0085-pdf-multiline-form-and-rotated-layout-hardening.md`

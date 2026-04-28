@@ -119,12 +119,20 @@ def _write_pdf(path: Path) -> None:
         "Customer notification | Product Owner | APPROVED | CRM-991\n\n"
         "Release Gate Form\n"
         "Approver: Security Lead; Decision: CONDITIONAL PASS; Ticket: SEC-742\n"
-        "Owner: Release Manager; Due: 2026-04-30; Escalation: Required\n\n"
+        "Owner Name: Release Manager; Due Date: 2026-04-30; Escalation-Path: Required\n"
+        "Decision Rationale: Waiting evidence pack from SOC and SRE\n"
+        "for final CAB approval before freeze.\n\n"
         "Release control notes:\n"
         "- Evidence pack must include security sign-off.\n"
         "- Operations dashboard and rollback runbook must be attached before final approval.\n"
     )
     page.insert_textbox(fitz.Rect(72, 72, 540, 760), text, fontsize=11)
+    page.insert_text(
+        fitz.Point(528, 720),
+        "Rotated Approver: Platform Director; Rotated Decision: REVIEW",
+        rotate=90,
+        fontsize=8,
+    )
     doc.save(path)
     doc.close()
 

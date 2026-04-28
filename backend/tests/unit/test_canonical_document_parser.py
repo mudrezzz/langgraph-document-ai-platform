@@ -376,7 +376,7 @@ def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) 
         (
             "Release Gate Form\n"
             "Approver: Security Lead; Decision: CONDITIONAL PASS; Ticket: SEC-742\n"
-            "Owner: Release Manager; Due: 2026-04-30; Escalation: Required\n"
+            "Owner Name: Release Manager; Due Date: 2026-04-30; Escalation-Path: Required\n"
         ),
     )
     pdf.save(source)
@@ -395,6 +395,56 @@ def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) 
     assert issue.metadata["key_value_pairs_extracted"] >= 6
     assert issue.metadata["field_fill_rate_percent"] == 100
     assert issue.metadata["form_confidence_score"] >= 90
+
+
+def test_canonical_parser_extracts_multiline_pdf_form_values(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "form_like_multiline.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_textbox(
+        fitz.Rect(72, 72, 520, 240),
+        (
+            "Release Gate Form\n"
+            "Owner Name: Release Manager\n"
+            "Escalation-Path: Security Council / CAB\n"
+            "Decision Rationale: Waiting evidence pack from SOC and SRE\n"
+            "for final CAB approval before freeze.\n"
+            "Due Date: 2026-04-30\n"
+        ),
+    )
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    form_table = next(table for table in parsed.extracted_tables if table.metadata.get("pdf_table_kind") == "form_like")
+    assert "Owner Name" in form_table.columns
+    assert "Escalation-Path" in form_table.columns
+    assert "Decision Rationale" in form_table.columns
+    assert form_table.rows[0]["Decision Rationale"] == "Waiting evidence pack from SOC and SRE for final CAB approval before freeze."
+
+
+def test_canonical_parser_marks_rotated_pdf_layout_in_quality_flags(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "form_like_rotated.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_text((72, 120), "Approver: Security Lead; Decision: CONDITIONAL PASS")
+    page.insert_text((300, 500), "Rotated Key: RV; Due-Date: 2026-05-01", rotate=90)
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert "pdf_rotated_layout_detected" in parsed.quality_flags
+    assert any(bool(block.metadata.get("rotated_text")) for block in parsed.content_blocks)
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "pdf_rotated_layout_detected")
+    assert issue.metadata["rotated_table_candidates_total"] >= 1
 
 
 def test_canonical_parser_calculates_pdf_form_quality_for_partially_filled_form(tmp_path: Path) -> None:

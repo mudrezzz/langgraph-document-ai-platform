@@ -475,6 +475,23 @@ class CanonicalDocumentParser:
         metrics["pdf_table_rows_extracted"] = rows_extracted
         metrics["pdf_table_rows_failed"] = candidates_failed
         metrics["pdf_table_coverage_percent"] = coverage_percent
+        rotated_candidate_keys = {
+            str(block.metadata.get("table_candidate_key"))
+            for block in blocks
+            if str(block.metadata.get("layout_kind", "")).strip() == "table_like"
+            and bool(block.metadata.get("rotated_text"))
+            and str(block.metadata.get("table_candidate_key", "")).strip()
+        }
+        rotated_extracted_candidate_keys = {
+            str(block.metadata.get("table_candidate_key"))
+            for block in blocks
+            if block.block_type == "table_row"
+            and str(block.metadata.get("layout_kind", "")).strip() == "table_like"
+            and bool(block.metadata.get("rotated_text"))
+            and str(block.metadata.get("table_candidate_key", "")).strip()
+        }
+        metrics["pdf_rotated_table_candidates_total"] = len(rotated_candidate_keys)
+        metrics["pdf_rotated_table_candidates_extracted"] = len(rotated_extracted_candidate_keys)
         form_key_value_total, form_key_value_extracted, form_fill_rate, form_confidence_score = (
             _build_pdf_form_quality_metrics(tables)
         )
@@ -484,6 +501,8 @@ class CanonicalDocumentParser:
         metrics["pdf_form_confidence_score"] = form_confidence_score
         if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
             quality_flags.append("pdf_table_like_blocks_detected")
+        if any(bool(block.metadata.get("rotated_text")) for block in blocks):
+            quality_flags.append("pdf_rotated_layout_detected")
         if any(str(block.metadata.get("pdf_table_kind", "")).strip() == "form_like" for block in blocks):
             quality_flags.append("pdf_form_like_blocks_detected")
         if tables:
@@ -508,6 +527,7 @@ class CanonicalDocumentParser:
         raw_layout_blocks = page.get_text("blocks") or []
         layout_blocks = [raw_block for raw_block in raw_layout_blocks if len(raw_block) >= 5]
         layout_blocks.sort(key=lambda raw_block: (round(float(raw_block[1]), 2), round(float(raw_block[0]), 2)))
+        rotated_block_numbers = _pdf_rotated_block_numbers(page)
 
         for block_index, raw_block in enumerate(layout_blocks, start=1):
             x0, y0, x1, y1, raw_text = raw_block[:5]
@@ -521,9 +541,11 @@ class CanonicalDocumentParser:
                 current_section_title = heading_candidate
 
             heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
-            layout_kind = _infer_pdf_layout_kind(text)
+            layout_kind = _infer_pdf_layout_kind(raw_block_text or text)
             bbox = [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)]
             table_candidate_key = f"{page_index}:{block_index}"
+            block_number = int(raw_block[5]) if len(raw_block) >= 6 else block_index
+            rotated_text = block_number in rotated_block_numbers
             if layout_kind == "table_like":
                 table_spec = _parse_pdf_table_spec(raw_block_text) or _parse_pdf_table_spec(text)
                 if table_spec is not None:
@@ -544,6 +566,7 @@ class CanonicalDocumentParser:
                             "reading_order_index": block_index,
                             "pdf_table_kind": table_kind,
                             "table_candidate_key": table_candidate_key,
+                            "rotated_text": rotated_text,
                         },
                         block_metadata={
                             "source_kind": "table_row",
@@ -555,6 +578,7 @@ class CanonicalDocumentParser:
                             "pdf_table_kind": table_kind,
                             "table_candidate_key": table_candidate_key,
                             "table_extraction_status": "extracted",
+                            "rotated_text": rotated_text,
                         },
                     )
                     for row_block in parsed_table.blocks:
@@ -576,6 +600,7 @@ class CanonicalDocumentParser:
                     "layout_source": "pdf_blocks",
                     "table_candidate_key": table_candidate_key if layout_kind == "table_like" else "",
                     "table_extraction_status": "failed" if layout_kind == "table_like" else "n/a",
+                    "rotated_text": rotated_text,
                 },
             )
             block.page_number = page_index
@@ -593,7 +618,7 @@ class CanonicalDocumentParser:
                 if heading_candidate is not None:
                     current_section_title = heading_candidate
                 heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
-                layout_kind = _infer_pdf_layout_kind(text)
+                layout_kind = _infer_pdf_layout_kind(raw_paragraph or text)
                 table_candidate_key = f"{page_index}:{block_index}"
                 if layout_kind == "table_like":
                     table_spec = _parse_pdf_table_spec(raw_paragraph) or _parse_pdf_table_spec(text)
@@ -678,7 +703,7 @@ class CanonicalDocumentParser:
                 text = _normalize_text(raw_paragraph)
                 if not text:
                     continue
-                layout_kind = _infer_pdf_layout_kind(text)
+                layout_kind = _infer_pdf_layout_kind(raw_paragraph or text)
                 block = _build_block(
                     text=text,
                     block_type="paragraph",
@@ -889,6 +914,16 @@ def _build_quality_issue(
             severity="info",
             message="PDF parser detected table-like logical blocks",
             metadata={"blocks_total": len(blocks), "pages_total": metrics.get("pages_total")},
+        )
+    if flag == "pdf_rotated_layout_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="PDF parser detected rotated layout text blocks",
+            metadata={
+                "rotated_table_candidates_total": metrics.get("pdf_rotated_table_candidates_total", 0),
+                "rotated_table_candidates_extracted": metrics.get("pdf_rotated_table_candidates_extracted", 0),
+            },
         )
     if flag == "pdf_tables_extracted":
         return ParserQualityIssue(
@@ -1196,7 +1231,13 @@ def _infer_pdf_layout_kind(text: str) -> str:
     lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
     if "|" in text and text.count("|") >= 2:
         return "table_like"
-    if re.search(r"\b\w+\s*:\s*[^;]+;\s*\w+\s*:\s*[^;]+", text):
+    if re.search(
+        r"[A-Za-zА-Яа-я][A-Za-zА-Яа-я0-9 _/\-()]{0,40}\s*:\s*[^;\n]+(?:;|\n)\s*[A-Za-zА-Яа-я]",
+        text,
+    ):
+        return "table_like"
+    colon_lines = sum(1 for line in lines if re.search(r"[A-Za-zА-Яа-я][A-Za-zА-Яа-я0-9 _/\-()]{0,40}\s*:", line))
+    if colon_lines >= 2:
         return "table_like"
     column_like_lines = sum(1 for line in lines if re.search(r"\S\s{2,}\S", line))
     if column_like_lines >= 2:
@@ -1226,10 +1267,10 @@ def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]], str] |
         normalized_rows = [row + [""] * (width - len(row)) for row in pipe_rows]
         return normalized_rows[0], normalized_rows[1:], "pipe_table"
 
-    key_value_pairs = re.findall(r"(\w+)\s*:\s*([^;\n|]*)", text)
+    key_value_pairs = _parse_pdf_form_key_value_pairs(lines)
     if len(key_value_pairs) >= 2:
-        header = [_normalize_text(key) for key, _ in key_value_pairs]
-        row = [_normalize_text(value) for _, value in key_value_pairs]
+        header = [key for key, _ in key_value_pairs]
+        row = [value for _, value in key_value_pairs]
         return header, [row], "form_like"
 
     spaced_rows: list[list[str]] = []
@@ -1289,6 +1330,99 @@ def _build_pdf_form_quality_metrics(tables: list[CanonicalTable]) -> tuple[int, 
     pair_depth_score = int(round((min(key_value_pairs_total, 6) / 6) * 20)) if key_value_pairs_total else 0
     form_confidence_score = int(round(field_fill_rate_percent * 0.8 + pair_depth_score)) if key_value_pairs_total else 0
     return key_value_pairs_total, key_value_pairs_extracted, field_fill_rate_percent, min(form_confidence_score, 100)
+
+
+def _parse_pdf_form_key_value_pairs(lines: list[str]) -> list[tuple[str, str]]:
+    key_pattern = re.compile(r"[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9 _/\-().]{0,64}")
+    token_pattern = re.compile(rf"(^|;\s*)({key_pattern.pattern})\s*:\s*([^;]*)")
+    pairs: list[tuple[str, str]] = []
+    current_key: str | None = None
+    current_value_parts: list[str] = []
+
+    def flush_current() -> None:
+        nonlocal current_key, current_value_parts
+        if not current_key:
+            return
+        value = _normalize_text(" ".join(current_value_parts))
+        pairs.append((current_key, value))
+        current_key = None
+        current_value_parts = []
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line:
+            flush_current()
+            continue
+        matches = list(token_pattern.finditer(line))
+        if not matches:
+            if current_key is not None:
+                current_value_parts.append(line.lstrip("- "))
+            continue
+
+        if current_key is not None:
+            prefix = _normalize_text(line[: matches[0].start()])
+            if prefix:
+                current_value_parts.append(prefix)
+            flush_current()
+
+        for index, match in enumerate(matches):
+            key = _normalize_text(match.group(2))
+            value = _normalize_text(match.group(3))
+            if not key:
+                continue
+            if index > 0:
+                flush_current()
+            current_key = key
+            current_value_parts = [value] if value else []
+
+            next_start = matches[index + 1].start() if index + 1 < len(matches) else len(line)
+            remainder = _normalize_text(line[match.end() : next_start].strip(" ;"))
+            if remainder:
+                current_value_parts.append(remainder)
+
+            if index + 1 < len(matches):
+                flush_current()
+
+    flush_current()
+    return _dedupe_form_pairs(pairs)
+
+
+def _dedupe_form_pairs(pairs: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    if not pairs:
+        return []
+    key_counts: dict[str, int] = {}
+    normalized: list[tuple[str, str]] = []
+    for key, value in pairs:
+        count = key_counts.get(key, 0) + 1
+        key_counts[key] = count
+        unique_key = key if count == 1 else f"{key} ({count})"
+        normalized.append((unique_key, value))
+    return normalized
+
+
+def _pdf_rotated_block_numbers(page: Any) -> set[int]:
+    rotated: set[int] = set()
+    try:
+        payload = page.get_text("dict")
+    except Exception:
+        return rotated
+
+    for block in payload.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        block_number = block.get("number")
+        if not isinstance(block_number, int):
+            continue
+        for line in block.get("lines", []):
+            direction = line.get("dir")
+            if not isinstance(direction, (list, tuple)) or len(direction) != 2:
+                continue
+            dir_x = float(direction[0])
+            dir_y = float(direction[1])
+            if abs(dir_y) > 0.1 or dir_x < 0.9:
+                rotated.add(block_number)
+                break
+    return rotated
 
 
 def _is_ocr_sidecar(path: Path) -> bool:

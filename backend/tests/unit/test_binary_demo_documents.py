@@ -42,12 +42,20 @@ def test_build_binary_demo_documents_are_parseable(tmp_path: Path) -> None:
     assert "pdf_tables_extracted" in pdf_document.quality_flags
     assert "pdf_form_like_blocks_detected" in pdf_document.quality_flags
     assert "pdf_table_extraction_partial" not in pdf_document.quality_flags
+    assert "pdf_rotated_layout_detected" in pdf_document.quality_flags
     assert any(block.block_type == "table_row" for block in pdf_document.content_blocks)
     assert any(block.metadata.get("pdf_table_kind") == "form_like" for block in pdf_document.content_blocks)
+    assert any(bool(block.metadata.get("rotated_text")) for block in pdf_document.content_blocks)
     form_issue = next(item for item in pdf_document.parser_quality.issues if item.code == "pdf_form_like_blocks_detected")
     assert form_issue.metadata["key_value_pairs_total"] >= 3
     assert form_issue.metadata["key_value_pairs_extracted"] >= 3
     assert form_issue.metadata["form_confidence_score"] > 0
+    form_table = next(
+        table
+        for table in pdf_document.extracted_tables
+        if table.metadata.get("pdf_table_kind") == "form_like" and "Decision Rationale" in table.columns
+    )
+    assert "Decision Rationale" in form_table.columns
     assert xlsx_document.extracted_tables
     assert xlsx_document.parser_quality.parser_family == "xlsx"
     assert any(block.block_type == "table_row" for block in xlsx_document.content_blocks)

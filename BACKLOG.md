@@ -996,6 +996,23 @@ Fifteenth slice done:
 - targeted parser/policy/indexing/report/integration tests: `85 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `309 passed`.
 
+Sixteenth slice done:
+
+- усилен PDF form-like parser для production layout edge-cases:
+  - поддержка ключей с пробелами/дефисами;
+  - поддержка multi-line continuation values;
+- добавлен rotated-layout baseline без изменения публичных API:
+  - `rotated_text=true|false` в metadata page/table blocks;
+  - parser quality flag `pdf_rotated_layout_detected`;
+  - diagnostics metadata: `rotated_table_candidates_total`, `rotated_table_candidates_extracted`;
+- demo fixture `06_audit_summary.pdf` обновлен:
+  - multi-line form value;
+  - rotated form-like line для ручной smoke/demo проверки;
+- tests расширены на multi-line form extraction и rotated-layout detection;
+- добавлен ADR `0085-pdf-multiline-form-and-rotated-layout-hardening.md`;
+- targeted parser/indexing/integration tests: `87 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `311 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -1010,7 +1027,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates и form-confidence policy gate закрыты; следующий шаг — complex merged tables/rotated layouts hardening;
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates, form-confidence policy gate и multi-line/rotated hardening baseline закрыты; следующий шаг — complex merged tables and OCR-confidence calibration hardening;
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;
