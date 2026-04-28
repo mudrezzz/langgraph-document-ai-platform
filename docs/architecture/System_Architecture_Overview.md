@@ -94,6 +94,10 @@
   - parser считает table-like coverage counters (`candidates_total/extracted`, `rows_extracted/failed`, `coverage_percent`);
   - partial extraction помечается quality flag `pdf_table_extraction_partial`;
   - indexing quality summary агрегирует `documents_with_pdf_table_partial` и `documents_with_pdf_form_like`.
+- Knowledge Factory Hardening / PDF form-confidence slice:
+  - parser diagnostics для `pdf_form_like_blocks_detected` теперь включают `key_value_pairs_total/extracted`, `field_fill_rate_percent` и `form_confidence_score`;
+  - indexing quality policy добавляет synthetic flag `pdf_form_confidence_low` при score ниже env-threshold;
+  - quality summary агрегирует `documents_with_pdf_form_confidence_low` и отдает `form_confidence_min_score` + `pdf_form_confidence_by_doc`.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;
@@ -115,6 +119,7 @@
   - policy дает per-document decisions (`accepted/rejected`) и aggregate `gate_status`;
   - rejected documents не пишутся в canonical store и не индексируются в vector store;
   - policy runtime configurable через `APP_INDEXING_QUALITY_*` env contract;
+  - PDF form-confidence knobs: `APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE` и `APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING`;
   - `quality_summary` расширен policy metadata (`policy_name`, accepted/rejected ids/counts, blocking/warning flags).
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;

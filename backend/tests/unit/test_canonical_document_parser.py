@@ -390,7 +390,38 @@ def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) 
     assert any(table.metadata.get("pdf_table_kind") == "form_like" for table in parsed.extracted_tables)
     assert any(block.block_type == "table_row" for block in parsed.content_blocks)
     assert any(block.metadata.get("pdf_table_kind") == "form_like" for block in parsed.content_blocks)
-    assert any(issue.code == "pdf_form_like_blocks_detected" for issue in parsed.parser_quality.issues)
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "pdf_form_like_blocks_detected")
+    assert issue.metadata["key_value_pairs_total"] >= 6
+    assert issue.metadata["key_value_pairs_extracted"] >= 6
+    assert issue.metadata["field_fill_rate_percent"] == 100
+    assert issue.metadata["form_confidence_score"] >= 90
+
+
+def test_canonical_parser_calculates_pdf_form_quality_for_partially_filled_form(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "form_like_partial.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_textbox(
+        fitz.Rect(72, 72, 520, 220),
+        (
+            "Release Gate Form\n"
+            "Approver: ; Decision: CONDITIONAL PASS; Ticket: SEC-742\n"
+            "Owner: Release Manager; Due: ; Escalation: Required\n"
+        ),
+    )
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "pdf_form_like_blocks_detected")
+    assert issue.metadata["key_value_pairs_total"] >= 6
+    assert issue.metadata["key_value_pairs_extracted"] < issue.metadata["key_value_pairs_total"]
+    assert issue.metadata["field_fill_rate_percent"] < 100
+    assert issue.metadata["form_confidence_score"] < 90
 
 
 def test_canonical_parser_marks_partial_pdf_table_extraction(tmp_path: Path) -> None:

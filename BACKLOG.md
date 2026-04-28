@@ -975,6 +975,27 @@ Fourteenth slice done:
 - targeted parser/retrieval/indexing/integration tests: `99 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `306 passed`.
 
+Fifteenth slice done:
+
+- добавлен PDF form-confidence baseline для canonical parser diagnostics:
+  - `key_value_pairs_total`;
+  - `key_value_pairs_extracted`;
+  - `field_fill_rate_percent`;
+  - `form_confidence_score`;
+- `parser_quality.issues` для `pdf_form_like_blocks_detected` теперь отдает form-confidence metadata;
+- `KnowledgeIndexingQualityPolicy` расширен порогом form confidence:
+  - env `APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE` включает threshold (0..100, `0` = disabled);
+  - при score ниже threshold policy добавляет synthetic flag `pdf_form_confidence_low`;
+  - env `APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING=true|false` включает fail-fast блокировку или warning-only режим;
+- indexing aggregate quality summary расширен:
+  - `documents_with_pdf_form_confidence_low`;
+  - `form_confidence_min_score`;
+  - `pdf_form_confidence_by_doc`;
+- report/smoke path обновлен для form-confidence counters в `Canonical Quality Summary`;
+- добавлен ADR `0084-pdf-form-confidence-policy-gate.md`;
+- targeted parser/policy/indexing/report/integration tests: `85 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `309 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -989,7 +1010,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline и coverage gates закрыты; следующий шаг — complex merged tables/rotated layouts/forms-confidence hardening;
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates и form-confidence policy gate закрыты; следующий шаг — complex merged tables/rotated layouts hardening;
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

@@ -182,6 +182,7 @@ def _build_knowledge_indexing_quality_policy() -> KnowledgeIndexingQualityPolicy
     )
     blocking_flags = _env_csv_set("APP_INDEXING_QUALITY_BLOCKING_FLAGS")
     warning_only_flags = _env_csv_set("APP_INDEXING_QUALITY_WARNING_ONLY_FLAGS")
+    form_confidence_min_score = _env_int("APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE", 0)
     return KnowledgeIndexingQualityPolicy(
         policy_name=policy_name,
         blocking_flags=blocking_flags or None,
@@ -194,6 +195,8 @@ def _build_knowledge_indexing_quality_policy() -> KnowledgeIndexingQualityPolicy
         ocr_recovery_success_flag=(
             os.getenv("APP_INDEXING_OCR_RECOVERY_SUCCESS_FLAG", "ocr_applied").strip() or "ocr_applied"
         ),
+        form_confidence_min_score=max(min(form_confidence_min_score, 100), 0),
+        form_confidence_low_blocking=_env_flag("APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING", default=False),
     )
 
 

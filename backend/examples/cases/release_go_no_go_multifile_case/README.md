@@ -24,6 +24,7 @@
 6. Retrieval поверх canonical `knowledge_blocks`.
 7. Итоговый markdown report с canonical quality summary и source mapping.
 8. PDF table/form extraction path: `06_audit_summary.pdf` содержит table-like и form-like layout для проверки `table_row` provenance.
+9. PDF form-confidence policy gate: можно включить threshold и проверить `pdf_form_confidence_low` в `quality_summary`.
 
 ## Скрипты
 
@@ -47,3 +48,11 @@ bash backend/scripts/build_binary_demo_documents.sh --overwrite
 Smoke scripts также поддерживают флаг `--build-binary-demo-docs`, чтобы перед прогоном гарантировать наличие binary input files.
 
 Основной demo-скрипт `demo_release_go_no_go_multifile_case.sh/.ps1` запускает canonical indexing API, затем retrieval с `knowledge_source=canonical` и `canonical_doc_ids`, после чего обновляет `output/release_readiness_report.md`.
+
+Пример ручной проверки form-confidence threshold (warning mode):
+
+```bash
+APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE=90 \
+APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING=false \
+bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
+```

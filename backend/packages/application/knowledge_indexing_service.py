@@ -420,6 +420,7 @@ def _build_quality_summary(*, documents: list[CanonicalDocument], decision: Inde
     documents_with_pdf_form_like = sum(
         1 for document in documents if "pdf_form_like_blocks_detected" in document.parser_quality.flags
     )
+    documents_with_pdf_form_confidence_low = int(getattr(decision, "documents_with_pdf_form_confidence_low", 0) or 0)
     summary = decision.model_dump(mode="json")
     summary.update(
         {
@@ -444,6 +445,7 @@ def _build_quality_summary(*, documents: list[CanonicalDocument], decision: Inde
         "documents_needing_ocr": documents_needing_ocr,
         "documents_with_pdf_table_partial": documents_with_pdf_table_partial,
         "documents_with_pdf_form_like": documents_with_pdf_form_like,
+        "documents_with_pdf_form_confidence_low": documents_with_pdf_form_confidence_low,
         }
     )
     return summary

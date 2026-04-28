@@ -1039,6 +1039,9 @@ Canonical ingestion работает через отдельный persistence/r
   - policy возвращает per-document решения `accepted/rejected` и aggregate `gate_status`;
   - rejected documents не пишутся в canonical store и не попадают в embeddings index;
   - default policy оставляет OCR-recovered PDF (`pdf_no_extractable_text` + `ocr_applied`) в `warning`, а не в blocking-fail.
+  - PDF form-confidence gate настраивается через:
+    - `APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE` (0..100, `0` отключает threshold);
+    - `APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING` (`true|false`) для fail-fast режима.
 
 Поддерживаемые форматы текущего среза:
 
@@ -1079,6 +1082,9 @@ Parser quality baseline текущего hardening-среза:
   - `blocking_flags` / `warning_flags`.
   - `documents_with_pdf_table_partial`;
   - `documents_with_pdf_form_like`.
+  - `documents_with_pdf_form_confidence_low`;
+  - `form_confidence_min_score`;
+  - `pdf_form_confidence_by_doc` (score/threshold/is_low/blocking).
 - retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
   - `source_kind=table_row`;
   - `table_id`, `table_title`, `table_columns`;
@@ -1094,6 +1100,11 @@ Parser quality baseline текущего hardening-среза:
   - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
   - form-like key/value blocks извлекаются как tabular path с флагом `pdf_form_like_blocks_detected`.
   - при частичном извлечении table-like candidates выставляется `pdf_table_extraction_partial`, а `parser_quality.issues[].metadata` содержит coverage/rows counters.
+  - для form-like extraction `parser_quality.issues` отдает:
+    - `key_value_pairs_total`;
+    - `key_value_pairs_extracted`;
+    - `field_fill_rate_percent`;
+    - `form_confidence_score`.
 
 Smoke текущего demo input:
 
@@ -1114,6 +1125,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 - `quality_gate_status=passed|warning`;
 - `quality_summary.parser_families` содержит используемые parser families;
 - `quality_summary.documents_needing_ocr >= 1` для текущего demo OCR fixture;
+- `quality_summary.documents_with_pdf_form_confidence_low >= 0`, а `quality_summary.form_confidence_min_score` отражает активный threshold;
 - `parser_quality` присутствует в Knowledge Indexing API smoke output;
 - `events_summary_has_running_to_completed=true` в Knowledge Indexing API smoke;
 - `knowledge_source=canonical` в canonical retrieval smoke;

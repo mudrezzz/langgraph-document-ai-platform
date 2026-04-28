@@ -475,6 +475,13 @@ class CanonicalDocumentParser:
         metrics["pdf_table_rows_extracted"] = rows_extracted
         metrics["pdf_table_rows_failed"] = candidates_failed
         metrics["pdf_table_coverage_percent"] = coverage_percent
+        form_key_value_total, form_key_value_extracted, form_fill_rate, form_confidence_score = (
+            _build_pdf_form_quality_metrics(tables)
+        )
+        metrics["pdf_form_key_value_pairs_total"] = form_key_value_total
+        metrics["pdf_form_key_value_pairs_extracted"] = form_key_value_extracted
+        metrics["pdf_form_field_fill_rate_percent"] = form_fill_rate
+        metrics["pdf_form_confidence_score"] = form_confidence_score
         if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
             quality_flags.append("pdf_table_like_blocks_detected")
         if any(str(block.metadata.get("pdf_table_kind", "")).strip() == "form_like" for block in blocks):
@@ -900,6 +907,12 @@ def _build_quality_issue(
             code=flag,
             severity="info",
             message="PDF parser detected form-like key/value layout blocks",
+            metadata={
+                "key_value_pairs_total": metrics.get("pdf_form_key_value_pairs_total", 0),
+                "key_value_pairs_extracted": metrics.get("pdf_form_key_value_pairs_extracted", 0),
+                "field_fill_rate_percent": metrics.get("pdf_form_field_fill_rate_percent", 0),
+                "form_confidence_score": metrics.get("pdf_form_confidence_score", 0),
+            },
         )
     if flag == "pdf_table_extraction_partial":
         return ParserQualityIssue(
@@ -1213,7 +1226,7 @@ def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]], str] |
         normalized_rows = [row + [""] * (width - len(row)) for row in pipe_rows]
         return normalized_rows[0], normalized_rows[1:], "pipe_table"
 
-    key_value_pairs = re.findall(r"(\w+)\s*:\s*([^;]+)", text)
+    key_value_pairs = re.findall(r"(\w+)\s*:\s*([^;\n|]*)", text)
     if len(key_value_pairs) >= 2:
         header = [_normalize_text(key) for key, _ in key_value_pairs]
         row = [_normalize_text(value) for _, value in key_value_pairs]
@@ -1250,6 +1263,32 @@ def _iter_docx_body_items(document: Any) -> list[tuple[str, Any]]:
         elif isinstance(child, CT_Tbl):
             items.append(("table", Table(child, parent)))
     return items
+
+
+def _build_pdf_form_quality_metrics(tables: list[CanonicalTable]) -> tuple[int, int, int, int]:
+    form_tables = [table for table in tables if str(table.metadata.get("pdf_table_kind", "")).strip() == "form_like"]
+    if not form_tables:
+        return 0, 0, 0, 0
+
+    key_value_pairs_total = 0
+    key_value_pairs_extracted = 0
+    for table in form_tables:
+        if not table.rows:
+            continue
+        row = table.rows[0]
+        keys = list(table.columns) if table.columns else list(row.keys())
+        for key in keys:
+            key_value_pairs_total += 1
+            value = _normalize_text(str(row.get(key, "")))
+            if value:
+                key_value_pairs_extracted += 1
+
+    field_fill_rate_percent = (
+        int(round((key_value_pairs_extracted / key_value_pairs_total) * 100)) if key_value_pairs_total else 0
+    )
+    pair_depth_score = int(round((min(key_value_pairs_total, 6) / 6) * 20)) if key_value_pairs_total else 0
+    form_confidence_score = int(round(field_fill_rate_percent * 0.8 + pair_depth_score)) if key_value_pairs_total else 0
+    return key_value_pairs_total, key_value_pairs_extracted, field_fill_rate_percent, min(form_confidence_score, 100)
 
 
 def _is_ocr_sidecar(path: Path) -> bool:

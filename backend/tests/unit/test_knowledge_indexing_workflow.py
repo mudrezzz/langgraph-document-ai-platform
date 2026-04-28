@@ -65,6 +65,7 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     assert "parser_families" in result.quality_summary
     assert result.quality_summary["parser_issues_total"] >= 0
     assert result.quality_summary["documents_needing_ocr"] >= 1
+    assert result.quality_summary["documents_with_pdf_form_confidence_low"] >= 0
     loaded = canonical_document_service.get_document(result.indexed_doc_ids[0])
     assert loaded.doc_id == result.indexed_doc_ids[0]
     assert loaded.content_blocks
