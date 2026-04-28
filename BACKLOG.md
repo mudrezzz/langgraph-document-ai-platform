@@ -921,6 +921,24 @@ Eleventh slice done:
 - targeted parser/retrieval/report tests: `37 passed` + cross-check set `60 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `304 passed`.
 
+Twelfth slice done:
+
+- добавлен PDF deep table extraction baseline для canonical ingestion:
+  - table-like PDF blocks теперь materialize-ятся в `extracted_tables` и canonical `table_row` blocks;
+  - `table_id` формируется как `PDF-T-*`, строки получают `row_index` и row-wise metadata через existing tabular builder;
+- table rows из PDF сохраняют provenance metadata:
+  - `source_kind=table_row`;
+  - `page_number`, `reading_order_index`, `layout_kind`, `layout_source`, `bbox`;
+- parser quality дополнен флагом `pdf_tables_extracted`;
+- existing retrieval path переиспользован без новой архитектуры:
+  - canonical dataset loader;
+  - pgvector metadata mapping;
+  - MCP `lookup_source`;
+  - release report source mapping;
+- добавлен ADR `0081-pdf-table-extraction-baseline-for-canonical-ingestion.md`;
+- targeted parser/retrieval/report/indexing tests: `44 passed` + cross-check set `54 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `304 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -935,7 +953,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; page-level provenance и baseline layout semantics для PDF закрыты; следующий шаг — deep PDF semantics (явный table extraction/forms/reading-order hardening);
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table extraction baseline закрыт; следующий шаг — forms/complex table layouts/reading-order hardening для сложных PDF;
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

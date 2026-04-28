@@ -85,6 +85,10 @@
   - PDF parser теперь проставляет `reading_order_index` и `layout_kind=paragraph|table_like` для page blocks;
   - parser quality flags включают `pdf_table_like_blocks_detected` при table-like layout blocks;
   - retrieval metadata/MCP lookup/report source mapping теперь сохраняют layout-kind и reading-order hints.
+- Knowledge Factory Hardening / PDF table extraction baseline slice:
+  - table-like PDF blocks теперь извлекаются в canonical `extracted_tables` с `PDF-T-*` table ids;
+  - строки таблиц попадают в canonical corpus как `table_row` blocks;
+  - parser quality flags включают `pdf_tables_extracted` при успешном table extraction.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;
@@ -358,6 +362,7 @@
   - `docs/adr/0078-pptx-parser-baseline-for-canonical-ingestion.md`.
   - `docs/adr/0079-pdf-page-provenance-baseline-for-canonical-retrieval.md`.
   - `docs/adr/0080-pdf-reading-order-and-layout-kind-baseline.md`.
+  - `docs/adr/0081-pdf-table-extraction-baseline-for-canonical-ingestion.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;
@@ -383,7 +388,7 @@
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
 - `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary, closed template governance lifecycle (`draft|published|deprecated|archived`) и exclusive published-version policy для templates;
-- `domain_docs` уже покрывает `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`, OCR fallback, table-aware provenance, page-level PDF provenance и baseline layout semantics (`reading_order_index`, `layout_kind`), но deep layout semantics пока не реализованы;
+- `domain_docs` уже покрывает `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`, OCR fallback, table-aware provenance, page-level PDF provenance, baseline layout semantics (`reading_order_index`, `layout_kind`) и baseline PDF table extraction, но сложные формы/layout cases пока не реализованы;
 - async execution plane уже покрывает authoring, retrieval и knowledge indexing, но пока без общего policy слоя для остальных production workflows;
 - RBAC baseline уже закрывает наиболее sensitive API/MCP operations, но пока нет SSO, signed tokens, tenant-aware permissions и service-to-service auth;
 - production deployment runbook baseline добавлен, но эксплуатационные SLO/SLI метрики и dashboard остаются вне текущего среза;
@@ -391,7 +396,7 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Дорастить ingestion от baseline layout semantics до deep rich layout extraction поверх текущего canonical read-model.
+1. Дорастить ingestion от baseline PDF table extraction к deep rich layout extraction (forms/complex tables/reading-order hardening).
 2. Расширить indexing quality policy от env-driven baseline к persisted configuration + rollout guards.
 3. Дорастить reviewer observability от текущего summary endpoint до периодических SLA buckets и dashboard-oriented read models.
 4. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.

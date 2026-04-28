@@ -196,7 +196,8 @@
   - env contract для policy: `APP_INDEXING_QUALITY_*`.
 - PDF retrieval provenance baseline расширен до page-level:
   - parser использует global-per-document `block_id` для multi-page PDF;
-  - canonical/vector metadata прокидывают `source_kind=page_block`, `page_number`, `layout_source`, `bbox`;
+  - canonical/vector metadata прокидывают `source_kind=page_block`, `page_number`, `reading_order_index`, `layout_kind`, `layout_source`, `bbox`;
+  - table-like PDF blocks теперь materialize-ятся в `extracted_tables` и `table_row` blocks с `PDF-T-*` table ids;
   - `lookup_source` и release report source mapping показывают page refs для PDF evidence.
 - retrieval подключен к canonical Knowledge Factory output:
   - `task_context.knowledge_source=canonical`;
@@ -1087,6 +1088,7 @@ Parser quality baseline текущего hardening-среза:
 - baseline rich layout semantics для PDF:
   - parser помечает блоки `layout_kind=paragraph|table_like`;
   - при обнаружении table-like blocks выставляется `pdf_table_like_blocks_detected` в parser quality flags.
+  - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
 
 Smoke текущего demo input:
 
@@ -1171,7 +1173,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- parser hardening: от page-level PDF provenance baseline к richer layout semantics (tables/forms/reading-order);
+- parser hardening: от baseline PDF table extraction к forms/complex tables/reading-order hardening;
 - опциональный fail-fast policy path для `quality_gate_status=failed` в продовых rollout-контурах;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 

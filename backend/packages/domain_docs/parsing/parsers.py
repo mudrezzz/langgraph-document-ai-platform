@@ -77,9 +77,8 @@ class CanonicalDocumentParser:
         elif extension == ".pdf":
             parser_family = "pdf"
             extraction_mode = "page_text"
-            blocks, structure = self._parse_pdf(path, quality_flags=quality_flags, metrics=metrics)
+            blocks, structure, tables = self._parse_pdf(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
-            tables = []
         else:
             raw_text = path.read_text(encoding="utf-8")
             parser_family = "markdown" if extension == ".md" else "text"
@@ -417,7 +416,7 @@ class CanonicalDocumentParser:
         *,
         quality_flags: list[str],
         metrics: dict[str, int | None],
-    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode, list[CanonicalTable]]:
         try:
             import fitz
         except Exception as exc:  # pragma: no cover - depends on optional runtime package
@@ -425,14 +424,22 @@ class CanonicalDocumentParser:
 
         root = CanonicalStructureNode(node_id="root", title="PDF Document", level=0)
         blocks: list[CanonicalContentBlock] = []
+        tables: list[CanonicalTable] = []
+        table_index = 0
         with fitz.open(str(path)) as pdf_document:
             metrics["pages_total"] = len(pdf_document)
             for page_index, page in enumerate(pdf_document, start=1):
-                page_blocks = self._extract_pdf_page_blocks(page=page, page_index=page_index)
+                page_blocks, page_tables, table_index = self._extract_pdf_page_blocks(
+                    page=page,
+                    page_index=page_index,
+                    table_index_start=table_index,
+                )
+                tables.extend(page_tables)
                 for block in page_blocks:
                     block.block_id = f"B-{len(blocks) + 1}"
                     blocks.append(block)
                     root.block_ids.append(block.block_id)
+        metrics["tables_total"] = len(tables)
 
         if not blocks:
             quality_flags.append("pdf_no_extractable_text")
@@ -443,12 +450,22 @@ class CanonicalDocumentParser:
                 blocks = ocr_blocks
         if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
             quality_flags.append("pdf_table_like_blocks_detected")
+        if tables:
+            quality_flags.append("pdf_tables_extracted")
         if blocks and len(blocks) < 2:
             quality_flags.append("low_text_density")
-        return blocks, root
+        return blocks, root, tables
 
-    def _extract_pdf_page_blocks(self, *, page: Any, page_index: int) -> list[CanonicalContentBlock]:
+    def _extract_pdf_page_blocks(
+        self,
+        *,
+        page: Any,
+        page_index: int,
+        table_index_start: int,
+    ) -> tuple[list[CanonicalContentBlock], list[CanonicalTable], int]:
         extracted: list[CanonicalContentBlock] = []
+        tables: list[CanonicalTable] = []
+        table_index = table_index_start
         current_section_title: str | None = None
         raw_layout_blocks = page.get_text("blocks") or []
         layout_blocks = [raw_block for raw_block in raw_layout_blocks if len(raw_block) >= 5]
@@ -456,7 +473,8 @@ class CanonicalDocumentParser:
 
         for block_index, raw_block in enumerate(layout_blocks, start=1):
             x0, y0, x1, y1, raw_text = raw_block[:5]
-            text = _normalize_text(str(raw_text or ""))
+            raw_block_text = str(raw_text or "")
+            text = _normalize_text(raw_block_text)
             if not text:
                 continue
 
@@ -466,6 +484,39 @@ class CanonicalDocumentParser:
 
             heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
             layout_kind = _infer_pdf_layout_kind(text)
+            bbox = [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)]
+            if layout_kind == "table_like":
+                table_spec = _parse_pdf_table_spec(raw_block_text) or _parse_pdf_table_spec(text)
+                if table_spec is not None:
+                    table_index += 1
+                    parsed_table = _build_tabular_content(
+                        header=table_spec[0],
+                        data_rows=table_spec[1],
+                        table_id=f"PDF-T-{table_index}",
+                        title=heading_path[-1] if heading_path else f"Table {table_index}",
+                        heading_path=heading_path,
+                        block_index_start=0,
+                        table_metadata={
+                            "page_number": page_index,
+                            "bbox": bbox,
+                            "layout_source": "pdf_blocks",
+                            "layout_kind": layout_kind,
+                            "reading_order_index": block_index,
+                        },
+                        block_metadata={
+                            "source_kind": "table_row",
+                            "page_number": page_index,
+                            "bbox": bbox,
+                            "layout_source": "pdf_blocks",
+                            "layout_kind": layout_kind,
+                            "reading_order_index": block_index,
+                        },
+                    )
+                    for row_block in parsed_table.blocks:
+                        row_block.page_number = page_index
+                    tables.append(parsed_table.table)
+                    extracted.extend(parsed_table.blocks)
+                    continue
             block = _build_block(
                 text=text,
                 block_type="paragraph",
@@ -476,7 +527,7 @@ class CanonicalDocumentParser:
                     "page_number": page_index,
                     "reading_order_index": block_index,
                     "layout_kind": layout_kind,
-                    "bbox": [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)],
+                    "bbox": bbox,
                     "layout_source": "pdf_blocks",
                 },
             )
@@ -487,7 +538,8 @@ class CanonicalDocumentParser:
         if not extracted:
             page_text = page.get_text("text")
             for block_index, paragraph in enumerate(re.split(r"\n\s*\n+", page_text), start=1):
-                text = _normalize_text(paragraph)
+                raw_paragraph = paragraph
+                text = _normalize_text(raw_paragraph)
                 if not text:
                     continue
                 heading_candidate = _infer_pdf_section_title(text)
@@ -495,6 +547,36 @@ class CanonicalDocumentParser:
                     current_section_title = heading_candidate
                 heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
                 layout_kind = _infer_pdf_layout_kind(text)
+                if layout_kind == "table_like":
+                    table_spec = _parse_pdf_table_spec(raw_paragraph) or _parse_pdf_table_spec(text)
+                    if table_spec is not None:
+                        table_index += 1
+                        parsed_table = _build_tabular_content(
+                            header=table_spec[0],
+                            data_rows=table_spec[1],
+                            table_id=f"PDF-T-{table_index}",
+                            title=heading_path[-1] if heading_path else f"Table {table_index}",
+                            heading_path=heading_path,
+                            block_index_start=0,
+                            table_metadata={
+                                "page_number": page_index,
+                                "layout_source": "pdf_text",
+                                "layout_kind": layout_kind,
+                                "reading_order_index": block_index,
+                            },
+                            block_metadata={
+                                "source_kind": "table_row",
+                                "page_number": page_index,
+                                "layout_source": "pdf_text",
+                                "layout_kind": layout_kind,
+                                "reading_order_index": block_index,
+                            },
+                        )
+                        for row_block in parsed_table.blocks:
+                            row_block.page_number = page_index
+                        tables.append(parsed_table.table)
+                        extracted.extend(parsed_table.blocks)
+                        continue
                 block = _build_block(
                     text=text,
                     block_type="paragraph",
@@ -510,7 +592,7 @@ class CanonicalDocumentParser:
                 )
                 block.page_number = page_index
                 extracted.append(block)
-        return extracted
+        return extracted, tables, table_index
 
     def _run_pdf_ocr(
         self,
@@ -536,7 +618,8 @@ class CanonicalDocumentParser:
         blocks: list[CanonicalContentBlock] = []
         for page_index, page_text in enumerate(ocr_result.page_texts, start=1):
             for block_index, paragraph in enumerate(re.split(r"\n\s*\n+", page_text), start=1):
-                text = _normalize_text(paragraph)
+                raw_paragraph = paragraph
+                text = _normalize_text(raw_paragraph)
                 if not text:
                     continue
                 layout_kind = _infer_pdf_layout_kind(text)
@@ -750,6 +833,13 @@ def _build_quality_issue(
             severity="info",
             message="PDF parser detected table-like logical blocks",
             metadata={"blocks_total": len(blocks), "pages_total": metrics.get("pages_total")},
+        )
+    if flag == "pdf_tables_extracted":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="PDF parser extracted table rows into canonical table blocks",
+            metadata={"tables_total": metrics.get("tables_total", 0)},
         )
     if flag == "no_structural_headings":
         return ParserQualityIssue(
@@ -1026,6 +1116,47 @@ def _infer_pdf_layout_kind(text: str) -> str:
     if column_like_lines >= 2:
         return "table_like"
     return "paragraph"
+
+
+def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]]] | None:
+    lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
+    if not lines:
+        return None
+
+    pipe_rows: list[list[str]] = []
+    for line in lines:
+        if "|" not in line:
+            continue
+        cells = [cell.strip() for cell in line.split("|")]
+        if cells and not cells[0]:
+            cells = cells[1:]
+        if cells and not cells[-1]:
+            cells = cells[:-1]
+        cells = [cell for cell in cells if cell]
+        if len(cells) >= 2:
+            pipe_rows.append(cells)
+    if len(pipe_rows) >= 2:
+        width = max(len(row) for row in pipe_rows)
+        normalized_rows = [row + [""] * (width - len(row)) for row in pipe_rows]
+        return normalized_rows[0], normalized_rows[1:]
+
+    key_value_pairs = re.findall(r"(\w+)\s*:\s*([^;]+)", text)
+    if len(key_value_pairs) >= 2:
+        header = [_normalize_text(key) for key, _ in key_value_pairs]
+        row = [_normalize_text(value) for _, value in key_value_pairs]
+        return header, [row]
+
+    spaced_rows: list[list[str]] = []
+    for line in lines:
+        cells = [_normalize_text(cell) for cell in re.split(r"\s{2,}", line) if _normalize_text(cell)]
+        if len(cells) >= 2:
+            spaced_rows.append(cells)
+    if len(spaced_rows) >= 2:
+        width = max(len(row) for row in spaced_rows)
+        normalized_rows = [row + [""] * (width - len(row)) for row in spaced_rows]
+        return normalized_rows[0], normalized_rows[1:]
+
+    return None
 
 
 def _iter_docx_body_items(document: Any) -> list[tuple[str, Any]]:

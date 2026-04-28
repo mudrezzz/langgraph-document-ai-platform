@@ -340,16 +340,27 @@ def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> 
     source = tmp_path / "table_like.pdf"
     pdf = fitz.open()
     page = pdf.new_page()
-    page.insert_text((72, 72), "Check | Owner | Status")
-    page.insert_text((72, 92), "Customer notification | Product Owner | APPROVED")
+    page.insert_textbox(
+        fitz.Rect(72, 72, 520, 180),
+        "Check | Owner | Status\nCustomer notification | Product Owner | APPROVED",
+    )
     pdf.save(source)
     pdf.close()
 
     parsed = CanonicalDocumentParser().parse_path(source)
 
     assert "pdf_table_like_blocks_detected" in parsed.quality_flags
+    assert "pdf_tables_extracted" in parsed.quality_flags
+    assert parsed.parser_quality.tables_total == 1
+    assert len(parsed.extracted_tables) == 1
+    assert parsed.extracted_tables[0].columns == ["Check", "Owner", "Status"]
+    assert parsed.extracted_tables[0].rows[0]["Owner"] == "Product Owner"
+    assert any(block.block_type == "table_row" for block in parsed.content_blocks)
     assert any(block.metadata.get("layout_kind") == "table_like" for block in parsed.content_blocks)
+    assert any(block.metadata.get("source_kind") == "table_row" for block in parsed.content_blocks)
+    assert any(block.metadata.get("page_number") == 1 for block in parsed.content_blocks)
     assert any(issue.code == "pdf_table_like_blocks_detected" for issue in parsed.parser_quality.issues)
+    assert any(issue.code == "pdf_tables_extracted" for issue in parsed.parser_quality.issues)
 
 
 def test_canonical_parser_reports_missing_docx_dependency_when_needed(
