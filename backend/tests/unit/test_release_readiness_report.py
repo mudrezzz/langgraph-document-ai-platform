@@ -84,6 +84,8 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                             "quality_flags": ["low_text_density"],
                             "source_kind": "page_block",
                             "page_number": 2,
+                            "reading_order_index": 1,
+                            "layout_kind": "table_like",
                             "layout_source": "pdf_blocks",
                         },
                     },
@@ -120,3 +122,4 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "table_rows=`row_2`" in report
     assert "pages=`p2`" in report
     assert "layout_sources=`pdf_blocks`" in report
+    assert "layout_kinds=`table_like`" in report

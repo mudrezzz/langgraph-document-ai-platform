@@ -1082,8 +1082,11 @@ Parser quality baseline текущего hardening-среза:
   - `lookup_source` и `Canonical Source Mapping` теперь могут явно показать, что evidence пришел из approval matrix row, а не из абстрактного paragraph block.
 - для PDF blocks добавлен page-level provenance baseline:
   - `source_kind=page_block`;
-  - `page_number`, `layout_source`, `bbox` (best-effort);
+  - `page_number`, `reading_order_index`, `layout_kind`, `layout_source`, `bbox` (best-effort);
   - `lookup_source` и `Canonical Source Mapping` показывают, с какой страницы пришел evidence.
+- baseline rich layout semantics для PDF:
+  - parser помечает блоки `layout_kind=paragraph|table_like`;
+  - при обнаружении table-like blocks выставляется `pdf_table_like_blocks_detected` в parser quality flags.
 
 Smoke текущего demo input:
 

@@ -80,6 +80,9 @@ def _block_to_retrieved_block(block: KnowledgeBlockRecord, document: CanonicalDo
     page_number = block.metadata.get("page_number")
     if not isinstance(page_number, int):
         page_number = None
+    reading_order_index = block.metadata.get("reading_order_index")
+    if not isinstance(reading_order_index, int):
+        reading_order_index = None
     source_kind = str(block.metadata.get("source_kind", "") or "").strip() or "content_block"
     metadata_payload = {
         **metadata,
@@ -89,6 +92,8 @@ def _block_to_retrieved_block(block: KnowledgeBlockRecord, document: CanonicalDo
         "heading_path": block.heading_path,
         "source_kind": source_kind,
         "page_number": page_number,
+        "reading_order_index": reading_order_index,
+        "layout_kind": block.metadata.get("layout_kind"),
         "bbox": block.metadata.get("bbox"),
         "layout_source": block.metadata.get("layout_source"),
     }

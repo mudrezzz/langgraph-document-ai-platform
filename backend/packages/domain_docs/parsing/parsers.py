@@ -441,6 +441,8 @@ class CanonicalDocumentParser:
             if ocr_blocks:
                 root.block_ids = [block.block_id for block in ocr_blocks]
                 blocks = ocr_blocks
+        if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
+            quality_flags.append("pdf_table_like_blocks_detected")
         if blocks and len(blocks) < 2:
             quality_flags.append("low_text_density")
         return blocks, root
@@ -448,11 +450,11 @@ class CanonicalDocumentParser:
     def _extract_pdf_page_blocks(self, *, page: Any, page_index: int) -> list[CanonicalContentBlock]:
         extracted: list[CanonicalContentBlock] = []
         current_section_title: str | None = None
-        layout_blocks = page.get_text("blocks") or []
+        raw_layout_blocks = page.get_text("blocks") or []
+        layout_blocks = [raw_block for raw_block in raw_layout_blocks if len(raw_block) >= 5]
+        layout_blocks.sort(key=lambda raw_block: (round(float(raw_block[1]), 2), round(float(raw_block[0]), 2)))
 
-        for raw_block in layout_blocks:
-            if len(raw_block) < 5:
-                continue
+        for block_index, raw_block in enumerate(layout_blocks, start=1):
             x0, y0, x1, y1, raw_text = raw_block[:5]
             text = _normalize_text(str(raw_text or ""))
             if not text:
@@ -463,6 +465,7 @@ class CanonicalDocumentParser:
                 current_section_title = heading_candidate
 
             heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
+            layout_kind = _infer_pdf_layout_kind(text)
             block = _build_block(
                 text=text,
                 block_type="paragraph",
@@ -471,6 +474,8 @@ class CanonicalDocumentParser:
                 metadata={
                     "source_kind": "page_block",
                     "page_number": page_index,
+                    "reading_order_index": block_index,
+                    "layout_kind": layout_kind,
                     "bbox": [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)],
                     "layout_source": "pdf_blocks",
                 },
@@ -481,7 +486,7 @@ class CanonicalDocumentParser:
         # Fallback keeps previous behavior for PDFs where `blocks` is empty.
         if not extracted:
             page_text = page.get_text("text")
-            for paragraph in re.split(r"\n\s*\n+", page_text):
+            for block_index, paragraph in enumerate(re.split(r"\n\s*\n+", page_text), start=1):
                 text = _normalize_text(paragraph)
                 if not text:
                     continue
@@ -489,12 +494,19 @@ class CanonicalDocumentParser:
                 if heading_candidate is not None:
                     current_section_title = heading_candidate
                 heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
+                layout_kind = _infer_pdf_layout_kind(text)
                 block = _build_block(
                     text=text,
                     block_type="paragraph",
                     index=0,  # assigned below with stable global order
                     heading_path=heading_path,
-                    metadata={"source_kind": "page_block", "page_number": page_index, "layout_source": "pdf_text"},
+                    metadata={
+                        "source_kind": "page_block",
+                        "page_number": page_index,
+                        "reading_order_index": block_index,
+                        "layout_kind": layout_kind,
+                        "layout_source": "pdf_text",
+                    },
                 )
                 block.page_number = page_index
                 extracted.append(block)
@@ -523,10 +535,11 @@ class CanonicalDocumentParser:
 
         blocks: list[CanonicalContentBlock] = []
         for page_index, page_text in enumerate(ocr_result.page_texts, start=1):
-            for paragraph in re.split(r"\n\s*\n+", page_text):
+            for block_index, paragraph in enumerate(re.split(r"\n\s*\n+", page_text), start=1):
                 text = _normalize_text(paragraph)
                 if not text:
                     continue
+                layout_kind = _infer_pdf_layout_kind(text)
                 block = _build_block(
                     text=text,
                     block_type="paragraph",
@@ -535,6 +548,8 @@ class CanonicalDocumentParser:
                     metadata={
                         "source_kind": "page_block",
                         "page_number": page_index,
+                        "reading_order_index": block_index,
+                        "layout_kind": layout_kind,
                         "ocr_provider": ocr_result.provider,
                         "extraction_mode": "ocr",
                         "layout_source": "ocr_text",
@@ -727,6 +742,13 @@ def _build_quality_issue(
             code=flag,
             severity="warning",
             message="Parser extracted very few text blocks for the document",
+            metadata={"blocks_total": len(blocks), "pages_total": metrics.get("pages_total")},
+        )
+    if flag == "pdf_table_like_blocks_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="PDF parser detected table-like logical blocks",
             metadata={"blocks_total": len(blocks), "pages_total": metrics.get("pages_total")},
         )
     if flag == "no_structural_headings":
@@ -992,6 +1014,18 @@ def _infer_pdf_section_title(text: str) -> str | None:
     if re.match(r"^(section|chapter|part)\s+\d+", normalized, flags=re.IGNORECASE):
         return normalized
     return None
+
+
+def _infer_pdf_layout_kind(text: str) -> str:
+    lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
+    if "|" in text and text.count("|") >= 2:
+        return "table_like"
+    if re.search(r"\b\w+\s*:\s*[^;]+;\s*\w+\s*:\s*[^;]+", text):
+        return "table_like"
+    column_like_lines = sum(1 for line in lines if re.search(r"\S\s{2,}\S", line))
+    if column_like_lines >= 2:
+        return "table_like"
+    return "paragraph"
 
 
 def _iter_docx_body_items(document: Any) -> list[tuple[str, Any]]:

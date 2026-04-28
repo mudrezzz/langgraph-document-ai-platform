@@ -360,6 +360,10 @@ def _build_source_provenance(
     block: Any,
 ) -> RetrievalMcpSourceProvenance:
     page_number = block.metadata.get("page_number") if isinstance(block.metadata.get("page_number"), int) else None
+    reading_order_index = (
+        block.metadata.get("reading_order_index") if isinstance(block.metadata.get("reading_order_index"), int) else None
+    )
+    layout_kind = str(block.metadata.get("layout_kind", "") or "").strip() or None
     bbox = _normalize_bbox(block.metadata.get("bbox"))
     layout_source = str(block.metadata.get("layout_source", "") or "").strip() or None
     if block.block_type != "table_row":
@@ -369,6 +373,8 @@ def _build_source_provenance(
             heading_path=list(block.heading_path),
             section_title=block.heading_path[-1] if block.heading_path else None,
             page_number=page_number,
+            reading_order_index=reading_order_index,
+            layout_kind=layout_kind,
             bbox=bbox,
             layout_source=layout_source,
         )
@@ -386,6 +392,8 @@ def _build_source_provenance(
         row_index=row_index,
         row_values=row_values,
         page_number=page_number,
+        reading_order_index=reading_order_index,
+        layout_kind=layout_kind,
         bbox=bbox,
         layout_source=layout_source,
     )

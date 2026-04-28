@@ -906,6 +906,21 @@ Tenth slice done:
 - targeted parser/retrieval/report tests: `36 passed` + cross-check set `61 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `303 passed`.
 
+Eleventh slice done:
+
+- добавлен richer PDF layout semantics baseline (v2) без изменения публичных API:
+  - `reading_order_index` для page blocks (best-effort порядок чтения);
+  - `layout_kind=paragraph|table_like` через lightweight layout эвристику;
+  - parser quality flag `pdf_table_like_blocks_detected` при наличии table-like blocks;
+- OCR fallback path также теперь заполняет `reading_order_index` и `layout_kind`;
+- canonical dataset loader, pgvector metadata mapping и MCP `lookup_source` source provenance теперь прокидывают:
+  - `reading_order_index`;
+  - `layout_kind`;
+- release readiness report `Canonical Source Mapping` теперь показывает `layout_kinds=...` для PDF evidence;
+- добавлен ADR `0080-pdf-reading-order-and-layout-kind-baseline.md`;
+- targeted parser/retrieval/report tests: `37 passed` + cross-check set `60 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `304 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -920,7 +935,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; page-level PDF provenance baseline закрыт; следующий шаг — richer layout semantics (таблицы/формы/reading-order для PDF);
+- parser adapters для `.xlsx` и `.pptx` реализованы; page-level provenance и baseline layout semantics для PDF закрыты; следующий шаг — deep PDF semantics (явный table extraction/forms/reading-order hardening);
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

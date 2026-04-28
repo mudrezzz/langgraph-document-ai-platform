@@ -195,6 +195,8 @@ def test_canonical_vector_retriever_preserves_pdf_page_provenance() -> None:
             "tags": ["audit"],
             "source_kind": "page_block",
             "page_number": 3,
+            "reading_order_index": 2,
+            "layout_kind": "table_like",
             "layout_source": "pdf_blocks",
             "bbox": [12.5, 32.0, 280.0, 64.0],
         },
@@ -209,5 +211,7 @@ def test_canonical_vector_retriever_preserves_pdf_page_provenance() -> None:
     assert len(results) == 1
     assert results[0].metadata["source_kind"] == "page_block"
     assert results[0].metadata["page_number"] == 3
+    assert results[0].metadata["reading_order_index"] == 2
+    assert results[0].metadata["layout_kind"] == "table_like"
     assert results[0].metadata["layout_source"] == "pdf_blocks"
     assert results[0].metadata["bbox"] == [12.5, 32.0, 280.0, 64.0]

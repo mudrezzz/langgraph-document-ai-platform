@@ -102,6 +102,8 @@ def _result_to_retrieved_block(metadata: dict, *, score: float, block_kind: str)
                 "row_index": metadata.get("row_index"),
                 "row_values": metadata.get("row_values", {}),
                 "page_number": metadata.get("page_number"),
+                "reading_order_index": metadata.get("reading_order_index"),
+                "layout_kind": metadata.get("layout_kind"),
                 "bbox": metadata.get("bbox"),
                 "layout_source": metadata.get("layout_source"),
                 "section_id": metadata.get("section_id"),

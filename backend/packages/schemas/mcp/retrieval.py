@@ -58,6 +58,8 @@ class RetrievalMcpSourceProvenance(BaseModel):
     row_index: int | None = None
     row_values: dict = Field(default_factory=dict)
     page_number: int | None = None
+    reading_order_index: int | None = None
+    layout_kind: str | None = None
     bbox: list[float] = Field(default_factory=list)
     layout_source: str | None = None
     source_block_ids: list[str] = Field(default_factory=list)

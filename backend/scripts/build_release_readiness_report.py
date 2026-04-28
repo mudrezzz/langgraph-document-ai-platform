@@ -286,6 +286,8 @@ def _build_report(
                 provenance_bits.append(f"pages=`{', '.join(item.get('page_refs', []))}`")
             if item.get("layout_sources"):
                 provenance_bits.append(f"layout_sources=`{', '.join(item.get('layout_sources', []))}`")
+            if item.get("layout_kinds"):
+                provenance_bits.append(f"layout_kinds=`{', '.join(item.get('layout_kinds', []))}`")
             provenance_suffix = f", {' , '.join(provenance_bits)}" if provenance_bits else ""
             lines.append(
                 "- "
@@ -405,6 +407,11 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
             item.setdefault("layout_sources", [])
             if layout_source not in item["layout_sources"]:
                 item["layout_sources"].append(layout_source)
+        layout_kind = str(metadata.get("layout_kind", "")).strip()
+        if layout_kind:
+            item.setdefault("layout_kinds", [])
+            if layout_kind not in item["layout_kinds"]:
+                item["layout_kinds"].append(layout_kind)
         for flag in metadata.get("quality_flags", []) or []:
             if flag not in item["quality_flags"]:
                 item["quality_flags"].append(flag)
@@ -421,6 +428,7 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
         normalized["table_row_refs"] = sorted(normalized.get("table_row_refs", []))
         normalized["page_refs"] = sorted(normalized.get("page_refs", []))
         normalized["layout_sources"] = sorted(normalized.get("layout_sources", []))
+        normalized["layout_kinds"] = sorted(normalized.get("layout_kinds", []))
         result.append(normalized)
 
     result.sort(key=lambda item: (-int(item.get("evidence_blocks", 0)), item.get("doc_id", "")))

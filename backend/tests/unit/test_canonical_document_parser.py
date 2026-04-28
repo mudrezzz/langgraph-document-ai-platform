@@ -301,6 +301,8 @@ def test_canonical_parser_assigns_unique_block_ids_for_multi_page_pdf(tmp_path: 
     assert parsed.structure_tree.block_ids == block_ids
     assert {block.metadata.get("page_number") for block in parsed.content_blocks} == {1, 2}
     assert all(block.metadata.get("source_kind") == "page_block" for block in parsed.content_blocks)
+    assert all(isinstance(block.metadata.get("reading_order_index"), int) for block in parsed.content_blocks)
+    assert all(block.metadata.get("layout_kind") in {"paragraph", "table_like"} for block in parsed.content_blocks)
 
 
 def test_canonical_parser_uses_sidecar_ocr_for_scanned_pdf(tmp_path: Path) -> None:
@@ -326,7 +328,28 @@ def test_canonical_parser_uses_sidecar_ocr_for_scanned_pdf(tmp_path: Path) -> No
     assert parsed.content_blocks[0].metadata["ocr_provider"] == "sidecar"
     assert parsed.content_blocks[0].metadata["source_kind"] == "page_block"
     assert parsed.content_blocks[0].metadata["layout_source"] == "ocr_text"
+    assert parsed.content_blocks[0].metadata["reading_order_index"] == 1
+    assert parsed.content_blocks[0].metadata["layout_kind"] in {"paragraph", "table_like"}
     assert any(issue.code == "ocr_applied" for issue in parsed.parser_quality.issues)
+
+
+def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "table_like.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_text((72, 72), "Check | Owner | Status")
+    page.insert_text((72, 92), "Customer notification | Product Owner | APPROVED")
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert "pdf_table_like_blocks_detected" in parsed.quality_flags
+    assert any(block.metadata.get("layout_kind") == "table_like" for block in parsed.content_blocks)
+    assert any(issue.code == "pdf_table_like_blocks_detected" for issue in parsed.parser_quality.issues)
 
 
 def test_canonical_parser_reports_missing_docx_dependency_when_needed(

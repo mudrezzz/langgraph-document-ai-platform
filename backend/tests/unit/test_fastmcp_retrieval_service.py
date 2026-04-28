@@ -133,6 +133,8 @@ def test_fastmcp_retrieval_service_search_blocks_returns_detail_candidates() -> 
     assert candidate["metadata"]["block_ref"] == "DOC-1:1:B-1"
     assert candidate["metadata"]["source_kind"] == "page_block"
     assert candidate["metadata"]["page_number"] == 2
+    assert candidate["metadata"]["reading_order_index"] == 1
+    assert candidate["metadata"]["layout_kind"] == "table_like"
     assert candidate["metadata"]["layout_source"] == "pdf_blocks"
     assert candidate["metadata"]["bbox"] == [10.0, 20.0, 200.0, 40.0]
 
@@ -204,6 +206,8 @@ def test_fastmcp_retrieval_service_lookup_source_returns_block_mapping() -> None
     assert result["block"]["text"] == "Security approval is still pending."
     assert result["source_provenance"]["source_kind"] == "page_block"
     assert result["source_provenance"]["page_number"] == 2
+    assert result["source_provenance"]["reading_order_index"] == 1
+    assert result["source_provenance"]["layout_kind"] == "table_like"
     assert result["source_provenance"]["layout_source"] == "pdf_blocks"
     assert result["source_provenance"]["bbox"] == [10.0, 20.0, 200.0, 40.0]
 
@@ -315,6 +319,8 @@ def _build_indexed_mcp_service_with_versions() -> FastMcpRetrievalService:
                         "tags": ["release"],
                         "source_kind": "page_block",
                         "page_number": 2,
+                        "reading_order_index": 1,
+                        "layout_kind": "table_like",
                         "layout_source": "pdf_blocks",
                         "bbox": [10.0, 20.0, 200.0, 40.0],
                     },
@@ -376,6 +382,8 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
                         "tags": ["release"],
                         "source_kind": "page_block",
                         "page_number": 2,
+                        "reading_order_index": 1,
+                        "layout_kind": "table_like",
                         "layout_source": "pdf_blocks",
                         "bbox": [10.0, 20.0, 200.0, 40.0],
                     },
@@ -476,6 +484,8 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
             "heading_path": ["Security"],
             "source_kind": "page_block",
             "page_number": 2,
+            "reading_order_index": 1,
+            "layout_kind": "table_like",
             "layout_source": "pdf_blocks",
             "bbox": [10.0, 20.0, 200.0, 40.0],
         },

@@ -269,7 +269,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
 - `search_summaries` ищет indexed canonical section summaries через pgvector;
 - `search_blocks` ищет indexed canonical content blocks через pgvector;
 - `lookup_source` возвращает source/canonical mapping по `doc_id`/`block_id` или `block_ref`;
-- для PDF blocks `lookup_source` теперь также отдает page-level provenance (`page_number`, `layout_source`, `bbox`);
+- для PDF blocks `lookup_source` теперь также отдает page-level/layout provenance (`page_number`, `reading_order_index`, `layout_kind`, `layout_source`, `bbox`);
 - для indexed tools нужен PostgreSQL/pgvector контур с ранее выполненным Knowledge Indexing.
 
 ## 9.1. Smoke Retrieval MCP indexed tools
@@ -289,7 +289,7 @@ bash backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
 - `block_candidates >= 1`;
 - `lookup_found=true`;
 - для DOCX approval matrix lookup может показать `lookup_source_kind=table_row`, `lookup_table_title=Approval Matrix`, `lookup_row_index`;
-- для PDF evidence lookup может показать `lookup_source_kind=page_block`, `lookup_page_number`, `lookup_layout_source`;
+- для PDF evidence lookup может показать `lookup_source_kind=page_block`, `lookup_page_number`, `lookup_reading_order_index`, `lookup_layout_kind`, `lookup_layout_source`;
 - `summary_backend=pgvector` и `block_backend=pgvector`;
 - `build_status=completed`;
 - `evidence_blocks >= 1`.

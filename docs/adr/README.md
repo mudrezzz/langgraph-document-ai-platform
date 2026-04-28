@@ -90,3 +90,4 @@
 - `0077-production-indexing-quality-policy-layer.md`
 - `0078-pptx-parser-baseline-for-canonical-ingestion.md`
 - `0079-pdf-page-provenance-baseline-for-canonical-retrieval.md`
+- `0080-pdf-reading-order-and-layout-kind-baseline.md`
