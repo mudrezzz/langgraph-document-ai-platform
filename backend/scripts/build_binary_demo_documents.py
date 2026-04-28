@@ -110,15 +110,21 @@ def _write_pdf(path: Path) -> None:
     doc = fitz.open()
     page = doc.new_page()
     text = (
-        "Audit Summary: Payments v2\n\n"
+        "Audit Summary: Payments v2\n"
         "Security audit status: conditional pass.\n"
-        "Critical vulnerabilities: none open.\n"
-        "Medium findings: two mitigated, one accepted with risk owner approval pending.\n\n"
+        "Critical vulnerabilities: none open.\n\n"
+        "Control | Owner | Status | Evidence\n"
+        "Security sign-off | Security Lead | PENDING | SEC-742\n"
+        "Rollback drill | SRE | READY | OPS-113\n"
+        "Customer notification | Product Owner | APPROVED | CRM-991\n\n"
+        "Release Gate Form\n"
+        "Approver: Security Lead; Decision: CONDITIONAL PASS; Ticket: SEC-742\n"
+        "Owner: Release Manager; Due: 2026-04-30; Escalation: Required\n\n"
         "Release control notes:\n"
         "- Evidence pack must include security sign-off.\n"
         "- Operations dashboard and rollback runbook must be attached before final approval.\n"
     )
-    page.insert_text((72, 72), text, fontsize=11)
+    page.insert_textbox(fitz.Rect(72, 72, 540, 760), text, fontsize=11)
     doc.save(path)
     doc.close()
 

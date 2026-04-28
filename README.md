@@ -1060,6 +1060,7 @@ Parser quality baseline текущего hardening-среза:
 - PDF parser без extractable text помечает документ как `ocr_required` и пытается OCR fallback;
 - OCR runtime configurable через `APP_OCR_ENABLED=true|false` и `APP_OCR_PROVIDER=sidecar|ocrmypdf`;
 - demo input теперь содержит scanned PDF `07_scanned_signoff.pdf` и sidecar OCR text для ручной проверки OCR path;
+- demo PDF fixture `06_audit_summary.pdf` теперь содержит table-like и form-like layout для ручной проверки PDF table extraction path;
 - demo DOCX fixture теперь содержит approval matrix table, numbered checklist и appendix section для ручной проверки DOCX hardening path;
 - canonical parser теперь поддерживает `.xlsx` через `openpyxl`:
   - workbook sheets становятся structural sections;
@@ -1089,6 +1090,7 @@ Parser quality baseline текущего hardening-среза:
   - parser помечает блоки `layout_kind=paragraph|table_like`;
   - при обнаружении table-like blocks выставляется `pdf_table_like_blocks_detected` в parser quality flags.
   - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
+  - form-like key/value blocks извлекаются как tabular path с флагом `pdf_form_like_blocks_detected`.
 
 Smoke текущего demo input:
 

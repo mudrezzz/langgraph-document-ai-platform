@@ -450,6 +450,8 @@ class CanonicalDocumentParser:
                 blocks = ocr_blocks
         if any(str(block.metadata.get("layout_kind", "")).strip() == "table_like" for block in blocks):
             quality_flags.append("pdf_table_like_blocks_detected")
+        if any(str(block.metadata.get("pdf_table_kind", "")).strip() == "form_like" for block in blocks):
+            quality_flags.append("pdf_form_like_blocks_detected")
         if tables:
             quality_flags.append("pdf_tables_extracted")
         if blocks and len(blocks) < 2:
@@ -488,10 +490,11 @@ class CanonicalDocumentParser:
             if layout_kind == "table_like":
                 table_spec = _parse_pdf_table_spec(raw_block_text) or _parse_pdf_table_spec(text)
                 if table_spec is not None:
+                    header, data_rows, table_kind = table_spec
                     table_index += 1
                     parsed_table = _build_tabular_content(
-                        header=table_spec[0],
-                        data_rows=table_spec[1],
+                        header=header,
+                        data_rows=data_rows,
                         table_id=f"PDF-T-{table_index}",
                         title=heading_path[-1] if heading_path else f"Table {table_index}",
                         heading_path=heading_path,
@@ -502,6 +505,7 @@ class CanonicalDocumentParser:
                             "layout_source": "pdf_blocks",
                             "layout_kind": layout_kind,
                             "reading_order_index": block_index,
+                            "pdf_table_kind": table_kind,
                         },
                         block_metadata={
                             "source_kind": "table_row",
@@ -510,6 +514,7 @@ class CanonicalDocumentParser:
                             "layout_source": "pdf_blocks",
                             "layout_kind": layout_kind,
                             "reading_order_index": block_index,
+                            "pdf_table_kind": table_kind,
                         },
                     )
                     for row_block in parsed_table.blocks:
@@ -550,10 +555,11 @@ class CanonicalDocumentParser:
                 if layout_kind == "table_like":
                     table_spec = _parse_pdf_table_spec(raw_paragraph) or _parse_pdf_table_spec(text)
                     if table_spec is not None:
+                        header, data_rows, table_kind = table_spec
                         table_index += 1
                         parsed_table = _build_tabular_content(
-                            header=table_spec[0],
-                            data_rows=table_spec[1],
+                            header=header,
+                            data_rows=data_rows,
                             table_id=f"PDF-T-{table_index}",
                             title=heading_path[-1] if heading_path else f"Table {table_index}",
                             heading_path=heading_path,
@@ -563,6 +569,7 @@ class CanonicalDocumentParser:
                                 "layout_source": "pdf_text",
                                 "layout_kind": layout_kind,
                                 "reading_order_index": block_index,
+                                "pdf_table_kind": table_kind,
                             },
                             block_metadata={
                                 "source_kind": "table_row",
@@ -570,6 +577,7 @@ class CanonicalDocumentParser:
                                 "layout_source": "pdf_text",
                                 "layout_kind": layout_kind,
                                 "reading_order_index": block_index,
+                                "pdf_table_kind": table_kind,
                             },
                         )
                         for row_block in parsed_table.blocks:
@@ -840,6 +848,12 @@ def _build_quality_issue(
             severity="info",
             message="PDF parser extracted table rows into canonical table blocks",
             metadata={"tables_total": metrics.get("tables_total", 0)},
+        )
+    if flag == "pdf_form_like_blocks_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="PDF parser detected form-like key/value layout blocks",
         )
     if flag == "no_structural_headings":
         return ParserQualityIssue(
@@ -1118,7 +1132,7 @@ def _infer_pdf_layout_kind(text: str) -> str:
     return "paragraph"
 
 
-def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]]] | None:
+def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]], str] | None:
     lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
     if not lines:
         return None
@@ -1138,13 +1152,13 @@ def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]]] | None
     if len(pipe_rows) >= 2:
         width = max(len(row) for row in pipe_rows)
         normalized_rows = [row + [""] * (width - len(row)) for row in pipe_rows]
-        return normalized_rows[0], normalized_rows[1:]
+        return normalized_rows[0], normalized_rows[1:], "pipe_table"
 
     key_value_pairs = re.findall(r"(\w+)\s*:\s*([^;]+)", text)
     if len(key_value_pairs) >= 2:
         header = [_normalize_text(key) for key, _ in key_value_pairs]
         row = [_normalize_text(value) for _, value in key_value_pairs]
-        return header, [row]
+        return header, [row], "form_like"
 
     spaced_rows: list[list[str]] = []
     for line in lines:
@@ -1154,7 +1168,7 @@ def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]]] | None
     if len(spaced_rows) >= 2:
         width = max(len(row) for row in spaced_rows)
         normalized_rows = [row + [""] * (width - len(row)) for row in spaced_rows]
-        return normalized_rows[0], normalized_rows[1:]
+        return normalized_rows[0], normalized_rows[1:], "spaced_table"
 
     return None
 

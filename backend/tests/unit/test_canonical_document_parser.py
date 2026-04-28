@@ -363,6 +363,35 @@ def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> 
     assert any(issue.code == "pdf_tables_extracted" for issue in parsed.parser_quality.issues)
 
 
+def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "form_like.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_textbox(
+        fitz.Rect(72, 72, 520, 220),
+        (
+            "Release Gate Form\n"
+            "Approver: Security Lead; Decision: CONDITIONAL PASS; Ticket: SEC-742\n"
+            "Owner: Release Manager; Due: 2026-04-30; Escalation: Required\n"
+        ),
+    )
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert "pdf_tables_extracted" in parsed.quality_flags
+    assert "pdf_form_like_blocks_detected" in parsed.quality_flags
+    assert parsed.extracted_tables
+    assert any(table.metadata.get("pdf_table_kind") == "form_like" for table in parsed.extracted_tables)
+    assert any(block.block_type == "table_row" for block in parsed.content_blocks)
+    assert any(block.metadata.get("pdf_table_kind") == "form_like" for block in parsed.content_blocks)
+    assert any(issue.code == "pdf_form_like_blocks_detected" for issue in parsed.parser_quality.issues)
+
+
 def test_canonical_parser_reports_missing_docx_dependency_when_needed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

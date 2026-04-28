@@ -23,6 +23,7 @@
 5. Запись derived content blocks в `knowledge_blocks` read-model.
 6. Retrieval поверх canonical `knowledge_blocks`.
 7. Итоговый markdown report с canonical quality summary и source mapping.
+8. PDF table/form extraction path: `06_audit_summary.pdf` содержит table-like и form-like layout для проверки `table_row` provenance.
 
 ## Скрипты
 

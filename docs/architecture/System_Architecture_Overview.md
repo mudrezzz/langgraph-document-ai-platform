@@ -89,6 +89,7 @@
   - table-like PDF blocks теперь извлекаются в canonical `extracted_tables` с `PDF-T-*` table ids;
   - строки таблиц попадают в canonical corpus как `table_row` blocks;
   - parser quality flags включают `pdf_tables_extracted` при успешном table extraction.
+  - form-like key/value blocks поддерживаются тем же tabular extraction path с quality flag `pdf_form_like_blocks_detected`.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;
@@ -363,6 +364,7 @@
   - `docs/adr/0079-pdf-page-provenance-baseline-for-canonical-retrieval.md`.
   - `docs/adr/0080-pdf-reading-order-and-layout-kind-baseline.md`.
   - `docs/adr/0081-pdf-table-extraction-baseline-for-canonical-ingestion.md`.
+  - `docs/adr/0082-pdf-form-like-extraction-and-demo-fixture-hardening.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;

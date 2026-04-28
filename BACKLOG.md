@@ -939,6 +939,24 @@ Twelfth slice done:
 - targeted parser/retrieval/report/indexing tests: `44 passed` + cross-check set `54 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `304 passed`.
 
+Thirteenth slice done:
+
+- PDF table extraction hardening расширен form-like scenarios и demo-проверкой:
+  - parser распознает form-like key/value blocks как tabular extraction path;
+  - для form-like extraction добавлен quality flag `pdf_form_like_blocks_detected`;
+  - table metadata и `table_row` metadata содержат `pdf_table_kind=form_like|pipe_table|spaced_table`;
+- demo fixture `06_audit_summary.pdf` расширен:
+  - complex table-like release controls;
+  - form-like release gate block;
+  - позволяет вручную проверить извлечение `extracted_tables` и `table_row` из PDF в smoke/demo;
+- tests обновлены на demo + parser hardening assertions:
+  - проверяется `pdf_tables_extracted` + `pdf_form_like_blocks_detected`;
+  - проверяется presence `table_row` blocks и `pdf_table_kind=form_like`;
+- добавлен ADR `0082-pdf-form-like-extraction-and-demo-fixture-hardening.md`;
+- targeted parser/indexing/demo tests: `78 passed`;
+- targeted retrieval/report tests: `20 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `305 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -953,7 +971,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table extraction baseline закрыт; следующий шаг — forms/complex table layouts/reading-order hardening для сложных PDF;
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline закрыт; следующий шаг — complex merged tables/rotated layouts/forms-confidence hardening;
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;
