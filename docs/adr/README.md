@@ -96,3 +96,4 @@
 - `0083-pdf-extraction-coverage-and-partial-failure-gates.md`
 - `0084-pdf-form-confidence-policy-gate.md`
 - `0085-pdf-multiline-form-and-rotated-layout-hardening.md`
+- `0086-ocr-confidence-calibration-and-policy-gate.md`

@@ -48,6 +48,9 @@ class IndexingQualityPolicyDecision(BaseModel):
     form_confidence_min_score: int | None = None
     documents_with_pdf_form_confidence_low: int = 0
     pdf_form_confidence_by_doc: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    ocr_confidence_min_score: int | None = None
+    documents_with_ocr_confidence_low: int = 0
+    ocr_confidence_by_doc: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
 class KnowledgeIndexingQualityPolicy:
@@ -65,6 +68,9 @@ class KnowledgeIndexingQualityPolicy:
         form_confidence_min_score: int = 0,
         form_confidence_low_flag: str = "pdf_form_confidence_low",
         form_confidence_low_blocking: bool = False,
+        ocr_confidence_min_score: int = 0,
+        ocr_confidence_low_flag: str = "ocr_confidence_low",
+        ocr_confidence_low_blocking: bool = False,
     ) -> None:
         self.policy_name = policy_name
         self.blocking_flags = set(blocking_flags or _DEFAULT_BLOCKING_FLAGS)
@@ -75,6 +81,9 @@ class KnowledgeIndexingQualityPolicy:
         self.form_confidence_min_score = max(form_confidence_min_score, 0)
         self.form_confidence_low_flag = form_confidence_low_flag.strip() or "pdf_form_confidence_low"
         self.form_confidence_low_blocking = form_confidence_low_blocking
+        self.ocr_confidence_min_score = max(ocr_confidence_min_score, 0)
+        self.ocr_confidence_low_flag = ocr_confidence_low_flag.strip() or "ocr_confidence_low"
+        self.ocr_confidence_low_blocking = ocr_confidence_low_blocking
 
     def evaluate(
         self,
@@ -83,10 +92,12 @@ class KnowledgeIndexingQualityPolicy:
         quality_flags: list[str],
     ) -> IndexingQualityPolicyDecision:
         confidence_by_doc = self._form_confidence_by_doc(documents=documents)
+        ocr_confidence_by_doc = self._ocr_confidence_by_doc(documents=documents)
         flags_by_doc = self._flags_by_doc(
             documents=documents,
             quality_flags=quality_flags,
             confidence_by_doc=confidence_by_doc,
+            ocr_confidence_by_doc=ocr_confidence_by_doc,
         )
         blocking_flags: list[str] = []
         warning_flags: list[str] = []
@@ -171,6 +182,13 @@ class KnowledgeIndexingQualityPolicy:
                 if payload.get("is_low") and flags_by_doc.get(doc_id)
             ),
             pdf_form_confidence_by_doc=confidence_by_doc,
+            ocr_confidence_min_score=self.ocr_confidence_min_score or None,
+            documents_with_ocr_confidence_low=sum(
+                1
+                for doc_id, payload in ocr_confidence_by_doc.items()
+                if payload.get("is_low") and flags_by_doc.get(doc_id)
+            ),
+            ocr_confidence_by_doc=ocr_confidence_by_doc,
         )
 
     def _flags_by_doc(
@@ -179,6 +197,7 @@ class KnowledgeIndexingQualityPolicy:
         documents: list[CanonicalDocument],
         quality_flags: list[str],
         confidence_by_doc: dict[str, dict[str, Any]],
+        ocr_confidence_by_doc: dict[str, dict[str, Any]],
     ) -> dict[str, list[str]]:
         flags_by_doc: dict[str, list[str]] = {document.doc_id: [] for document in documents}
 
@@ -199,6 +218,10 @@ class KnowledgeIndexingQualityPolicy:
             if confidence and confidence.get("is_low"):
                 if self.form_confidence_low_flag not in flags_by_doc[document.doc_id]:
                     flags_by_doc[document.doc_id].append(self.form_confidence_low_flag)
+            ocr_confidence = ocr_confidence_by_doc.get(document.doc_id)
+            if ocr_confidence and ocr_confidence.get("is_low"):
+                if self.ocr_confidence_low_flag not in flags_by_doc[document.doc_id]:
+                    flags_by_doc[document.doc_id].append(self.ocr_confidence_low_flag)
 
         return flags_by_doc
 
@@ -220,11 +243,31 @@ class KnowledgeIndexingQualityPolicy:
             }
         return payload
 
+    def _ocr_confidence_by_doc(self, *, documents: list[CanonicalDocument]) -> dict[str, dict[str, Any]]:
+        payload: dict[str, dict[str, Any]] = {}
+        if self.ocr_confidence_min_score <= 0:
+            return payload
+
+        for document in documents:
+            score = _extract_ocr_confidence_score(document)
+            if score is None:
+                continue
+            is_low = score < self.ocr_confidence_min_score
+            payload[document.doc_id] = {
+                "score": score,
+                "threshold": self.ocr_confidence_min_score,
+                "is_low": is_low,
+                "blocking": is_low and self.ocr_confidence_low_blocking,
+            }
+        return payload
+
     def _is_blocking(self, flag_code: str, doc_flags: set[str]) -> bool:
         if flag_code in self.warning_only_flags:
             return False
         if flag_code == self.form_confidence_low_flag and self.form_confidence_min_score > 0:
             return self.form_confidence_low_blocking
+        if flag_code == self.ocr_confidence_low_flag and self.ocr_confidence_min_score > 0:
+            return self.ocr_confidence_low_blocking
         if flag_code not in self.blocking_flags:
             return False
         if (
@@ -248,6 +291,20 @@ def _extract_form_confidence_score(document: CanonicalDocument) -> int | None:
         if issue.code != "pdf_form_like_blocks_detected":
             continue
         score_raw = issue.metadata.get("form_confidence_score")
+        if score_raw is None:
+            continue
+        try:
+            return int(score_raw)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _extract_ocr_confidence_score(document: CanonicalDocument) -> int | None:
+    for issue in document.parser_quality.issues:
+        if issue.code != "ocr_applied":
+            continue
+        score_raw = issue.metadata.get("ocr_confidence_score")
         if score_raw is None:
             continue
         try:

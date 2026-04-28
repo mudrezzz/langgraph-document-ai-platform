@@ -102,6 +102,10 @@
   - form-like parser поддерживает ключи с пробелами/дефисами и multi-line continuation values;
   - PDF metadata теперь помечает `rotated_text=true|false` для page/table blocks;
   - parser quality flags включает `pdf_rotated_layout_detected` с rotated candidates diagnostics.
+- Knowledge Factory Hardening / OCR confidence calibration slice:
+  - parser issue `ocr_applied` теперь содержит OCR diagnostics (`ocr_blocks_total`, `ocr_words_total`, `ocr_weird_char_ratio_percent`, `ocr_confidence_score`);
+  - indexing quality policy добавляет synthetic flag `ocr_confidence_low` при score ниже env-threshold;
+  - quality summary агрегирует `documents_with_ocr_confidence_low` и отдает `ocr_confidence_min_score` + `ocr_confidence_by_doc`.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;
@@ -124,6 +128,7 @@
   - rejected documents не пишутся в canonical store и не индексируются в vector store;
   - policy runtime configurable через `APP_INDEXING_QUALITY_*` env contract;
   - PDF form-confidence knobs: `APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE` и `APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING`;
+  - OCR confidence knobs: `APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE` и `APP_INDEXING_QUALITY_OCR_CONFIDENCE_LOW_BLOCKING`;
   - `quality_summary` расширен policy metadata (`policy_name`, accepted/rejected ids/counts, blocking/warning flags).
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;

@@ -1013,6 +1013,27 @@ Sixteenth slice done:
 - targeted parser/indexing/integration tests: `87 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `311 passed`.
 
+Seventeenth slice done:
+
+- добавлена OCR confidence calibration baseline для scanned PDF path:
+  - parser issue `ocr_applied` теперь отдает diagnostics metadata:
+    - `ocr_blocks_total`;
+    - `ocr_words_total`;
+    - `ocr_weird_char_ratio_percent`;
+    - `ocr_confidence_score`;
+- `KnowledgeIndexingQualityPolicy` расширен OCR confidence threshold-политикой:
+  - env `APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE` включает threshold (0..100);
+  - при score ниже threshold policy добавляет synthetic flag `ocr_confidence_low`;
+  - env `APP_INDEXING_QUALITY_OCR_CONFIDENCE_LOW_BLOCKING=true|false` включает fail-fast blocking или warning-only режим;
+- indexing aggregate quality summary расширен:
+  - `documents_with_ocr_confidence_low`;
+  - `ocr_confidence_min_score`;
+  - `ocr_confidence_by_doc`;
+- report/smoke/docs обновлены для OCR confidence counters и policy knobs;
+- добавлен ADR `0086-ocr-confidence-calibration-and-policy-gate.md`;
+- targeted parser/policy/indexing/report/integration tests: `90 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `314 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -1027,7 +1048,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates, form-confidence policy gate и multi-line/rotated hardening baseline закрыты; следующий шаг — complex merged tables and OCR-confidence calibration hardening;
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates, form-confidence policy gate, multi-line/rotated hardening и OCR-confidence calibration baseline закрыты; следующий шаг — complex merged tables + OCR calibration tuning на real corpus.
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

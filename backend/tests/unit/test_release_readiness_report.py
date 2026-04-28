@@ -34,7 +34,9 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                     "documents_with_pdf_table_partial": 0,
                     "documents_with_pdf_form_like": 1,
                     "documents_with_pdf_form_confidence_low": 1,
+                    "documents_with_ocr_confidence_low": 1,
                     "form_confidence_min_score": 80,
+                    "ocr_confidence_min_score": 65,
                 },
                 "parser_quality": {
                     "DOCX-1": {
@@ -119,7 +121,9 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "documents_with_pdf_table_partial: `0`" in report
     assert "documents_with_pdf_form_like: `1`" in report
     assert "documents_with_pdf_form_confidence_low: `1`" in report
+    assert "documents_with_ocr_confidence_low: `1`" in report
     assert "form_confidence_min_score: `80`" in report
+    assert "ocr_confidence_min_score: `65`" in report
     assert "### Parser Diagnostics" in report
     assert "doc_id=`DOCX-1`, parser_family=`docx`" in report
     assert "`DOCX-1:docx_tables_detected`" in report

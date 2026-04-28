@@ -79,6 +79,8 @@ APP_INDEXING_OCR_RECOVERY_BLOCKING_FLAG=pdf_no_extractable_text
 APP_INDEXING_OCR_RECOVERY_SUCCESS_FLAG=ocr_applied
 APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE=0
 APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING=false
+APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE=0
+APP_INDEXING_QUALITY_OCR_CONFIDENCE_LOW_BLOCKING=false
 REDIS_PORT=56379
 
 POSTGRES_DB=langgraph
@@ -528,6 +530,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - `quality_flags` также может содержать `*:pdf_rotated_layout_detected` для PDF с rotated text blocks;
 - `quality_flags` может содержать `*:pdf_table_extraction_partial`, если часть table-like блоков в PDF не извлеклась;
 - при включенном threshold (`APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE>0`) `quality_flags` может содержать `*:pdf_form_confidence_low`;
+- при включенном threshold (`APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE>0`) `quality_flags` может содержать `*:ocr_confidence_low`;
 - `ocr_recovered_doc_ids` содержит OCR fixture `07SCANNE-*`.
 - `parser_quality_summary.policy_name=default_indexing_quality_policy_v1`;
 - `parser_quality_summary.accepted_documents_total=9`;
@@ -539,6 +542,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - в `parser_quality` для `06_audit_summary.pdf` по issue `pdf_form_like_blocks_detected` видны key/value + confidence diagnostics, включая multi-line form values.
 - в `quality_summary` видны aggregate counters `documents_with_pdf_table_partial` и `documents_with_pdf_form_like`.
 - в `quality_summary` также есть `documents_with_pdf_form_confidence_low`; при активном threshold также видно `form_confidence_min_score` и `pdf_form_confidence_by_doc`.
+- в `quality_summary` также есть `documents_with_ocr_confidence_low`; при активном threshold также видно `ocr_confidence_min_score` и `ocr_confidence_by_doc`.
 
 Как интерпретировать:
 

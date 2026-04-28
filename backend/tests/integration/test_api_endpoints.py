@@ -536,6 +536,7 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     assert details["quality_summary"]["documents_with_pdf_table_partial"] >= 0
     assert details["quality_summary"]["documents_with_pdf_form_like"] >= 0
     assert details["quality_summary"]["documents_with_pdf_form_confidence_low"] >= 0
+    assert details["quality_summary"]["documents_with_ocr_confidence_low"] >= 0
     assert details["parser_quality"]
     state_payload = get_container().task_service.get_state_payload(payload["task_id"])
     docx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "docx")

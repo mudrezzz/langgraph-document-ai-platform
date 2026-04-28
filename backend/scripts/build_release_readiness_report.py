@@ -222,8 +222,11 @@ def _build_report(
             f"- documents_with_pdf_form_confidence_low: "
             f"`{quality_summary.get('documents_with_pdf_form_confidence_low', 0)}`"
         )
+        lines.append(f"- documents_with_ocr_confidence_low: `{quality_summary.get('documents_with_ocr_confidence_low', 0)}`")
         if quality_summary.get("form_confidence_min_score") is not None:
             lines.append(f"- form_confidence_min_score: `{quality_summary.get('form_confidence_min_score')}`")
+        if quality_summary.get("ocr_confidence_min_score") is not None:
+            lines.append(f"- ocr_confidence_min_score: `{quality_summary.get('ocr_confidence_min_score')}`")
         flags = indexing_details.get("quality_flags", []) or quality_summary.get("warning_flags", []) or []
         if flags:
             lines.append("")

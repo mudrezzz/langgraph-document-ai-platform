@@ -330,7 +330,28 @@ def test_canonical_parser_uses_sidecar_ocr_for_scanned_pdf(tmp_path: Path) -> No
     assert parsed.content_blocks[0].metadata["layout_source"] == "ocr_text"
     assert parsed.content_blocks[0].metadata["reading_order_index"] == 1
     assert parsed.content_blocks[0].metadata["layout_kind"] in {"paragraph", "table_like"}
-    assert any(issue.code == "ocr_applied" for issue in parsed.parser_quality.issues)
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "ocr_applied")
+    assert issue.metadata["ocr_blocks_total"] >= 1
+    assert issue.metadata["ocr_words_total"] >= 3
+    assert issue.metadata["ocr_confidence_score"] > 0
+
+
+def test_canonical_parser_reports_low_ocr_confidence_for_garbled_text(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "scan_garbled.pdf"
+    pdf = fitz.open()
+    pdf.new_page()
+    pdf.save(source)
+    pdf.close()
+    source.with_suffix(".pdf.ocr.txt").write_text("### @@ !!\n\n### @@ !!", encoding="utf-8")
+
+    parsed = CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway()).parse_path(source)
+
+    issue = next(item for item in parsed.parser_quality.issues if item.code == "ocr_applied")
+    assert issue.metadata["ocr_words_total"] == 0
+    assert issue.metadata["ocr_confidence_score"] < 40
 
 
 def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> None:

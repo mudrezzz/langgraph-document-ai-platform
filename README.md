@@ -1042,6 +1042,9 @@ Canonical ingestion работает через отдельный persistence/r
   - PDF form-confidence gate настраивается через:
     - `APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE` (0..100, `0` отключает threshold);
     - `APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING` (`true|false`) для fail-fast режима.
+  - OCR confidence gate настраивается через:
+    - `APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE` (0..100, `0` отключает threshold);
+    - `APP_INDEXING_QUALITY_OCR_CONFIDENCE_LOW_BLOCKING` (`true|false`) для fail-fast режима.
 
 Поддерживаемые форматы текущего среза:
 
@@ -1085,6 +1088,9 @@ Parser quality baseline текущего hardening-среза:
   - `documents_with_pdf_form_confidence_low`;
   - `form_confidence_min_score`;
   - `pdf_form_confidence_by_doc` (score/threshold/is_low/blocking).
+  - `documents_with_ocr_confidence_low`;
+  - `ocr_confidence_min_score`;
+  - `ocr_confidence_by_doc` (score/threshold/is_low/blocking).
 - retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
   - `source_kind=table_row`;
   - `table_id`, `table_title`, `table_columns`;
@@ -1128,6 +1134,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 - `quality_summary.parser_families` содержит используемые parser families;
 - `quality_summary.documents_needing_ocr >= 1` для текущего demo OCR fixture;
 - `quality_summary.documents_with_pdf_form_confidence_low >= 0`, а `quality_summary.form_confidence_min_score` отражает активный threshold;
+- `quality_summary.documents_with_ocr_confidence_low >= 0`, а `quality_summary.ocr_confidence_min_score` отражает активный threshold;
 - `parser_quality` присутствует в Knowledge Indexing API smoke output;
 - `events_summary_has_running_to_completed=true` в Knowledge Indexing API smoke;
 - `knowledge_source=canonical` в canonical retrieval smoke;

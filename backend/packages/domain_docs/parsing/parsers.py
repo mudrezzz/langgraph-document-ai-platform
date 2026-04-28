@@ -723,6 +723,15 @@ class CanonicalDocumentParser:
                 blocks.append(block)
 
         metrics["pages_total"] = max(int(metrics.get("pages_total") or 0), len(ocr_result.page_texts))
+        (
+            metrics["ocr_blocks_total"],
+            metrics["ocr_words_total"],
+            metrics["ocr_weird_char_ratio_percent"],
+            metrics["ocr_confidence_score"],
+        ) = _build_ocr_confidence_metrics(
+            blocks=blocks,
+            pages_total=len(ocr_result.page_texts),
+        )
         return blocks
 
     def _parse_pptx(
@@ -892,6 +901,12 @@ def _build_quality_issue(
             code=flag,
             severity="info",
             message="OCR fallback recovered text for scanned PDF",
+            metadata={
+                "ocr_blocks_total": metrics.get("ocr_blocks_total", 0),
+                "ocr_words_total": metrics.get("ocr_words_total", 0),
+                "ocr_weird_char_ratio_percent": metrics.get("ocr_weird_char_ratio_percent", 0),
+                "ocr_confidence_score": metrics.get("ocr_confidence_score", 0),
+            },
         )
     if flag.startswith("ocr_provider:"):
         provider = flag.split(":", 1)[1] or "unknown"
@@ -1330,6 +1345,39 @@ def _build_pdf_form_quality_metrics(tables: list[CanonicalTable]) -> tuple[int, 
     pair_depth_score = int(round((min(key_value_pairs_total, 6) / 6) * 20)) if key_value_pairs_total else 0
     form_confidence_score = int(round(field_fill_rate_percent * 0.8 + pair_depth_score)) if key_value_pairs_total else 0
     return key_value_pairs_total, key_value_pairs_extracted, field_fill_rate_percent, min(form_confidence_score, 100)
+
+
+def _build_ocr_confidence_metrics(*, blocks: list[CanonicalContentBlock], pages_total: int) -> tuple[int, int, int, int]:
+    if not blocks:
+        return 0, 0, 0, 0
+
+    words_total = 0
+    cleaned_chars_total = 0
+    weird_chars_total = 0
+    for block in blocks:
+        text = block.text or ""
+        words_total += len(re.findall(r"[A-Za-zА-Яа-я0-9]+", text))
+        for char in text:
+            if char.isspace():
+                continue
+            cleaned_chars_total += 1
+            if char.isalnum():
+                continue
+            if char in ".,;:!?-_/()[]{}@#%&+'\"":
+                continue
+            weird_chars_total += 1
+
+    weird_ratio = (weird_chars_total / cleaned_chars_total) if cleaned_chars_total else 0.0
+    weird_ratio_percent = int(round(weird_ratio * 100))
+    blocks_total = len(blocks)
+    words_per_page = words_total / float(max(pages_total, 1))
+    avg_words_per_block = words_total / float(blocks_total)
+
+    density_score = min(words_per_page / 25.0, 1.0) * 45.0
+    block_score = min(avg_words_per_block / 10.0, 1.0) * 35.0
+    charset_score = max(0.0, 1.0 - weird_ratio * 2.0) * 20.0
+    confidence_score = int(round(density_score + block_score + charset_score))
+    return blocks_total, words_total, weird_ratio_percent, max(0, min(confidence_score, 100))
 
 
 def _parse_pdf_form_key_value_pairs(lines: list[str]) -> list[tuple[str, str]]:

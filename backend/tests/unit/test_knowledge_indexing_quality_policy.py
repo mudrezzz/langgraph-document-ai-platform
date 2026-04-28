@@ -9,7 +9,13 @@ from schemas.documents.contracts import (
 )
 
 
-def _document(*, doc_id: str, flags: list[str], form_confidence_score: int | None = None) -> CanonicalDocument:
+def _document(
+    *,
+    doc_id: str,
+    flags: list[str],
+    form_confidence_score: int | None = None,
+    ocr_confidence_score: int | None = None,
+) -> CanonicalDocument:
     issues = []
     if form_confidence_score is not None:
         issues.append(
@@ -18,6 +24,15 @@ def _document(*, doc_id: str, flags: list[str], form_confidence_score: int | Non
                 severity="info",
                 message="PDF parser detected form-like key/value layout blocks",
                 metadata={"form_confidence_score": form_confidence_score},
+            )
+        )
+    if ocr_confidence_score is not None:
+        issues.append(
+            ParserQualityIssue(
+                code="ocr_applied",
+                severity="info",
+                message="OCR fallback recovered text for scanned PDF",
+                metadata={"ocr_confidence_score": ocr_confidence_score},
             )
         )
     return CanonicalDocument(
@@ -107,3 +122,46 @@ def test_quality_policy_can_block_on_low_form_confidence() -> None:
     assert decision.gate_status == "failed"
     assert decision.rejected_documents_total == 1
     assert f"{document.doc_id}:pdf_form_confidence_low" in decision.blocking_flags
+
+
+def test_quality_policy_adds_ocr_confidence_low_warning_by_threshold() -> None:
+    document = _document(
+        doc_id="DOC-5",
+        flags=["ocr_applied"],
+        ocr_confidence_score=41,
+    )
+
+    decision = KnowledgeIndexingQualityPolicy(
+        ocr_confidence_min_score=70,
+    ).evaluate(
+        documents=[document],
+        quality_flags=[f"{document.doc_id}:{flag}" for flag in document.quality_flags],
+    )
+
+    assert decision.gate_status == "warning"
+    assert decision.rejected_documents_total == 0
+    assert f"{document.doc_id}:ocr_confidence_low" in decision.warning_flags
+    assert decision.documents_with_ocr_confidence_low == 1
+    assert decision.ocr_confidence_by_doc[document.doc_id]["score"] == 41
+    assert decision.ocr_confidence_by_doc[document.doc_id]["threshold"] == 70
+    assert decision.ocr_confidence_by_doc[document.doc_id]["blocking"] is False
+
+
+def test_quality_policy_can_block_on_low_ocr_confidence() -> None:
+    document = _document(
+        doc_id="DOC-6",
+        flags=["ocr_applied"],
+        ocr_confidence_score=22,
+    )
+
+    decision = KnowledgeIndexingQualityPolicy(
+        ocr_confidence_min_score=60,
+        ocr_confidence_low_blocking=True,
+    ).evaluate(
+        documents=[document],
+        quality_flags=[f"{document.doc_id}:{flag}" for flag in document.quality_flags],
+    )
+
+    assert decision.gate_status == "failed"
+    assert decision.rejected_documents_total == 1
+    assert f"{document.doc_id}:ocr_confidence_low" in decision.blocking_flags

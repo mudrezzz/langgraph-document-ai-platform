@@ -56,3 +56,11 @@ APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE=90 \
 APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING=false \
 bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 ```
+
+Пример ручной проверки OCR-confidence threshold (warning mode):
+
+```bash
+APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE=70 \
+APP_INDEXING_QUALITY_OCR_CONFIDENCE_LOW_BLOCKING=false \
+bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
+```

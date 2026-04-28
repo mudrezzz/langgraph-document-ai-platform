@@ -35,6 +35,8 @@ def test_build_binary_demo_documents_are_parseable(tmp_path: Path) -> None:
     xlsx_document = next(document for document in documents if document.metadata_profile["file_name"] == "08_release_tracker.xlsx")
     pptx_document = next(document for document in documents if document.metadata_profile["file_name"] == "09_release_briefing.pptx")
     assert "ocr_applied" in scanned.quality_flags
+    scanned_ocr_issue = next(item for item in scanned.parser_quality.issues if item.code == "ocr_applied")
+    assert scanned_ocr_issue.metadata["ocr_confidence_score"] > 0
     assert docx_document.extracted_tables
     assert any(block.block_type == "table_row" for block in docx_document.content_blocks)
     assert docx_document.extracted_tables[0].title == "Approval Matrix"
