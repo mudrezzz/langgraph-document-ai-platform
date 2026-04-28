@@ -71,6 +71,12 @@ APP_CELERY_RETRIEVAL_QUEUE=retrieval
 APP_HITL_MAX_ITERATIONS=2
 APP_HITL_WAIT_TIMEOUT_SEC=1800
 APP_AUTH_ENABLED=false
+APP_INDEXING_QUALITY_POLICY_NAME=default_indexing_quality_policy_v1
+APP_INDEXING_QUALITY_BLOCKING_FLAGS=empty_document,no_content_blocks,pdf_no_extractable_text,ocr_text_not_recovered
+APP_INDEXING_QUALITY_WARNING_ONLY_FLAGS=
+APP_INDEXING_ALLOW_RECOVERED_OCR=true
+APP_INDEXING_OCR_RECOVERY_BLOCKING_FLAG=pdf_no_extractable_text
+APP_INDEXING_OCR_RECOVERY_SUCCESS_FLAG=ocr_applied
 REDIS_PORT=56379
 
 POSTGRES_DB=langgraph
@@ -211,8 +217,8 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 
 Что делает скрипт:
 
-1. гарантирует наличие `.docx/.pdf` demo input files;
-2. запускает Knowledge Indexing API для директории `input/` (`.md`, `.txt`, `.json`, `.docx`, `.pdf`);
+1. гарантирует наличие `.docx/.pdf/.xlsx/.pptx` demo input files;
+2. запускает Knowledge Indexing API для директории `input/` (`.md`, `.txt`, `.json`, `.docx`, `.pdf`, `.xlsx`, `.pptx`);
 3. берет `indexed_doc_ids` из indexing task details;
 4. запускает retrieval через `task_context.knowledge_source=canonical` и `canonical_doc_ids`;
 5. формирует отчет `output/release_readiness_report.md`.
@@ -241,7 +247,7 @@ bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --
 
 Еще не реализовано:
 
-- OCR/rich layout extraction для scanned PDF;
+- rich layout semantics extraction (tables/forms/reading-order for PDF beyond page-level baseline);
 - отдельный reviewer UI/dashboard для мониторинга очереди HITL решений;
 - отдельный production dashboard по агрегатам task events за периоды.
 
@@ -263,6 +269,7 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_retrieval_mcp.sh
 - `search_summaries` ищет indexed canonical section summaries через pgvector;
 - `search_blocks` ищет indexed canonical content blocks через pgvector;
 - `lookup_source` возвращает source/canonical mapping по `doc_id`/`block_id` или `block_ref`;
+- для PDF blocks `lookup_source` теперь также отдает page-level provenance (`page_number`, `layout_source`, `bbox`);
 - для indexed tools нужен PostgreSQL/pgvector контур с ранее выполненным Knowledge Indexing.
 
 ## 9.1. Smoke Retrieval MCP indexed tools
@@ -282,6 +289,7 @@ bash backend/scripts/smoke_retrieval_mcp.sh --build-binary-demo-docs
 - `block_candidates >= 1`;
 - `lookup_found=true`;
 - для DOCX approval matrix lookup может показать `lookup_source_kind=table_row`, `lookup_table_title=Approval Matrix`, `lookup_row_index`;
+- для PDF evidence lookup может показать `lookup_source_kind=page_block`, `lookup_page_number`, `lookup_layout_source`;
 - `summary_backend=pgvector` и `block_backend=pgvector`;
 - `build_status=completed`;
 - `evidence_blocks >= 1`.
@@ -483,16 +491,18 @@ PATH="$(pwd)/.venv/bin:$PATH" bash backend/scripts/run_configuration_library_mcp
 - `backend/examples/cases/release_go_no_go_multifile_case/input/04_approvals.json`
 - `backend/examples/cases/release_go_no_go_multifile_case/input/05_release_notes.docx`
 - `backend/examples/cases/release_go_no_go_multifile_case/input/06_audit_summary.pdf`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/07_scanned_signoff.pdf`
 - `backend/examples/cases/release_go_no_go_multifile_case/input/08_release_tracker.xlsx`
+- `backend/examples/cases/release_go_no_go_multifile_case/input/09_release_briefing.pptx`
 
-Если нужно явно пересобрать `.docx/.pdf` входы:
+Если нужно явно пересобрать `.docx/.pdf/.xlsx/.pptx` входы:
 
 ```bash
 PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/build_binary_demo_documents.sh --overwrite
 ```
 
-Обычный smoke можно запускать с флагом `--build-binary-demo-docs`: тогда `.docx/.pdf` будут созданы перед индексированием, если их нет.
+Обычный smoke можно запускать с флагом `--build-binary-demo-docs`: тогда `.docx/.pdf/.xlsx/.pptx` будут созданы перед индексированием, если их нет.
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -504,15 +514,18 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 
 Что увидеть в JSON:
 
-- `documents_total=8`;
+- `documents_total=9`;
 - `indexed_doc_ids` содержит также `07SCANNE-*` для OCR fixture;
 - `content_blocks_total` около `40` или больше при изменении fixture;
 - `stored_blocks_for_indexed_docs_total` около `40` или больше;
 - `stored_blocks_total` может быть больше, если в той же БД уже были прошлые indexing smoke;
 - `embeddings_indexed` около `40` или больше;
-- `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`, `xlsx`;
+- `file_types` содержит `docx`, `json`, `md`, `pdf`, `pptx`, `txt`, `xlsx`;
 - `quality_flags` содержит `07SCANNE-*:ocr_required` и `07SCANNE-*:ocr_applied` для scanned PDF fixture;
 - `ocr_recovered_doc_ids` содержит OCR fixture `07SCANNE-*`.
+- `parser_quality_summary.policy_name=default_indexing_quality_policy_v1`;
+- `parser_quality_summary.accepted_documents_total=9`;
+- `parser_quality_summary.rejected_documents_total=0`;
 - для `07SCANNE-*` больше не должно быть `ocr_not_available` в direct smoke при `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar`;
 - в `parser_quality` для DOCX видно `tables_total >= 1`, а в canonical DOCX есть `table_row` blocks из approval matrix.
 - в `parser_quality` для XLSX видно `parser_family=xlsx`, а workbook sheet rows попадают в canonical corpus как `table_row` blocks.
@@ -545,11 +558,13 @@ bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs --
 - `start_status=completed`;
 - `task_status=completed`;
 - `document_version` отражает запрошенную indexing version;
-- `documents_total=8`;
-- `file_types` содержит `docx`, `json`, `md`, `pdf`, `txt`, `xlsx`;
+- `documents_total=9`;
+- `file_types` содержит `docx`, `json`, `md`, `pdf`, `pptx`, `txt`, `xlsx`;
 - `stored_blocks_total` около `40` или больше;
 - `embeddings_indexed` около `40` или больше;
 - `quality_gate_status=passed|warning`;
+- `quality_summary.policy_name=default_indexing_quality_policy_v1`;
+- `quality_summary.rejected_documents_total=0` для текущего demo input;
 - `ocr_recovered_doc_ids` содержит scanned PDF doc_id;
 - `events_summary_has_running_to_completed=true`.
 
@@ -819,7 +834,7 @@ python backend/scripts/smoke_knowledge_indexing_api.py --host 127.0.0.1 --port 8
 - есть `dispatch_id`, `correlation_id`, `queue_name`, `queue_wait_ms`;
 - `events_summary_has_running_to_completed=true`;
 - `observability_total_tasks >= 1`;
-- `documents_total=8`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
+- `documents_total=9`, `stored_blocks_total > 0`, `quality_gate_status=passed|warning`;
 - `quality_summary.parser_families` содержит как минимум `docx`, `json`, `markdown`, `pdf`, `text`;
 - `parser_quality` содержит diagnostics по каждому `doc_id`, включая scanned PDF с `ocr_required` и `ocr_applied`;
 - worker обрабатывает задачу из очереди `knowledge-indexing`, а не только `authoring`.

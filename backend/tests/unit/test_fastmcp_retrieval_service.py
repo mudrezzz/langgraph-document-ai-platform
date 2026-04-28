@@ -131,6 +131,10 @@ def test_fastmcp_retrieval_service_search_blocks_returns_detail_candidates() -> 
     assert candidate["source"]["block_id"] == "B-1"
     assert candidate["metadata"]["block_kind"] == "content_block"
     assert candidate["metadata"]["block_ref"] == "DOC-1:1:B-1"
+    assert candidate["metadata"]["source_kind"] == "page_block"
+    assert candidate["metadata"]["page_number"] == 2
+    assert candidate["metadata"]["layout_source"] == "pdf_blocks"
+    assert candidate["metadata"]["bbox"] == [10.0, 20.0, 200.0, 40.0]
 
 
 def test_fastmcp_retrieval_service_search_blocks_returns_table_row_provenance() -> None:
@@ -198,6 +202,10 @@ def test_fastmcp_retrieval_service_lookup_source_returns_block_mapping() -> None
     assert result["file_type"] == "md"
     assert result["document_metadata"]["document_type"] == "security"
     assert result["block"]["text"] == "Security approval is still pending."
+    assert result["source_provenance"]["source_kind"] == "page_block"
+    assert result["source_provenance"]["page_number"] == 2
+    assert result["source_provenance"]["layout_source"] == "pdf_blocks"
+    assert result["source_provenance"]["bbox"] == [10.0, 20.0, 200.0, 40.0]
 
 
 def test_fastmcp_retrieval_service_lookup_source_returns_table_row_mapping() -> None:
@@ -301,7 +309,15 @@ def _build_indexed_mcp_service_with_versions() -> FastMcpRetrievalService:
                     block_type="paragraph",
                     text="Security approval is still pending.",
                     heading_path=["Security"],
-                    metadata={"project_id": "p1", "document_type": "security", "tags": ["release"]},
+                    metadata={
+                        "project_id": "p1",
+                        "document_type": "security",
+                        "tags": ["release"],
+                        "source_kind": "page_block",
+                        "page_number": 2,
+                        "layout_source": "pdf_blocks",
+                        "bbox": [10.0, 20.0, 200.0, 40.0],
+                    },
                 )
             ],
             section_summaries=[],
@@ -354,7 +370,15 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
                     block_type="paragraph",
                     text="Security approval is still pending.",
                     heading_path=["Security"],
-                    metadata={"project_id": "p1", "document_type": "security", "tags": ["release"]},
+                    metadata={
+                        "project_id": "p1",
+                        "document_type": "security",
+                        "tags": ["release"],
+                        "source_kind": "page_block",
+                        "page_number": 2,
+                        "layout_source": "pdf_blocks",
+                        "bbox": [10.0, 20.0, 200.0, 40.0],
+                    },
                 )
             ],
             section_summaries=[
@@ -450,6 +474,10 @@ def _build_indexed_mcp_service() -> FastMcpRetrievalService:
             "file_type": "md",
             "block_type": "paragraph",
             "heading_path": ["Security"],
+            "source_kind": "page_block",
+            "page_number": 2,
+            "layout_source": "pdf_blocks",
+            "bbox": [10.0, 20.0, 200.0, 40.0],
         },
     )
     vector_store.upsert_vector(

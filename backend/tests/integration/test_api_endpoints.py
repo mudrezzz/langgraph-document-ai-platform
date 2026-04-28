@@ -509,6 +509,7 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
         / "input"
     )
     pytest.importorskip("openpyxl")
+    pytest.importorskip("pptx")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     response = client.post(
@@ -526,9 +527,9 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     task_status = client.get(f"/api/v1/tasks/{payload['task_id']}").json()
     details = task_status["details"]
     assert task_status["status"] == "completed"
-    assert details["documents_total"] == 8
-    assert details["file_types"] == ["docx", "json", "md", "pdf", "txt", "xlsx"]
-    assert details["stored_blocks_total"] >= 8
+    assert details["documents_total"] == 9
+    assert details["file_types"] == ["docx", "json", "md", "pdf", "pptx", "txt", "xlsx"]
+    assert details["stored_blocks_total"] >= 9
     assert details["quality_gate_status"] in {"passed", "warning"}
     assert details["quality_summary"]["quality_flags_total"] >= 0
     assert details["quality_summary"]["documents_needing_ocr"] >= 1
@@ -540,6 +541,9 @@ def test_knowledge_indexing_endpoint_records_task_lifecycle(client: TestClient) 
     xlsx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "xlsx")
     assert xlsx_doc["extracted_tables"]
     assert any(block["block_type"] == "table_row" for block in xlsx_doc["content_blocks"])
+    pptx_doc = next(item for item in state_payload["documents"] if item["file_type"] == "pptx")
+    assert any(block["block_type"] == "slide_title" for block in pptx_doc["content_blocks"])
+    assert any(block["block_type"] == "note" for block in pptx_doc["content_blocks"])
 
     summary_response = client.get(
         f"/api/v1/tasks/events/summary?task_id={quote(payload['task_id'])}&task_type=knowledge_indexing"
@@ -563,6 +567,7 @@ def test_knowledge_indexing_endpoint_accepts_document_version(client: TestClient
         / "input"
     )
     pytest.importorskip("openpyxl")
+    pytest.importorskip("pptx")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     response = client.post(

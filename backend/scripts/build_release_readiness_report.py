@@ -282,6 +282,10 @@ def _build_report(
                 provenance_bits.append(f"table_title=`{item.get('table_title')}`")
             if item.get("table_row_refs"):
                 provenance_bits.append(f"table_rows=`{', '.join(item.get('table_row_refs', []))}`")
+            if item.get("page_refs"):
+                provenance_bits.append(f"pages=`{', '.join(item.get('page_refs', []))}`")
+            if item.get("layout_sources"):
+                provenance_bits.append(f"layout_sources=`{', '.join(item.get('layout_sources', []))}`")
             provenance_suffix = f", {' , '.join(provenance_bits)}" if provenance_bits else ""
             lines.append(
                 "- "
@@ -390,6 +394,17 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
             item.setdefault("table_row_refs", [])
             if row_ref not in item["table_row_refs"]:
                 item["table_row_refs"].append(row_ref)
+        page_number = metadata.get("page_number")
+        if isinstance(page_number, int):
+            page_ref = f"p{page_number}"
+            item.setdefault("page_refs", [])
+            if page_ref not in item["page_refs"]:
+                item["page_refs"].append(page_ref)
+        layout_source = str(metadata.get("layout_source", "")).strip()
+        if layout_source:
+            item.setdefault("layout_sources", [])
+            if layout_source not in item["layout_sources"]:
+                item["layout_sources"].append(layout_source)
         for flag in metadata.get("quality_flags", []) or []:
             if flag not in item["quality_flags"]:
                 item["quality_flags"].append(flag)
@@ -404,6 +419,8 @@ def _build_source_mappings(*, selected_blocks: list[dict], selected_sources: lis
         normalized.setdefault("doc_title", "")
         normalized.setdefault("table_title", "")
         normalized["table_row_refs"] = sorted(normalized.get("table_row_refs", []))
+        normalized["page_refs"] = sorted(normalized.get("page_refs", []))
+        normalized["layout_sources"] = sorted(normalized.get("layout_sources", []))
         result.append(normalized)
 
     result.sort(key=lambda item: (-int(item.get("evidence_blocks", 0)), item.get("doc_id", "")))

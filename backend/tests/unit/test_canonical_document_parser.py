@@ -73,16 +73,18 @@ def test_canonical_parser_parses_release_demo_directory() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
     pytest.importorskip("openpyxl")
+    pytest.importorskip("pptx")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
 
     documents = CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway()).parse_dir(dataset_dir)
 
-    assert len(documents) == 8
-    assert {document.file_type for document in documents} == {"docx", "json", "md", "pdf", "txt", "xlsx"}
+    assert len(documents) == 9
+    assert {document.file_type for document in documents} == {"docx", "json", "md", "pdf", "txt", "xlsx", "pptx"}
     assert sum(len(document.content_blocks) for document in documents) >= 8
     assert any(document.parser_quality.parser_family == "docx" for document in documents)
     assert any(document.parser_quality.parser_family == "pdf" for document in documents)
     assert any(document.parser_quality.parser_family == "xlsx" for document in documents)
+    assert any(document.parser_quality.parser_family == "pptx" for document in documents)
 
 
 def test_canonical_parser_reports_docx_table_quality_flags(tmp_path: Path) -> None:
@@ -187,6 +189,39 @@ def test_canonical_parser_extracts_xlsx_sheet_tables(tmp_path: Path) -> None:
     assert first_row.metadata["table_id"] == "XLSX-T-1"
 
 
+def test_canonical_parser_extracts_pptx_slides_and_notes(tmp_path: Path) -> None:
+    pytest.importorskip("pptx")
+    from pptx import Presentation
+
+    source = tmp_path / "release_briefing.pptx"
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Release Briefing"
+    body = slide.shapes.placeholders[1].text_frame
+    body.clear()
+    body.paragraphs[0].text = "Security approval pending"
+    nested = body.add_paragraph()
+    nested.text = "Mitigation: security lead review"
+    nested.level = 1
+    slide.notes_slide.notes_text_frame.text = "Speaker note: escalate at T-4h."
+    presentation.save(source)
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    assert parsed.file_type == "pptx"
+    assert parsed.parser_quality.parser_family == "pptx"
+    assert parsed.parser_quality.extraction_mode == "slide_text"
+    assert parsed.parser_quality.pages_total == 1
+    assert parsed.parser_quality.headings_total == 1
+    assert parsed.parser_quality.lists_total >= 1
+    assert "pptx_slides_detected" in parsed.quality_flags
+    assert "pptx_notes_detected" in parsed.quality_flags
+    assert any(block.block_type == "slide_title" for block in parsed.content_blocks)
+    assert any(block.block_type == "bullet" for block in parsed.content_blocks)
+    assert any(block.block_type == "note" for block in parsed.content_blocks)
+    assert any(block.metadata.get("slide_number") == 1 for block in parsed.content_blocks)
+
+
 def test_canonical_parser_reports_missing_xlsx_dependency_when_needed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -203,6 +238,25 @@ def test_canonical_parser_reports_missing_xlsx_dependency_when_needed(
     source.write_bytes(b"not-a-real-xlsx")
 
     with pytest.raises(RuntimeError, match="openpyxl"):
+        CanonicalDocumentParser().parse_path(source)
+
+
+def test_canonical_parser_reports_missing_pptx_dependency_when_needed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_import = __import__
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "pptx":
+            raise ImportError("pptx unavailable")
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    source = tmp_path / "sample.pptx"
+    source.write_bytes(b"not-a-real-pptx")
+
+    with pytest.raises(RuntimeError, match="python-pptx"):
         CanonicalDocumentParser().parse_path(source)
 
 
@@ -226,6 +280,29 @@ def test_canonical_parser_reports_empty_pdf_as_ocr_candidate(tmp_path: Path) -> 
     assert any(issue.code == "ocr_required" for issue in parsed.parser_quality.issues)
 
 
+def test_canonical_parser_assigns_unique_block_ids_for_multi_page_pdf(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "multipage.pdf"
+    pdf = fitz.open()
+    page1 = pdf.new_page()
+    page1.insert_text((72, 72), "Page one readiness evidence.")
+    page2 = pdf.new_page()
+    page2.insert_text((72, 72), "Page two security approval pending.")
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    block_ids = [block.block_id for block in parsed.content_blocks]
+    assert len(block_ids) >= 2
+    assert len(block_ids) == len(set(block_ids))
+    assert parsed.structure_tree.block_ids == block_ids
+    assert {block.metadata.get("page_number") for block in parsed.content_blocks} == {1, 2}
+    assert all(block.metadata.get("source_kind") == "page_block" for block in parsed.content_blocks)
+
+
 def test_canonical_parser_uses_sidecar_ocr_for_scanned_pdf(tmp_path: Path) -> None:
     pytest.importorskip("fitz")
     import fitz
@@ -247,6 +324,8 @@ def test_canonical_parser_uses_sidecar_ocr_for_scanned_pdf(tmp_path: Path) -> No
     assert "ocr_provider:sidecar" in parsed.quality_flags
     assert parsed.content_blocks
     assert parsed.content_blocks[0].metadata["ocr_provider"] == "sidecar"
+    assert parsed.content_blocks[0].metadata["source_kind"] == "page_block"
+    assert parsed.content_blocks[0].metadata["layout_source"] == "ocr_text"
     assert any(issue.code == "ocr_applied" for issue in parsed.parser_quality.issues)
 
 

@@ -1,6 +1,6 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-27
+Дата обновления: 2026-04-28
 Статус: Increment 31
 
 ## 1. Целевой архитектурный ориентир
@@ -46,7 +46,7 @@
 - Knowledge Factory MVP:
   - canonical document contracts в `schemas.documents`;
   - `domain_docs` package;
-  - `CanonicalDocumentParser` для `.md/.txt/.json/.docx/.pdf`;
+  - `CanonicalDocumentParser` для `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`;
   - `KnowledgeIndexingWorkflow`;
   - `CanonicalDocumentApplicationService`;
   - `PostgresCanonicalDocumentStore`;
@@ -58,7 +58,7 @@
 - Knowledge Factory Hardening / parser quality baseline:
   - `CanonicalDocument` расширен typed `parser_quality` read-model;
   - parser diagnostics содержат `parser_family`, `extraction_mode`, page/block/heading/list/table counters и typed issues;
-  - DOCX path уже детектирует наличие tables и помечает `table_extraction_not_implemented`;
+  - DOCX path извлекает `CanonicalTable` и `table_row` blocks для retrieval/indexing corpus;
   - PDF path без extractable text помечает документ как `ocr_required`;
   - knowledge indexing task details и aggregate quality summary отдают parser diagnostics по `doc_id` и поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`;
   - canonical retrieval/report path прокидывает `parser_quality` в source metadata и release-readiness report.
@@ -77,17 +77,32 @@
   - canonical retrieval/detail candidates отдают `source_kind`, `table_id`, `table_title`, `table_columns`, `row_index`, `row_values`;
   - `lookup_source` возвращает typed source provenance и table payload для table-backed evidence;
   - release readiness report показывает table-aware canonical source mapping для evidence, пришедшего из approval matrix.
+- Knowledge Factory Hardening / PDF page provenance slice:
+  - PDF parser использует global-per-document `block_id`, чтобы исключить коллизии на многостраничных документах;
+  - canonical blocks/retrieval metadata для PDF теперь включают `source_kind=page_block`, `page_number`, `layout_source`, `bbox`;
+  - `lookup_source` и release report source mapping теперь показывают page refs/layout source для PDF evidence.
 - Knowledge Factory Hardening / XLSX parser slice:
   - canonical parser теперь поддерживает `.xlsx` через `openpyxl`;
   - workbook sheets становятся structural sections/heading path источником;
   - табличные листы извлекаются в canonical `extracted_tables`;
   - строки sheet tables попадают в retrieval corpus как `table_row` blocks;
   - multifile demo input расширен `08_release_tracker.xlsx` для ручной проверки Excel ingestion path.
+- Knowledge Factory Hardening / PPTX parser slice:
+  - canonical parser теперь поддерживает `.pptx` через `python-pptx`;
+  - slides становятся structural sections, а title/body/notes попадают в canonical content blocks;
+  - parser diagnostics отражают slide counters и notes flags;
+  - multifile demo input расширен `09_release_briefing.pptx` для ручной проверки presentation ingestion path.
 - Knowledge Factory Hardening / canonical version policy slice:
   - canonical store теперь разделяет latest read-model и version history для documents/knowledge blocks;
   - `CanonicalDocumentApplicationService` поддерживает latest lookup по `doc_id`, explicit lookup по `doc_id + version` и `list_versions(...)`;
   - knowledge indexing request поддерживает `document_version`;
   - re-index semantics очищают старые vectors latest-version read-model по `doc_id`, но сохраняют historical canonical versions в dedicated version tables.
+- Knowledge Factory Hardening / indexing quality policy slice:
+  - quality gate canonical indexing вынесен в `KnowledgeIndexingQualityPolicy`;
+  - policy дает per-document decisions (`accepted/rejected`) и aggregate `gate_status`;
+  - rejected documents не пишутся в canonical store и не индексируются в vector store;
+  - policy runtime configurable через `APP_INDEXING_QUALITY_*` env contract;
+  - `quality_summary` расширен policy metadata (`policy_name`, accepted/rejected ids/counts, blocking/warning flags).
 - canonical retrieval source:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
@@ -335,6 +350,9 @@
   - `docs/adr/0073-scanned-pdf-ocr-fallback-path.md`.
   - `docs/adr/0075-xlsx-parser-baseline-for-canonical-ingestion.md`.
   - `docs/adr/0076-canonical-document-version-read-model-policy.md`.
+  - `docs/adr/0077-production-indexing-quality-policy-layer.md`.
+  - `docs/adr/0078-pptx-parser-baseline-for-canonical-ingestion.md`.
+  - `docs/adr/0079-pdf-page-provenance-baseline-for-canonical-retrieval.md`.
   - `docs/adr/0044-retrieval-mcp-indexed-canonical-tools.md`;
   - `docs/adr/0045-domain-authoring-minimal-service-extraction.md`;
   - `docs/adr/0046-domain-authoring-research-writer-composition.md`;
@@ -360,7 +378,7 @@
 - HITL now iterative с persistence/read-model API, но нет reviewer UI/queue dashboard и агрегатов/дашбордов по reviewer действиям за периоды;
 - persisted/public `domain_authoring` workflow layer пока ограничен baseline `SectionAuthoringWorkflow` и `DocumentAssemblyWorkflow`, без отдельного section/document read-model или публичных workflow endpoints;
 - `domain_authoring` уже покрывает outline/review/assembly/research/writer composition, traceability helpers, section contracts, baseline section authoring service, template-aware contract compilation, richer template assembly policy baseline и template-aware deterministic assembly; в `domain_docs` уже есть persisted template library baseline, public template management API, MCP boundary, closed template governance lifecycle (`draft|published|deprecated|archived`) и exclusive published-version policy для templates;
-- `domain_docs` поддерживает базовые `.docx/.pdf` parser adapters и отдельный knowledge block persistence, но OCR/rich layout/table extraction еще не реализованы;
+- `domain_docs` уже покрывает `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`, OCR fallback, table-aware provenance и page-level PDF provenance baseline, но rich layout semantics пока не реализованы;
 - async execution plane уже покрывает authoring, retrieval и knowledge indexing, но пока без общего policy слоя для остальных production workflows;
 - RBAC baseline уже закрывает наиболее sensitive API/MCP operations, но пока нет SSO, signed tokens, tenant-aware permissions и service-to-service auth;
 - production deployment runbook baseline добавлен, но эксплуатационные SLO/SLI метрики и dashboard остаются вне текущего среза;
@@ -368,16 +386,13 @@
 
 ## 4. GAP к целевой архитектуре
 
-1. Завершить retrieval fabric вокруг production adapters: pgvector summary/detail search, real TEI embeddings/rerank, quality gates и operational smoke для indexed MCP.
-2. Дорастить MCP-контур: унификация контрактов и операционных политик между Retrieval/Repository/Artifact Writer сервисами.
-3. Дорастить async execution до общего execution-plane (не только authoring).
-4. Дорастить ingestion до OCR/rich layout/table extraction и более строгих quality gates.
-5. Дорастить reviewer observability от текущего summary endpoint до периодических SLA buckets и dashboard-oriented read models.
-6. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
+1. Дорастить ingestion от page-level baseline до rich layout extraction поверх текущего canonical read-model.
+2. Расширить indexing quality policy от env-driven baseline к persisted configuration + rollout guards.
+3. Дорастить reviewer observability от текущего summary endpoint до периодических SLA buckets и dashboard-oriented read models.
+4. Добавить observability/metrics/audit dashboards и периодические агрегаты по `task_events`.
 
 ## 5. План следующего инкремента
 
-1. Добавить OCR/rich layout/table extraction поверх parser quality read-model.
-2. Добавить document versions/read-model policy.
-3. Перевести quality gates в конфигурируемый production policy layer.
-4. Позже расширить RBAC baseline до signed auth / audit decision propagation.
+1. Добавить richer layout extraction поверх parser quality и page provenance baseline.
+2. Поддержать persisted/rollout-aware indexing quality policy configuration.
+3. Позже расширить RBAC baseline до signed auth / audit decision propagation.

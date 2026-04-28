@@ -180,7 +180,7 @@
 - добавлен Knowledge Factory MVP:
   - типизированные canonical document contracts;
   - пакет `domain_docs`;
-  - parser `.md/.txt/.json/.docx/.pdf` в `CanonicalDocumentParser`;
+  - parser `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx` в `CanonicalDocumentParser`;
   - `KnowledgeIndexingWorkflow` поверх `BaseWorkflow`;
   - API endpoints `POST /api/v1/tasks/knowledge-indexing/start` и `POST /api/v1/tasks/knowledge-indexing/start_async`;
   - smoke `smoke_knowledge_indexing.sh/.ps1` и `smoke_knowledge_indexing_api.sh/.ps1` для release go/no-go multifile input.
@@ -190,6 +190,14 @@
   - latest-read tables `app.canonical_documents` и `app.knowledge_blocks`;
   - version history tables `app.canonical_document_versions` и `app.knowledge_block_versions`;
   - миграции `backend/migrations/0009_canonical_knowledge_store.sql` и `backend/migrations/0013_canonical_document_versions.sql`.
+- quality gates canonical indexing переведены в конфигурируемый production policy layer:
+  - `KnowledgeIndexingQualityPolicy` + typed decisions per document (`accepted/rejected`);
+  - rejected documents не сохраняются в canonical store и не индексируются в vector store;
+  - env contract для policy: `APP_INDEXING_QUALITY_*`.
+- PDF retrieval provenance baseline расширен до page-level:
+  - parser использует global-per-document `block_id` для multi-page PDF;
+  - canonical/vector metadata прокидывают `source_kind=page_block`, `page_number`, `layout_source`, `bbox`;
+  - `lookup_source` и release report source mapping показывают page refs для PDF evidence.
 - retrieval подключен к canonical Knowledge Factory output:
   - `task_context.knowledge_source=canonical`;
   - `task_context.canonical_doc_ids`;
@@ -620,7 +628,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 
 1. Входная папка:
    - `backend/examples/cases/release_go_no_go_multifile_case/input`
-2. Запуск Knowledge Indexing API с `.md/.txt/.json/.docx/.pdf`.
+2. Запуск Knowledge Indexing API с `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`.
 3. Запуск retrieval с `task_context.knowledge_source=canonical` и `canonical_doc_ids`.
 4. Итоговый отчет:
    - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`
@@ -742,7 +750,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
   - template-aware traceability теперь строится и для custom templates, а не только для дефолтного `release_readiness` path.
 - framework extension path зафиксирован в `docs/framework_extension_guide.md`.
 - `BACKLOG.md` фиксирует roadmap завершения backend/framework части и обязательный demo acceptance harness.
-- `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf`.
+- `domain_docs` умеет строить canonical document payload для `.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`.
 - `KnowledgeIndexingWorkflow` сохраняет canonical documents и derived knowledge blocks через отдельный canonical store boundary.
 - retrieval start поддерживает canonical knowledge source через `task_context.knowledge_source=canonical`.
 - canonical detail retrieval использует vector index для `knowledge_blocks`, если доступен embedding gateway + vector store.
@@ -1026,6 +1034,10 @@ Canonical ingestion работает через отдельный persistence/r
 - SQL tables latest read-model: `app.canonical_documents`, `app.knowledge_blocks`;
 - SQL tables version history: `app.canonical_document_versions`, `app.knowledge_block_versions`;
 - indexing request теперь поддерживает `document_version`, а canonical read-model умеет latest lookup по `doc_id` и explicit historical lookup по `doc_id + version`.
+- quality gate canonical indexing теперь применяется через `KnowledgeIndexingQualityPolicy`:
+  - policy возвращает per-document решения `accepted/rejected` и aggregate `gate_status`;
+  - rejected documents не пишутся в canonical store и не попадают в embeddings index;
+  - default policy оставляет OCR-recovered PDF (`pdf_no_extractable_text` + `ocr_applied`) в `warning`, а не в blocking-fail.
 
 Поддерживаемые форматы текущего среза:
 
@@ -1034,6 +1046,8 @@ Canonical ingestion работает через отдельный persistence/r
 - `.json`;
 - `.docx` через `python-docx`;
 - `.pdf` через `PyMuPDF` с OCR fallback для scanned PDF.
+- `.xlsx` через `openpyxl`;
+- `.pptx` через `python-pptx`.
 
 Parser quality baseline текущего hardening-среза:
 
@@ -1041,7 +1055,6 @@ Parser quality baseline текущего hardening-среза:
   - `parser_family`, `extraction_mode`;
   - `pages_total`, `blocks_total`, `headings_total`, `lists_total`, `tables_total`;
   - typed `issues[]` и mirrored `flags[]`;
-- DOCX parser уже детектирует наличие tables и помечает `table_extraction_not_implemented`;
 - DOCX parser теперь извлекает `extracted_tables`, превращает строки таблиц в canonical `table_row` blocks, нормализует numbered/list paragraphs и помечает appendix-like headings;
 - PDF parser без extractable text помечает документ как `ocr_required` и пытается OCR fallback;
 - OCR runtime configurable через `APP_OCR_ENABLED=true|false` и `APP_OCR_PROVIDER=sidecar|ocrmypdf`;
@@ -1052,12 +1065,25 @@ Parser quality baseline текущего hardening-среза:
   - sheet tables извлекаются в `extracted_tables`;
   - строки таблиц становятся canonical `table_row` blocks;
   - binary demo input теперь включает `08_release_tracker.xlsx`;
+- canonical parser теперь поддерживает `.pptx` через `python-pptx`:
+  - slides становятся структурными секциями;
+  - title/body/notes попадают в canonical `content_blocks`;
+  - binary demo input теперь включает `09_release_briefing.pptx`;
 - Knowledge Indexing task details и smoke/report path теперь показывают parser diagnostics по `doc_id` и aggregate поля `parser_families`, `extraction_modes`, `parser_issues_total`, `documents_with_tables`, `documents_needing_ocr`.
+- `quality_summary` дополнительно отдает policy metadata:
+  - `policy_name`;
+  - `accepted_documents_total` / `rejected_documents_total`;
+  - `accepted_doc_ids` / `rejected_doc_ids`;
+  - `blocking_flags` / `warning_flags`.
 - retrieval/source mapping для `table_row` blocks теперь сохраняет и отдает table-aware provenance:
   - `source_kind=table_row`;
   - `table_id`, `table_title`, `table_columns`;
   - `row_index`, `row_values`;
   - `lookup_source` и `Canonical Source Mapping` теперь могут явно показать, что evidence пришел из approval matrix row, а не из абстрактного paragraph block.
+- для PDF blocks добавлен page-level provenance baseline:
+  - `source_kind=page_block`;
+  - `page_number`, `layout_source`, `bbox` (best-effort);
+  - `lookup_source` и `Canonical Source Mapping` показывают, с какой страницы пришел evidence.
 
 Smoke текущего demo input:
 
@@ -1069,7 +1095,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 Ожидаемый результат:
 
-- `documents_total=8`;
+- `documents_total=9`;
 - `content_blocks_total > 0`;
 - `stored_blocks_for_indexed_docs_total > 0` в direct/canonical retrieval smoke;
 - для scanned PDF fixture direct smoke и API smoke оба показывают `ocr_recovered_doc_ids=["07SCANNE-..."]` и не показывают `ocr_not_available`, если заданы `APP_OCR_ENABLED=true` и `APP_OCR_PROVIDER=sidecar`;
@@ -1083,7 +1109,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;
 - `evidence_blocks > 0`;
-- `file_types` содержит `md`, `txt`, `json`, `docx`, `pdf`, `xlsx`.
+- `file_types` содержит `md`, `txt`, `json`, `docx`, `pdf`, `xlsx`, `pptx`.
 
 ## Контракт GET /api/v1/tasks
 
@@ -1142,7 +1168,8 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ## Что будет в следующих итерациях
 
 - унификация контрактов и операционных политик для Retrieval/Repository/Artifact Writer MCP;
-- ingestion расширение на PDF/DOCX/OCR с quality gates;
+- parser hardening: от page-level PDF provenance baseline к richer layout semantics (tables/forms/reading-order);
+- опциональный fail-fast policy path для `quality_gate_status=failed` в продовых rollout-контурах;
 - агрегированные read-model/дашборды поверх `task_events` и `task_artifacts` (по периодам, task_type, SLA).
 
 ## Тестовая стратегия

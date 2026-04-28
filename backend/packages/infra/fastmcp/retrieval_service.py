@@ -359,11 +359,18 @@ def _build_source_provenance(
     document: Any,
     block: Any,
 ) -> RetrievalMcpSourceProvenance:
+    page_number = block.metadata.get("page_number") if isinstance(block.metadata.get("page_number"), int) else None
+    bbox = _normalize_bbox(block.metadata.get("bbox"))
+    layout_source = str(block.metadata.get("layout_source", "") or "").strip() or None
     if block.block_type != "table_row":
+        source_kind = str(block.metadata.get("source_kind", "") or "").strip() or "content_block"
         return RetrievalMcpSourceProvenance(
-            source_kind="content_block",
+            source_kind=source_kind,
             heading_path=list(block.heading_path),
             section_title=block.heading_path[-1] if block.heading_path else None,
+            page_number=page_number,
+            bbox=bbox,
+            layout_source=layout_source,
         )
 
     table = _find_table(document, str(block.metadata.get("table_id", "") or "").strip())
@@ -378,6 +385,9 @@ def _build_source_provenance(
         table_columns=list(table.columns) if table is not None else [],
         row_index=row_index,
         row_values=row_values,
+        page_number=page_number,
+        bbox=bbox,
+        layout_source=layout_source,
     )
 
 
@@ -416,3 +426,12 @@ def _resolve_table_row_values(*, table: Any | None, row_index: int | None) -> di
     if table is None or row_index is None or row_index < 1 or row_index > len(table.rows):
         return {}
     return dict(table.rows[row_index - 1])
+
+
+def _normalize_bbox(value: Any) -> list[float]:
+    if not isinstance(value, list) or len(value) != 4:
+        return []
+    try:
+        return [float(item) for item in value]
+    except (TypeError, ValueError):
+        return []

@@ -13,6 +13,7 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
         python-docx \
         PyMuPDF \
         openpyxl \
+        python-pptx \
         uvicorn
 
 ENV PYTHONUNBUFFERED=1

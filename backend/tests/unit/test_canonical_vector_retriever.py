@@ -174,3 +174,40 @@ def test_canonical_vector_retriever_preserves_table_row_metadata() -> None:
     assert results[0].metadata["table_title"] == "Approval Matrix"
     assert results[0].metadata["row_index"] == 2
     assert results[0].metadata["row_values"]["Status"] == "APPROVED"
+
+
+def test_canonical_vector_retriever_preserves_pdf_page_provenance() -> None:
+    gateway = TeiEmbeddingGateway(vector_dim=16)
+    vector_store = PgVectorStoreAdapter(use_fallback_if_unset=True)
+    vector_store.upsert_vector(
+        "knowledge_block:DOC-PDF:1:B-3",
+        gateway.embed("security finding on page 3"),
+        {
+            "kind": "knowledge_block_embedding",
+            "block_ref": "DOC-PDF:1:B-3",
+            "doc_id": "DOC-PDF",
+            "version": "1",
+            "block_id": "B-3",
+            "block_type": "paragraph",
+            "text": "security finding on page 3",
+            "project_id": "p1",
+            "document_type": "security",
+            "tags": ["audit"],
+            "source_kind": "page_block",
+            "page_number": 3,
+            "layout_source": "pdf_blocks",
+            "bbox": [12.5, 32.0, 280.0, 64.0],
+        },
+    )
+
+    retriever = CanonicalVectorRetriever(embedding_gateway=gateway, vector_store=vector_store)
+    results = retriever.retrieve(
+        "security finding",
+        RetrievalFilter(project_id="p1", document_types=["security"]),
+    )
+
+    assert len(results) == 1
+    assert results[0].metadata["source_kind"] == "page_block"
+    assert results[0].metadata["page_number"] == 3
+    assert results[0].metadata["layout_source"] == "pdf_blocks"
+    assert results[0].metadata["bbox"] == [12.5, 32.0, 280.0, 64.0]

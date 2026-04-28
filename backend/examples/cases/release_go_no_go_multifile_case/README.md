@@ -10,11 +10,14 @@
 - `input/04_approvals.json`
 - `input/05_release_notes.docx`
 - `input/06_audit_summary.pdf`
+- `input/07_scanned_signoff.pdf`
+- `input/08_release_tracker.xlsx`
+- `input/09_release_briefing.pptx`
 
 ## Что демонстрирует
 
 1. Knowledge Indexing API task для директории `input/`.
-2. Multi-file canonical ingestion (`.md/.txt/.json/.docx/.pdf`) без ручной сборки dataset JSON.
+2. Multi-file canonical ingestion (`.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`) без ручной сборки dataset JSON.
 3. Генерацию итогового отчета `output/release_readiness_report.md`.
 4. Canonical document indexing smoke через Knowledge Factory MVP.
 5. Запись derived content blocks в `knowledge_blocks` read-model.
@@ -34,7 +37,7 @@
 - Binary input generator Linux: `backend/scripts/build_binary_demo_documents.sh`
 - Binary input generator Windows: `backend/scripts/build_binary_demo_documents.ps1`
 
-Для пересборки `.docx/.pdf` входов:
+Для пересборки `.docx/.pdf/.xlsx/.pptx` входов:
 
 ```bash
 bash backend/scripts/build_binary_demo_documents.sh --overwrite

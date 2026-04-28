@@ -9,6 +9,7 @@ from application.canonical_document_service import CanonicalDocumentApplicationS
 from application.errors import WorkflowExecutionError
 from application.knowledge_indexing_service import KnowledgeIndexingApplicationService
 from application.task_service import InMemoryTaskRegistry, TaskApplicationService
+from domain_docs.indexing.quality_policy import KnowledgeIndexingQualityPolicy
 from domain_docs.indexing.workflows import KnowledgeIndexingWorkflow
 from domain_docs.parsing import CanonicalDocumentParser
 from infra.docs.ocr_gateway import SidecarPdfOcrGateway
@@ -47,6 +48,7 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = repo_root / "backend" / "examples" / "cases" / "release_go_no_go_multifile_case" / "input"
     pytest.importorskip("openpyxl")
+    pytest.importorskip("pptx")
     build_binary_demo_documents(output_dir=dataset_dir, overwrite=True)
     store = PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
     canonical_document_service = CanonicalDocumentApplicationService(store=store)
@@ -57,9 +59,9 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     )
     result = service.index_paths([dataset_dir])
 
-    assert len(result.indexed_doc_ids) == 8
+    assert len(result.indexed_doc_ids) == 9
     assert result.quality_summary["gate_status"] in {"passed", "warning"}
-    assert result.quality_summary["documents_total"] == 8
+    assert result.quality_summary["documents_total"] == 9
     assert "parser_families" in result.quality_summary
     assert result.quality_summary["parser_issues_total"] >= 0
     assert result.quality_summary["documents_needing_ocr"] >= 1
@@ -67,13 +69,47 @@ def test_knowledge_indexing_application_service_indexes_demo_dir() -> None:
     assert loaded.doc_id == result.indexed_doc_ids[0]
     assert loaded.content_blocks
     assert loaded.parser_quality.blocks_total >= 0
-    assert canonical_document_service.list_blocks(limit=100).total_returned >= 8
+    assert canonical_document_service.list_blocks(limit=100).total_returned >= 9
     docx_document = next(document for document in result.documents if document.file_type == "docx")
     assert docx_document.extracted_tables
     assert any(block.block_type == "table_row" for block in docx_document.content_blocks)
     xlsx_document = next(document for document in result.documents if document.file_type == "xlsx")
     assert xlsx_document.extracted_tables
     assert any(block.block_type == "table_row" for block in xlsx_document.content_blocks)
+    pptx_document = next(document for document in result.documents if document.file_type == "pptx")
+    assert pptx_document.content_blocks
+    assert any(block.block_type == "slide_title" for block in pptx_document.content_blocks)
+
+
+def test_knowledge_indexing_quality_policy_rejects_blocking_documents(tmp_path: Path) -> None:
+    valid = tmp_path / "valid.md"
+    empty = tmp_path / "empty.txt"
+    valid.write_text("## Release readiness\n\nSecurity sign-off: ready", encoding="utf-8")
+    empty.write_text("", encoding="utf-8")
+
+    canonical_document_service = CanonicalDocumentApplicationService(
+        store=PostgresCanonicalDocumentStore(use_fallback_if_unset=True)
+    )
+    service = KnowledgeIndexingApplicationService(
+        canonical_document_service=canonical_document_service,
+        quality_policy=KnowledgeIndexingQualityPolicy(),
+    )
+
+    result = service.index_paths([tmp_path])
+    decisions = result.quality_summary["documents"]
+    rejected = [doc_id for doc_id, decision in decisions.items() if not decision["accepted"]]
+    accepted = [doc_id for doc_id, decision in decisions.items() if decision["accepted"]]
+
+    assert result.quality_summary["gate_status"] == "failed"
+    assert result.quality_summary["rejected_documents_total"] == 1
+    assert result.quality_summary["accepted_documents_total"] == 1
+    assert len(result.indexed_doc_ids) == 1
+    assert result.indexed_doc_ids == accepted
+    assert rejected
+    assert any(flag.endswith(":empty_document") for flag in result.quality_summary["blocking_flags"])
+
+    persisted = canonical_document_service.list_documents(limit=10)
+    assert persisted.total_returned == 1
 
 
 def test_knowledge_indexing_application_service_reindexes_latest_version_and_keeps_history(tmp_path: Path) -> None:

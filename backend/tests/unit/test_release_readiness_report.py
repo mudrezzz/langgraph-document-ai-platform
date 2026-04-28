@@ -82,6 +82,9 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
                             "file_type": "pdf",
                             "source_path": "input/06_audit_summary.pdf",
                             "quality_flags": ["low_text_density"],
+                            "source_kind": "page_block",
+                            "page_number": 2,
+                            "layout_source": "pdf_blocks",
                         },
                     },
                 ],
@@ -115,3 +118,5 @@ def test_release_readiness_report_includes_canonical_quality_and_source_mapping(
     assert "source_path=`input/06_audit_summary.pdf`" in report
     assert "table_title=`Approval Matrix`" in report
     assert "table_rows=`row_2`" in report
+    assert "pages=`p2`" in report
+    assert "layout_sources=`pdf_blocks`" in report

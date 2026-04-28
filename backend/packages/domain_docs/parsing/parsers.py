@@ -16,7 +16,7 @@ from schemas.documents.contracts import (
     ParserQualitySummary,
 )
 
-_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf", ".xlsx"}
+_SUPPORTED_EXTENSIONS = {".md", ".txt", ".json", ".docx", ".pdf", ".xlsx", ".pptx"}
 _HEADING_RE = re.compile(r"^\s*(#{1,6})\s+(.+?)\s*$")
 _BULLET_RE = re.compile(r"^\s*(?:[-*]|\d+\.)\s+(.+?)\s*$")
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -63,6 +63,12 @@ class CanonicalDocumentParser:
             extraction_mode = "structured"
             blocks, structure, tables = self._parse_xlsx(path, quality_flags=quality_flags, metrics=metrics)
             raw_text = "\n".join(block.text for block in blocks)
+        elif extension == ".pptx":
+            parser_family = "pptx"
+            extraction_mode = "slide_text"
+            blocks, structure = self._parse_pptx(path, quality_flags=quality_flags, metrics=metrics)
+            raw_text = "\n".join(block.text for block in blocks)
+            tables = []
         elif extension == ".docx":
             parser_family = "docx"
             extraction_mode = "structured"
@@ -422,19 +428,9 @@ class CanonicalDocumentParser:
         with fitz.open(str(path)) as pdf_document:
             metrics["pages_total"] = len(pdf_document)
             for page_index, page in enumerate(pdf_document, start=1):
-                page_text = page.get_text("text")
-                for paragraph in re.split(r"\n\s*\n+", page_text):
-                    text = _normalize_text(paragraph)
-                    if not text:
-                        continue
-                    block = _build_block(
-                        text=text,
-                        block_type="paragraph",
-                        index=len(blocks) + 1,
-                        heading_path=[f"Page {page_index}"],
-                        metadata={"page_number": page_index},
-                    )
-                    block.page_number = page_index
+                page_blocks = self._extract_pdf_page_blocks(page=page, page_index=page_index)
+                for block in page_blocks:
+                    block.block_id = f"B-{len(blocks) + 1}"
                     blocks.append(block)
                     root.block_ids.append(block.block_id)
 
@@ -448,6 +444,61 @@ class CanonicalDocumentParser:
         if blocks and len(blocks) < 2:
             quality_flags.append("low_text_density")
         return blocks, root
+
+    def _extract_pdf_page_blocks(self, *, page: Any, page_index: int) -> list[CanonicalContentBlock]:
+        extracted: list[CanonicalContentBlock] = []
+        current_section_title: str | None = None
+        layout_blocks = page.get_text("blocks") or []
+
+        for raw_block in layout_blocks:
+            if len(raw_block) < 5:
+                continue
+            x0, y0, x1, y1, raw_text = raw_block[:5]
+            text = _normalize_text(str(raw_text or ""))
+            if not text:
+                continue
+
+            heading_candidate = _infer_pdf_section_title(text)
+            if heading_candidate is not None:
+                current_section_title = heading_candidate
+
+            heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
+            block = _build_block(
+                text=text,
+                block_type="paragraph",
+                index=0,  # assigned below with stable global order
+                heading_path=heading_path,
+                metadata={
+                    "source_kind": "page_block",
+                    "page_number": page_index,
+                    "bbox": [round(float(x0), 2), round(float(y0), 2), round(float(x1), 2), round(float(y1), 2)],
+                    "layout_source": "pdf_blocks",
+                },
+            )
+            block.page_number = page_index
+            extracted.append(block)
+
+        # Fallback keeps previous behavior for PDFs where `blocks` is empty.
+        if not extracted:
+            page_text = page.get_text("text")
+            for paragraph in re.split(r"\n\s*\n+", page_text):
+                text = _normalize_text(paragraph)
+                if not text:
+                    continue
+                heading_candidate = _infer_pdf_section_title(text)
+                if heading_candidate is not None:
+                    current_section_title = heading_candidate
+                heading_path = [current_section_title] if current_section_title else [f"Page {page_index}"]
+                block = _build_block(
+                    text=text,
+                    block_type="paragraph",
+                    index=0,  # assigned below with stable global order
+                    heading_path=heading_path,
+                    metadata={"source_kind": "page_block", "page_number": page_index, "layout_source": "pdf_text"},
+                )
+                block.page_number = page_index
+                extracted.append(block)
+        return extracted
 
     def _run_pdf_ocr(
         self,
@@ -481,13 +532,117 @@ class CanonicalDocumentParser:
                     block_type="paragraph",
                     index=len(blocks) + 1,
                     heading_path=[f"Page {page_index}"],
-                    metadata={"page_number": page_index, "ocr_provider": ocr_result.provider, "extraction_mode": "ocr"},
+                    metadata={
+                        "source_kind": "page_block",
+                        "page_number": page_index,
+                        "ocr_provider": ocr_result.provider,
+                        "extraction_mode": "ocr",
+                        "layout_source": "ocr_text",
+                    },
                 )
                 block.page_number = page_index
                 blocks.append(block)
 
         metrics["pages_total"] = max(int(metrics.get("pages_total") or 0), len(ocr_result.page_texts))
         return blocks
+
+    def _parse_pptx(
+        self,
+        path: Path,
+        *,
+        quality_flags: list[str],
+        metrics: dict[str, int | None],
+    ) -> tuple[list[CanonicalContentBlock], CanonicalStructureNode]:
+        try:
+            from pptx import Presentation
+        except Exception as exc:  # pragma: no cover - depends on optional runtime package
+            raise RuntimeError("Для PPTX parsing требуется зависимость python-pptx") from exc
+
+        presentation = Presentation(str(path))
+        root = CanonicalStructureNode(node_id="root", title="PPTX Presentation", level=0)
+        blocks: list[CanonicalContentBlock] = []
+        slides_total = len(presentation.slides)
+        metrics["pages_total"] = slides_total
+        if slides_total:
+            quality_flags.append("pptx_slides_detected")
+
+        notes_detected = False
+        for slide_index, slide in enumerate(presentation.slides, start=1):
+            title_shape = slide.shapes.title
+            slide_title = (
+                _normalize_text(title_shape.text)
+                if title_shape is not None and _normalize_text(title_shape.text)
+                else f"Slide {slide_index}"
+            )
+            slide_node = CanonicalStructureNode(
+                node_id=f"slide-{slide_index}",
+                title=slide_title,
+                level=1,
+            )
+            root.children.append(slide_node)
+            metrics["headings_total"] = int(metrics.get("headings_total", 0) or 0) + 1
+            heading_path = [slide_title]
+
+            if title_shape is not None and _normalize_text(title_shape.text):
+                title_block = _build_block(
+                    text=slide_title,
+                    block_type="slide_title",
+                    index=len(blocks) + 1,
+                    heading_path=heading_path,
+                    metadata={"slide_number": slide_index},
+                )
+                blocks.append(title_block)
+                slide_node.block_ids.append(title_block.block_id)
+
+            for shape_index, shape in enumerate(slide.shapes, start=1):
+                if title_shape is not None and shape == title_shape:
+                    continue
+                if not getattr(shape, "has_text_frame", False):
+                    continue
+                text_frame = getattr(shape, "text_frame", None)
+                if text_frame is None:
+                    continue
+                for paragraph in text_frame.paragraphs:
+                    text = _normalize_text(paragraph.text or "")
+                    if not text:
+                        continue
+                    level = int(getattr(paragraph, "level", 0) or 0)
+                    block_type = "bullet" if level > 0 else "paragraph"
+                    if block_type == "bullet":
+                        metrics["lists_total"] = int(metrics.get("lists_total", 0) or 0) + 1
+                    block = _build_block(
+                        text=text,
+                        block_type=block_type,
+                        index=len(blocks) + 1,
+                        heading_path=heading_path,
+                        metadata={
+                            "slide_number": slide_index,
+                            "shape_index": shape_index,
+                            "paragraph_level": level,
+                        },
+                    )
+                    blocks.append(block)
+                    slide_node.block_ids.append(block.block_id)
+
+            if slide.has_notes_slide and slide.notes_slide.notes_text_frame is not None:
+                notes_text = _normalize_text(slide.notes_slide.notes_text_frame.text or "")
+                if notes_text:
+                    notes_detected = True
+                    note_block = _build_block(
+                        text=notes_text,
+                        block_type="note",
+                        index=len(blocks) + 1,
+                        heading_path=heading_path,
+                        metadata={"slide_number": slide_index},
+                    )
+                    blocks.append(note_block)
+                    slide_node.block_ids.append(note_block.block_id)
+
+        if notes_detected:
+            quality_flags.append("pptx_notes_detected")
+        if not root.children:
+            quality_flags.append("empty_presentation")
+        return blocks, root
 
 
 def _build_parser_quality_summary(
@@ -593,6 +748,25 @@ def _build_quality_issue(
             code=flag,
             severity="info",
             message="Appendix-like section detected in DOCX structure",
+        )
+    if flag == "pptx_slides_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="PPTX slides were detected and parsed",
+            metadata={"slides_total": metrics.get("pages_total", 0)},
+        )
+    if flag == "pptx_notes_detected":
+        return ParserQualityIssue(
+            code=flag,
+            severity="info",
+            message="Speaker notes were detected in PPTX slides",
+        )
+    if flag == "empty_presentation":
+        return ParserQualityIssue(
+            code=flag,
+            severity="blocking",
+            message="Presentation contains no parseable slides",
         )
     if flag == "table_extraction_not_implemented":
         return ParserQualityIssue(
@@ -774,6 +948,8 @@ def _parse_heading_level(style_name: str) -> int:
 
 def _infer_document_type(path: Path) -> str:
     lowered = path.stem.lower()
+    if any(token in lowered for token in ("briefing", "deck", "slide", "presentation")):
+        return "governance"
     if any(token in lowered for token in ("tracker", "register", "matrix", "spreadsheet")):
         return "governance"
     if any(token in lowered for token in ("security", "sec", "vuln", "pentest")):
@@ -798,6 +974,24 @@ def _build_tags(path: Path) -> list[str]:
 
 def _normalize_text(value: str) -> str:
     return _WHITESPACE_RE.sub(" ", value).strip()
+
+
+def _infer_pdf_section_title(text: str) -> str | None:
+    lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
+    if not lines:
+        return None
+    candidate = lines[0]
+    normalized = _normalize_text(candidate)
+    if len(normalized) < 3 or len(normalized) > 90:
+        return None
+    if normalized.endswith(":"):
+        return normalized.rstrip(":")
+    alpha = [ch for ch in normalized if ch.isalpha()]
+    if alpha and sum(1 for ch in alpha if ch.isupper()) / float(len(alpha)) >= 0.7:
+        return normalized.title()
+    if re.match(r"^(section|chapter|part)\s+\d+", normalized, flags=re.IGNORECASE):
+        return normalized
+    return None
 
 
 def _iter_docx_body_items(document: Any) -> list[tuple[str, Any]]:

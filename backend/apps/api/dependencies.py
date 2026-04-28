@@ -21,6 +21,7 @@ from application.knowledge_indexing_service import KnowledgeIndexingApplicationS
 from application.template_library_service import TemplateLibraryApplicationService
 from application.retrieval_service import RetrievalApplicationService
 from application.task_service import TaskApplicationService
+from domain_docs.indexing.quality_policy import KnowledgeIndexingQualityPolicy
 from domain_docs.parsing import CanonicalDocumentParser
 from schemas.api.contracts import (
     StartAuthoringTaskRequest,
@@ -82,6 +83,15 @@ def _env_int(name: str, default: int) -> int:
         return int(raw.strip())
     except ValueError:
         return default
+
+
+def _env_csv_set(name: str) -> set[str]:
+    """Читает CSV-переменную окружения в виде множества непустых значений."""
+
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return set()
+    return {item.strip() for item in raw.split(",") if item.strip()}
 
 
 def _build_llm_runtime_config() -> LlmRuntimeConfig:
@@ -161,6 +171,30 @@ def _build_canonical_document_parser() -> CanonicalDocumentParser:
     if provider == "ocrmypdf":
         return CanonicalDocumentParser(pdf_ocr_gateway=OcrmypdfGateway(sidecar_gateway=SidecarPdfOcrGateway()))
     return CanonicalDocumentParser(pdf_ocr_gateway=SidecarPdfOcrGateway())
+
+
+def _build_knowledge_indexing_quality_policy() -> KnowledgeIndexingQualityPolicy:
+    """Собирает quality policy canonical indexing из env."""
+
+    policy_name = (
+        os.getenv("APP_INDEXING_QUALITY_POLICY_NAME", "default_indexing_quality_policy_v1").strip()
+        or "default_indexing_quality_policy_v1"
+    )
+    blocking_flags = _env_csv_set("APP_INDEXING_QUALITY_BLOCKING_FLAGS")
+    warning_only_flags = _env_csv_set("APP_INDEXING_QUALITY_WARNING_ONLY_FLAGS")
+    return KnowledgeIndexingQualityPolicy(
+        policy_name=policy_name,
+        blocking_flags=blocking_flags or None,
+        warning_only_flags=warning_only_flags or None,
+        allow_recovered_ocr=_env_flag("APP_INDEXING_ALLOW_RECOVERED_OCR", default=True),
+        ocr_recovery_blocking_flag=(
+            os.getenv("APP_INDEXING_OCR_RECOVERY_BLOCKING_FLAG", "pdf_no_extractable_text").strip()
+            or "pdf_no_extractable_text"
+        ),
+        ocr_recovery_success_flag=(
+            os.getenv("APP_INDEXING_OCR_RECOVERY_SUCCESS_FLAG", "ocr_applied").strip() or "ocr_applied"
+        ),
+    )
 
 
 def _build_knowledge_indexing_dispatcher(
@@ -308,6 +342,7 @@ class ApiContainer:
             parser=_build_canonical_document_parser(),
             embedding_gateway=embedding_gateway,
             vector_store=vector_store,
+            quality_policy=_build_knowledge_indexing_quality_policy(),
             task_service=task_service,
         )
         self.artifact_service = ArtifactApplicationService(artifact_store=artifact_store)

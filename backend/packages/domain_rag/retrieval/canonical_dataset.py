@@ -77,12 +77,20 @@ def _document_to_summary_blocks(document: CanonicalDocument) -> list[RetrievedBl
 
 def _block_to_retrieved_block(block: KnowledgeBlockRecord, document: CanonicalDocument | None) -> RetrievedBlock:
     metadata = _document_metadata(document) if document else {"project_id": "p1"}
+    page_number = block.metadata.get("page_number")
+    if not isinstance(page_number, int):
+        page_number = None
+    source_kind = str(block.metadata.get("source_kind", "") or "").strip() or "content_block"
     metadata_payload = {
         **metadata,
         **block.metadata,
         "block_kind": "content_block",
         "block_type": block.block_type,
         "heading_path": block.heading_path,
+        "source_kind": source_kind,
+        "page_number": page_number,
+        "bbox": block.metadata.get("bbox"),
+        "layout_source": block.metadata.get("layout_source"),
     }
     if block.block_type == "table_row":
         metadata_payload["source_kind"] = "table_row"

@@ -7,15 +7,17 @@ from application.async_dispatcher import KnowledgeIndexingAsyncDispatcher
 from application.canonical_document_service import CanonicalDocumentApplicationService
 from application.errors import WorkflowExecutionError
 from application.task_service import TaskApplicationService
+from domain_docs.indexing.quality_policy import (
+    IndexingQualityPolicyDecision,
+    KnowledgeIndexingQualityPolicy,
+)
 from domain_docs.indexing.bootstrap import build_knowledge_indexing_workflow
 from domain_docs.parsing import CanonicalDocumentParser
 from framework.models.interfaces import IEmbeddingGateway
 from infra.pgvector.vector_store import PgVectorStoreAdapter
 from schemas.api.contracts import StartKnowledgeIndexingTaskRequest, StartTaskResponse
-from schemas.documents.contracts import CanonicalDocument
+from schemas.documents.contracts import CanonicalContentBlock, CanonicalDocument
 from schemas.workflow.states import KnowledgeIndexingState
-
-_BLOCKING_QUALITY_FLAGS = {"empty_document", "no_content_blocks", "pdf_no_extractable_text", "ocr_text_not_recovered"}
 
 
 class KnowledgeIndexingResult:
@@ -47,12 +49,14 @@ class KnowledgeIndexingApplicationService:
         parser: CanonicalDocumentParser | None = None,
         embedding_gateway: IEmbeddingGateway | None = None,
         vector_store: PgVectorStoreAdapter | None = None,
+        quality_policy: KnowledgeIndexingQualityPolicy | None = None,
         task_service: TaskApplicationService | None = None,
     ) -> None:
         self._canonical_document_service = canonical_document_service
         self._parser = parser or CanonicalDocumentParser()
         self._embedding_gateway = embedding_gateway
         self._vector_store = vector_store
+        self._quality_policy = quality_policy or KnowledgeIndexingQualityPolicy()
         self._task_service = task_service
 
     def start_task(
@@ -234,24 +238,34 @@ class KnowledgeIndexingApplicationService:
             else:
                 documents.append(self._parser.parse_path(source_path, version=document_version))
 
+        quality_flags = _quality_flags_for_documents(documents)
+        quality_decision = self._quality_policy.evaluate(documents=documents, quality_flags=quality_flags)
+        accepted_documents = [document for document in documents if quality_decision.documents[document.doc_id].accepted]
+
         workflow = build_knowledge_indexing_workflow(
             canonical_document_service=self._canonical_document_service,
             node_event_sink=self._task_service.build_workflow_node_event_sink() if self._task_service else None,
         )
-        result_state = workflow.invoke(
-            KnowledgeIndexingState(
-                task_context=task_context or {},
-                source_paths=[str(path) for path in paths],
-                documents=documents,
+
+        indexed_doc_ids: list[str] = []
+        if accepted_documents:
+            result_state = workflow.invoke(
+                KnowledgeIndexingState(
+                    task_context=task_context or {},
+                    source_paths=[str(path) for path in paths],
+                    documents=accepted_documents,
+                )
             )
-        )
-        embeddings_indexed = self._index_embeddings(result_state.documents)
+            indexed_doc_ids = list(result_state.indexed_doc_ids)
+        embeddings_indexed = self._index_embeddings(accepted_documents)
+
+        quality_summary = _build_quality_summary(documents=documents, decision=quality_decision)
         return KnowledgeIndexingResult(
-            documents=result_state.documents,
-            indexed_doc_ids=result_state.indexed_doc_ids,
-            quality_flags=result_state.quality_flags,
+            documents=documents,
+            indexed_doc_ids=indexed_doc_ids,
+            quality_flags=quality_summary["blocking_flags"] + quality_summary["warning_flags"],
             embeddings_indexed=embeddings_indexed,
-            quality_summary=_build_quality_summary(result_state.documents, result_state.quality_flags),
+            quality_summary=quality_summary,
         )
 
     def _index_embeddings(self, documents: list[CanonicalDocument]) -> int:
@@ -374,15 +388,19 @@ def _build_task_details(result: KnowledgeIndexingResult) -> dict:
     parser_quality = {
         document.doc_id: document.parser_quality.model_dump(mode="json") for document in result.documents
     }
+    indexed_doc_id_set = set(result.indexed_doc_ids)
     return {
         "documents_total": len(result.documents),
         "document_version": result.documents[0].version if result.documents else "1",
         "document_versions": {document.doc_id: document.version for document in result.documents},
         "indexed_doc_ids": result.indexed_doc_ids,
+        "indexed_documents_total": len(result.indexed_doc_ids),
         "content_blocks_total": sum(len(document.content_blocks) for document in result.documents),
         "section_summaries_total": sum(len(document.section_summaries) for document in result.documents),
         "file_types": sorted({document.file_type for document in result.documents}),
-        "stored_blocks_total": sum(len(document.content_blocks) for document in result.documents),
+        "stored_blocks_total": sum(
+            len(document.content_blocks) for document in result.documents if document.doc_id in indexed_doc_id_set
+        ),
         "embeddings_indexed": result.embeddings_indexed,
         "quality_flags": result.quality_flags,
         "quality_summary": result.quality_summary,
@@ -390,51 +408,41 @@ def _build_task_details(result: KnowledgeIndexingResult) -> dict:
         "parser_quality": parser_quality,
     }
 
-def _build_quality_summary(documents: list[CanonicalDocument], quality_flags: list[str]) -> dict:
-    flagged_doc_ids: set[str] = set()
-    blocking_flags: list[str] = []
-    warning_flags: list[str] = []
-    flags_by_doc: dict[str, set[str]] = {}
-
-    for flag in quality_flags:
-        doc_id, flag_code = _split_quality_flag(flag)
-        if doc_id:
-            flags_by_doc.setdefault(doc_id, set()).add(flag_code)
-
-    for flag in quality_flags:
-        doc_id, flag_code = _split_quality_flag(flag)
-        if doc_id:
-            flagged_doc_ids.add(doc_id)
-        if flag_code == "pdf_no_extractable_text" and doc_id and "ocr_applied" in flags_by_doc.get(doc_id, set()):
-            warning_flags.append(flag)
-            continue
-        if flag_code in _BLOCKING_QUALITY_FLAGS:
-            blocking_flags.append(flag)
-        else:
-            warning_flags.append(flag)
-
-    gate_status = "failed" if blocking_flags else "warning" if warning_flags else "passed"
+def _build_quality_summary(*, documents: list[CanonicalDocument], decision: IndexingQualityPolicyDecision) -> dict:
     parser_families = sorted({document.parser_quality.parser_family for document in documents})
     extraction_modes = sorted({document.parser_quality.extraction_mode for document in documents})
     total_issues = sum(len(document.parser_quality.issues) for document in documents)
     documents_with_tables = sum(1 for document in documents if document.parser_quality.tables_total > 0)
     documents_needing_ocr = sum(1 for document in documents if "ocr_required" in document.parser_quality.flags)
-    return {
-        "gate_status": gate_status,
-        "documents_total": len(documents),
-        "documents_with_flags": len(flagged_doc_ids),
-        "quality_flags_total": len(quality_flags),
-        "blocking_flags": blocking_flags,
-        "warning_flags": warning_flags,
+    summary = decision.model_dump(mode="json")
+    summary.update(
+        {
+            "gate_status": decision.gate_status,
+            "documents_total": len(documents),
+            "documents_with_flags": decision.documents_with_flags,
+            "quality_flags_total": len(decision.blocking_flags) + len(decision.warning_flags),
+            "blocking_flags": list(decision.blocking_flags),
+            "warning_flags": list(decision.warning_flags),
+            "accepted_doc_ids": list(decision.accepted_doc_ids),
+            "rejected_doc_ids": list(decision.rejected_doc_ids),
+            "accepted_documents_total": decision.accepted_documents_total,
+            "rejected_documents_total": decision.rejected_documents_total,
+        }
+    )
+    summary.update(
+        {
         "parser_families": parser_families,
         "extraction_modes": extraction_modes,
         "parser_issues_total": total_issues,
         "documents_with_tables": documents_with_tables,
         "documents_needing_ocr": documents_needing_ocr,
-    }
+        }
+    )
+    return summary
 
-def _split_quality_flag(flag: str) -> tuple[str | None, str]:
-    if ":" not in flag:
-        return None, flag
-    doc_id, flag_code = flag.split(":", 1)
-    return doc_id or None, flag_code
+
+def _quality_flags_for_documents(documents: list[CanonicalDocument]) -> list[str]:
+    quality_flags: list[str] = []
+    for document in documents:
+        quality_flags.extend(f"{document.doc_id}:{flag}" for flag in document.quality_flags)
+    return quality_flags

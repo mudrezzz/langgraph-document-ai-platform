@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-27
+Дата обновления: 2026-04-28
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -851,6 +851,61 @@ Seventh slice done:
 - Retrieval MCP `lookup_source` теперь принимает optional `version` и умеет резолвить historical `block_ref`;
 - targeted canonical-version-policy tests: `104 passed`.
 
+Eighth slice done:
+
+- quality gates canonical indexing переведены в отдельный production policy layer:
+  - добавлен `domain_docs.indexing.quality_policy.KnowledgeIndexingQualityPolicy`;
+  - policy возвращает typed per-document decisions (`accepted/rejected`) и aggregate decision (`gate_status`, `blocking_flags`, `warning_flags`);
+- `KnowledgeIndexingApplicationService` теперь применяет policy до persistence workflow:
+  - rejected documents не сохраняются в canonical store и не индексируются в `app.embeddings`;
+  - accepted documents проходят прежний `KnowledgeIndexingWorkflow` path;
+  - OCR-recovered scanned PDF (`pdf_no_extractable_text` + `ocr_applied`) остается warning-path по умолчанию;
+- `ApiContainer` собирает policy из env (`APP_INDEXING_QUALITY_*`) без изменения публичных API;
+- `quality_summary` в task details/state payload расширен policy metadata:
+  - `policy_name`;
+  - `accepted_documents_total` / `rejected_documents_total`;
+  - `accepted_doc_ids` / `rejected_doc_ids`;
+  - `blocking_flags` / `warning_flags`;
+- добавлен ADR `0077-production-indexing-quality-policy-layer.md`;
+- targeted quality/indexing tests: `18 passed` (`13 + 5`);
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `301 passed`.
+
+Ninth slice done:
+
+- canonical parser baseline расширен поддержкой `.pptx` через `python-pptx`;
+- slides теперь становятся structural sections, а presentation content индексируется как canonical blocks:
+  - `slide_title`;
+  - `paragraph`;
+  - `bullet`;
+  - `note` (speaker notes);
+- parser diagnostics/quality flags расширены для presentation path:
+  - `pptx_slides_detected`;
+  - `pptx_notes_detected`;
+- binary demo input расширен новым fixture `09_release_briefing.pptx`;
+- `build_binary_demo_documents.py` теперь генерирует `.pptx` вместе с `.docx/.pdf/.xlsx`;
+- demo/smoke expectations и API tests обновлены на `documents_total=9` и `file_types` с `pptx`;
+- worker image dependency set расширен `python-pptx` для async indexing parity;
+- добавлен ADR `0078-pptx-parser-baseline-for-canonical-ingestion.md`;
+- targeted parser/indexing/API/e2e tests: `26 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `299 passed`.
+
+Tenth slice done:
+
+- добавлен PDF page provenance baseline для canonical retrieval/report path:
+  - `source_kind=page_block`;
+  - `page_number`;
+  - `layout_source`;
+  - `bbox` (best-effort);
+- исправлена нумерация PDF block ids на global-per-document path:
+  - многостраничные PDF больше не создают коллизии `B-1` между страницами;
+  - `structure_tree.block_ids` теперь согласован с итоговыми `content_blocks`;
+- canonical dataset loader и pgvector retriever metadata mapping теперь сохраняют page provenance в `RetrievedBlock.metadata`;
+- Retrieval MCP `lookup_source` source provenance расширен page-level полями без breaking изменений existing payload;
+- release readiness report `Canonical Source Mapping` теперь показывает `pages=...` и `layout_sources=...` для PDF evidence;
+- добавлен ADR `0079-pdf-page-provenance-baseline-for-canonical-retrieval.md`;
+- targeted parser/retrieval/report tests: `36 passed` + cross-check set `61 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `303 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -865,14 +920,12 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- добавить parser adapters для:
-  - `.xlsx`;
-  - `.pptx`;
+- parser adapters для `.xlsx` и `.pptx` реализованы; page-level PDF provenance baseline закрыт; следующий шаг — richer layout semantics (таблицы/формы/reading-order для PDF);
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;
   - re-index semantics;
-- перевести quality gates из summary policy в конфигурируемый production policy layer.
+- quality gates переведены в конфигурируемый production policy layer; следующий шаг — production rollout/fail-fast policy.
 
 Demo update:
 

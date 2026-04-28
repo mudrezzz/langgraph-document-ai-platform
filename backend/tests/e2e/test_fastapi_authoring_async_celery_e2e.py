@@ -287,6 +287,7 @@ def test_e2e_async_authoring_with_celery_and_hitl(celery_async_server_base_url: 
 
 
 def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: str) -> None:
+    pytest.importorskip("pptx")
     base_url = celery_async_server_base_url
     repo_root = Path(__file__).resolve().parents[3]
     dataset_dir = (
@@ -321,8 +322,8 @@ def test_e2e_async_knowledge_indexing_with_celery(celery_async_server_base_url: 
 
     assert status_payload["status"] == "completed"
     assert status_payload["details"]["execution_mode"] == "async"
-    assert status_payload["details"]["documents_total"] == 8
-    assert status_payload["details"]["stored_blocks_total"] >= 8
+    assert status_payload["details"]["documents_total"] == 9
+    assert status_payload["details"]["stored_blocks_total"] >= 9
 
     summary_payload: dict = {}
     for _ in range(20):

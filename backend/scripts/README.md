@@ -19,7 +19,7 @@
 - `async_up.sh` — поднять Redis + Celery worker через docker compose.
 - `async_down.sh` — остановить Redis + Celery worker (опционально удалить volume).
 - `apply_migrations.sh` — применить миграции при уже заданной `APP_DB_DSN`.
-- `build_binary_demo_documents.sh` — сгенерировать `.docx/.pdf` входы для release go/no-go multifile demo.
+- `build_binary_demo_documents.sh` — сгенерировать `.docx/.pdf/.xlsx/.pptx` входы для release go/no-go multifile demo.
 - `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
   - поддерживает `--keep-server` (не выключать API после smoke);
   - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
@@ -37,13 +37,13 @@
 - `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
 - `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
   - проверяет запись canonical documents и derived knowledge blocks в canonical store.
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
 - `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (или при `APP_ASYNC_PROVIDER=celery` проверка `knowledge-indexing/start_async -> queued -> completed -> observability/summary`).
   - проверяет task registry/checkpoint/task events для canonical indexing.
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
 - `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
   - проверяет embedding indexing и vector-backed detail retrieval (`retrieval_backend=pgvector`).
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf` входов перед индексированием.
+  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
 - `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
 - `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
 - `run_template_library_mcp.sh` — запуск Template Library MCP runtime (`upsert_template/publish_template/set_template_status/get_template/list_templates`).

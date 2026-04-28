@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Генерирует DOCX/PDF входные документы для release go/no-go demo")
+    parser = argparse.ArgumentParser(description="Генерирует DOCX/PDF/XLSX/PPTX входные документы для release go/no-go demo")
     parser.add_argument(
         "--output-dir",
         default="backend/examples/cases/release_go_no_go_multifile_case/input",
@@ -41,6 +41,7 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
     scanned_pdf_path = output_dir / "07_scanned_signoff.pdf"
     scanned_ocr_sidecar_path = output_dir / "07_scanned_signoff.pdf.ocr.txt"
     xlsx_path = output_dir / "08_release_tracker.xlsx"
+    pptx_path = output_dir / "09_release_briefing.pptx"
 
     written: list[str] = []
     if overwrite or not docx_path.exists():
@@ -58,6 +59,9 @@ def build_binary_demo_documents(*, output_dir: Path, overwrite: bool = False) ->
     if overwrite or not xlsx_path.exists():
         _write_xlsx(xlsx_path)
         written.append(str(xlsx_path))
+    if overwrite or not pptx_path.exists():
+        _write_pptx(pptx_path)
+        written.append(str(pptx_path))
     return written
 
 
@@ -161,6 +165,41 @@ def _write_xlsx(path: Path) -> None:
     risks.append(["Approval lag", "high", "Release Manager", "Escalate pending approvers before freeze"])
 
     workbook.save(path)
+
+
+def _write_pptx(path: Path) -> None:
+    try:
+        from pptx import Presentation
+    except Exception as exc:  # pragma: no cover - depends on local environment
+        raise RuntimeError("Для генерации PPTX demo требуется зависимость python-pptx") from exc
+
+    presentation = Presentation()
+
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Release Briefing: Payments v2"
+    body = slide.shapes.placeholders[1].text_frame
+    body.clear()
+    body.paragraphs[0].text = "Security sign-off: PENDING"
+    body.add_paragraph().text = "Rollback readiness: READY"
+    body.add_paragraph().text = "Customer notification: APPROVED"
+    slide.notes_slide.notes_text_frame.text = (
+        "Notes: финальный go/no-go требует закрыть security approval и подтвердить on-call roster."
+    )
+
+    slide = presentation.slides.add_slide(presentation.slide_layouts[1])
+    slide.shapes.title.text = "Open Release Risks"
+    body = slide.shapes.placeholders[1].text_frame
+    body.clear()
+    body.paragraphs[0].text = "Pending security governance confirmation"
+    nested = body.add_paragraph()
+    nested.text = "Mitigation: security lead review before freeze"
+    nested.level = 1
+    body.add_paragraph().text = "Canary rollback drill not signed-off"
+    slide.notes_slide.notes_text_frame.text = (
+        "Notes: escalation required if approvals remain pending at T-4h to release."
+    )
+
+    presentation.save(path)
 
 
 if __name__ == "__main__":
