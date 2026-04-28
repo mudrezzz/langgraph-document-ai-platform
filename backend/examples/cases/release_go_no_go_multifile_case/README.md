@@ -49,6 +49,8 @@ Smoke scripts также поддерживают флаг `--build-binary-demo-
 
 Основной demo-скрипт `demo_release_go_no_go_multifile_case.sh/.ps1` запускает canonical indexing API, затем retrieval с `knowledge_source=canonical` и `canonical_doc_ids`, после чего обновляет `output/release_readiness_report.md`.
 
+`smoke_knowledge_indexing.sh` и `smoke_knowledge_indexing_api.sh` теперь дополнительно печатают `pdf_demo_proof` для `06_audit_summary.pdf`, чтобы явно подтвердить table/form extraction на реальном PDF fixture.
+
 Пример ручной проверки form-confidence threshold (warning mode):
 
 ```bash

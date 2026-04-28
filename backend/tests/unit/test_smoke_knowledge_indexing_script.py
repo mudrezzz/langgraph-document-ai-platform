@@ -95,4 +95,4 @@ def test_smoke_knowledge_indexing_uses_container_managed_service(monkeypatch, ca
     assert fake_container.knowledge_indexing_service.calls == [([Path("demo/input")], {"smoke": "knowledge_indexing"}, "1")]
     assert output["ocr_recovered_doc_ids"] == ["07SCANNE-5225"]
     assert output["quality_flags"] == ["07SCANNE-5225:ocr_required", "07SCANNE-5225:ocr_applied"]
-
+    assert output["pdf_demo_proof"]["found"] is False

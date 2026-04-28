@@ -1034,6 +1034,27 @@ Seventeenth slice done:
 - targeted parser/policy/indexing/report/integration tests: `90 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `314 passed`.
 
+Eighteenth slice done:
+
+- усилен PDF pipe-table extraction для merged/wrapped rows:
+  - markdown separator rows (`| --- | --- |`) игнорируются как data rows;
+  - continuation rows склеиваются в предыдущую строку для merged/wrapped cell values;
+- smoke demo path теперь отдает explicit proof по реальному `06_audit_summary.pdf`:
+  - direct smoke: `pdf_demo_proof` в `smoke_knowledge_indexing.py`;
+  - API smoke: `pdf_demo_proof` в `smoke_knowledge_indexing_api.py`;
+- proof payload фиксирует extraction признаки:
+  - `found`;
+  - `tables_total`/`table_rows_total`;
+  - `has_pdf_tables_extracted`;
+  - `has_pdf_form_like_blocks_detected`;
+  - `has_pdf_rotated_layout_detected`;
+- добавлен ADR `0087-pdf-merged-table-hardening-and-demo-proof.md`;
+- targeted parser/smoke/indexing/integration tests: `92 passed`;
+- manual demo proof on real PDF fixture:
+  - `smoke_knowledge_indexing.sh --build-binary-demo-docs` -> `pdf_demo_proof.found=true`, `tables_total=4`, `table_rows_total=6`;
+  - `smoke_knowledge_indexing_api.sh --build-binary-demo-docs` -> `pdf_demo_proof.found=true`, `has_pdf_tables_extracted=true`.
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `315 passed`.
+
 Scope:
 
 - OCR path для scanned PDF:
@@ -1048,7 +1069,7 @@ Scope:
   - tables;
   - lists;
   - appendices;
-- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates, form-confidence policy gate, multi-line/rotated hardening и OCR-confidence calibration baseline закрыты; следующий шаг — complex merged tables + OCR calibration tuning на real corpus.
+- parser adapters для `.xlsx` и `.pptx` реализованы; PDF table+form baseline, coverage gates, form-confidence policy gate, multi-line/rotated hardening, OCR-confidence calibration и demo-proof contracts закрыты; следующий шаг — production rollout/fail-fast policy tuning на real corpus.
 - добавить document versions/read-model policy:
   - stable canonical identity;
   - version-aware lookup;

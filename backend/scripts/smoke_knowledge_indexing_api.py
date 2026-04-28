@@ -154,6 +154,7 @@ def main() -> None:
             "events_summary_has_running_to_completed": has_completed_transition,
             "observability_total_tasks": observability_payload.get("total_tasks"),
             "observability_task_types": observability_payload.get("task_types", []),
+            "pdf_demo_proof": _build_pdf_demo_proof(details),
         }
         print(json.dumps(result, ensure_ascii=False, indent=4))
     finally:
@@ -215,6 +216,32 @@ def _wait_for_task_completion(base_url: str, task_id: str, timeout_sec: int) -> 
         time.sleep(0.5)
 
     raise TimeoutError(f"Knowledge indexing task {task_id} не завершился вовремя. last={last_payload}")
+
+
+def _build_pdf_demo_proof(details: dict) -> dict:
+    parser_quality = details.get("parser_quality", {}) or {}
+    quality_flags = details.get("quality_flags", []) or []
+    candidate_doc_id = None
+    for flag in quality_flags:
+        if flag.endswith(":pdf_form_like_blocks_detected"):
+            candidate_doc_id = flag.split(":", 1)[0]
+            break
+    if not candidate_doc_id:
+        return {"found": False}
+
+    summary = parser_quality.get(candidate_doc_id, {})
+    issues = summary.get("issues", []) or []
+    form_issue = next((item for item in issues if item.get("code") == "pdf_form_like_blocks_detected"), {})
+    return {
+        "found": True,
+        "doc_id": candidate_doc_id,
+        "has_pdf_tables_extracted": f"{candidate_doc_id}:pdf_tables_extracted" in quality_flags,
+        "has_pdf_form_like_blocks_detected": f"{candidate_doc_id}:pdf_form_like_blocks_detected" in quality_flags,
+        "has_pdf_rotated_layout_detected": f"{candidate_doc_id}:pdf_rotated_layout_detected" in quality_flags,
+        "tables_total": summary.get("tables_total", 0),
+        "blocks_total": summary.get("blocks_total", 0),
+        "form_confidence_score": form_issue.get("metadata", {}).get("form_confidence_score"),
+    }
 
 
 if __name__ == "__main__":

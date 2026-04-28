@@ -1274,13 +1274,13 @@ def _parse_pdf_table_spec(text: str) -> tuple[list[str], list[list[str]], str] |
             cells = cells[1:]
         if cells and not cells[-1]:
             cells = cells[:-1]
-        cells = [cell for cell in cells if cell]
-        if len(cells) >= 2:
+        non_empty_cells = [cell for cell in cells if cell]
+        if len(non_empty_cells) >= 1:
             pipe_rows.append(cells)
     if len(pipe_rows) >= 2:
-        width = max(len(row) for row in pipe_rows)
-        normalized_rows = [row + [""] * (width - len(row)) for row in pipe_rows]
-        return normalized_rows[0], normalized_rows[1:], "pipe_table"
+        normalized_rows = _normalize_pipe_table_rows(pipe_rows)
+        if len(normalized_rows) >= 2:
+            return normalized_rows[0], normalized_rows[1:], "pipe_table"
 
     key_value_pairs = _parse_pdf_form_key_value_pairs(lines)
     if len(key_value_pairs) >= 2:
@@ -1378,6 +1378,46 @@ def _build_ocr_confidence_metrics(*, blocks: list[CanonicalContentBlock], pages_
     charset_score = max(0.0, 1.0 - weird_ratio * 2.0) * 20.0
     confidence_score = int(round(density_score + block_score + charset_score))
     return blocks_total, words_total, weird_ratio_percent, max(0, min(confidence_score, 100))
+
+
+def _normalize_pipe_table_rows(rows: list[list[str]]) -> list[list[str]]:
+    width = max(len(row) for row in rows)
+    normalized = [row + [""] * (width - len(row)) for row in rows]
+    normalized = [row for row in normalized if any(cell.strip() for cell in row)]
+    normalized = [row for row in normalized if not _is_pipe_separator_row(row)]
+    if len(normalized) < 2:
+        return normalized
+
+    header = normalized[0]
+    merged_data_rows: list[list[str]] = []
+    for row in normalized[1:]:
+        non_empty_indexes = [index for index, value in enumerate(row) if value.strip()]
+        is_continuation = bool(
+            merged_data_rows
+            and non_empty_indexes
+            and all(index > 0 for index in non_empty_indexes)
+            and len(non_empty_indexes) <= max(1, width // 2)
+        )
+        if not is_continuation:
+            merged_data_rows.append(list(row))
+            continue
+
+        target = merged_data_rows[-1]
+        for index in non_empty_indexes:
+            continuation = row[index].strip()
+            if not continuation:
+                continue
+            base = target[index].strip()
+            target[index] = f"{base} {continuation}".strip() if base else continuation
+
+    return [header, *merged_data_rows]
+
+
+def _is_pipe_separator_row(row: list[str]) -> bool:
+    cleaned = [cell.strip() for cell in row if cell.strip()]
+    if not cleaned:
+        return False
+    return all(re.fullmatch(r":?-{2,}:?", cell) is not None for cell in cleaned)
 
 
 def _parse_pdf_form_key_value_pairs(lines: list[str]) -> list[tuple[str, str]]:

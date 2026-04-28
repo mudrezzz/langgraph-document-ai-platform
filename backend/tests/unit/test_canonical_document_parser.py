@@ -385,6 +385,36 @@ def test_canonical_parser_marks_pdf_table_like_layout_blocks(tmp_path: Path) -> 
     assert any(issue.code == "pdf_tables_extracted" for issue in parsed.parser_quality.issues)
 
 
+def test_canonical_parser_merges_wrapped_pipe_table_rows(tmp_path: Path) -> None:
+    pytest.importorskip("fitz")
+    import fitz
+
+    source = tmp_path / "wrapped_pipe_table.pdf"
+    pdf = fitz.open()
+    page = pdf.new_page()
+    page.insert_textbox(
+        fitz.Rect(72, 72, 540, 230),
+        (
+            "| Control | Owner | Status | Evidence |\n"
+            "| --- | --- | --- | --- |\n"
+            "| Security sign-off | Security Lead | PENDING | Waiting CAB |\n"
+            "| | | | approval packet from SOC |\n"
+            "| Rollback drill | SRE | READY | OPS-113 |\n"
+        ),
+        fontsize=10,
+    )
+    pdf.save(source)
+    pdf.close()
+
+    parsed = CanonicalDocumentParser().parse_path(source)
+
+    table = next(item for item in parsed.extracted_tables if item.metadata.get("pdf_table_kind") == "pipe_table")
+    assert table.columns == ["Control", "Owner", "Status", "Evidence"]
+    assert len(table.rows) == 2
+    assert table.rows[0]["Evidence"] == "Waiting CAB approval packet from SOC"
+    assert table.rows[1]["Owner"] == "SRE"
+
+
 def test_canonical_parser_extracts_pdf_form_like_key_value_rows(tmp_path: Path) -> None:
     pytest.importorskip("fitz")
     import fitz

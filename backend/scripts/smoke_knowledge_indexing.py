@@ -61,6 +61,7 @@ def main() -> None:
             for doc_id in result.indexed_doc_ids
         ),
         "embeddings_indexed": result.embeddings_indexed,
+        "pdf_demo_proof": _build_pdf_demo_proof(result.documents),
     }
     print(json.dumps(payload, ensure_ascii=False, indent=4))
 
@@ -71,6 +72,31 @@ def _build_binary_demo_docs(input_path: Path) -> None:
     else:
         input_dir = input_path
     build_binary_demo_documents(output_dir=input_dir)
+
+
+def _build_pdf_demo_proof(documents: list) -> dict:
+    pdf_doc = next(
+        (
+            document
+            for document in documents
+            if str(document.metadata_profile.get("file_name", "")).strip() == "06_audit_summary.pdf"
+        ),
+        None,
+    )
+    if pdf_doc is None:
+        return {"found": False}
+
+    table_rows_total = sum(1 for block in pdf_doc.content_blocks if block.block_type == "table_row")
+    return {
+        "found": True,
+        "doc_id": pdf_doc.doc_id,
+        "quality_flags": list(pdf_doc.quality_flags),
+        "tables_total": len(pdf_doc.extracted_tables),
+        "table_rows_total": table_rows_total,
+        "has_pdf_tables_extracted": "pdf_tables_extracted" in pdf_doc.quality_flags,
+        "has_pdf_form_like_blocks_detected": "pdf_form_like_blocks_detected" in pdf_doc.quality_flags,
+        "has_pdf_rotated_layout_detected": "pdf_rotated_layout_detected" in pdf_doc.quality_flags,
+    }
 
 
 if __name__ == "__main__":

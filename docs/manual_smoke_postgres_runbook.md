@@ -543,6 +543,7 @@ bash backend/scripts/smoke_knowledge_indexing.sh --build-binary-demo-docs
 - в `quality_summary` видны aggregate counters `documents_with_pdf_table_partial` и `documents_with_pdf_form_like`.
 - в `quality_summary` также есть `documents_with_pdf_form_confidence_low`; при активном threshold также видно `form_confidence_min_score` и `pdf_form_confidence_by_doc`.
 - в `quality_summary` также есть `documents_with_ocr_confidence_low`; при активном threshold также видно `ocr_confidence_min_score` и `ocr_confidence_by_doc`.
+- `pdf_demo_proof.found=true` и для `06_audit_summary.pdf` видны `tables_total>0`, `has_pdf_tables_extracted=true`, `has_pdf_form_like_blocks_detected=true`.
 
 Как интерпретировать:
 
@@ -580,6 +581,7 @@ bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs --
 - `quality_summary.policy_name=default_indexing_quality_policy_v1`;
 - `quality_summary.rejected_documents_total=0` для текущего demo input;
 - `ocr_recovered_doc_ids` содержит scanned PDF doc_id;
+- `pdf_demo_proof.found=true` и `pdf_demo_proof.has_pdf_tables_extracted=true` подтверждают extraction на реальном demo PDF.
 - `events_summary_has_running_to_completed=true`.
 
 Как интерпретировать:

@@ -1107,6 +1107,7 @@ Parser quality baseline текущего hardening-среза:
   - при успешном извлечении табличной структуры выставляется `pdf_tables_extracted`, а строки попадают в canonical corpus как `table_row` blocks.
   - form-like key/value blocks извлекаются как tabular path с флагом `pdf_form_like_blocks_detected`.
   - form-like parser поддерживает ключи с пробелами/дефисами и multi-line values.
+  - pipe-like table parser поддерживает markdown separator rows и merged/wrapped continuation rows.
   - при частичном извлечении table-like candidates выставляется `pdf_table_extraction_partial`, а `parser_quality.issues[].metadata` содержит coverage/rows counters.
   - для form-like extraction `parser_quality.issues` отдает:
     - `key_value_pairs_total`;
@@ -1136,6 +1137,7 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 - `quality_summary.documents_with_pdf_form_confidence_low >= 0`, а `quality_summary.form_confidence_min_score` отражает активный threshold;
 - `quality_summary.documents_with_ocr_confidence_low >= 0`, а `quality_summary.ocr_confidence_min_score` отражает активный threshold;
 - `parser_quality` присутствует в Knowledge Indexing API smoke output;
+- `pdf_demo_proof.found=true` для `06_audit_summary.pdf`, с `has_pdf_tables_extracted=true` и `has_pdf_form_like_blocks_detected=true`.
 - `events_summary_has_running_to_completed=true` в Knowledge Indexing API smoke;
 - `knowledge_source=canonical` в canonical retrieval smoke;
 - `retrieval_backend=pgvector` в canonical retrieval smoke;

@@ -97,3 +97,4 @@
 - `0084-pdf-form-confidence-policy-gate.md`
 - `0085-pdf-multiline-form-and-rotated-layout-hardening.md`
 - `0086-ocr-confidence-calibration-and-policy-gate.md`
+- `0087-pdf-merged-table-hardening-and-demo-proof.md`
