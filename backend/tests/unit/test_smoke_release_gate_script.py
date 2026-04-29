@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from scripts.smoke_release_gate import evaluate_release_gate
+from argparse import Namespace
+
+from scripts.smoke_release_gate import evaluate_release_gate, resolve_gate_policy
 
 
 def test_release_gate_evaluate_passes_for_valid_payload() -> None:
@@ -32,6 +34,8 @@ def test_release_gate_evaluate_passes_for_valid_payload() -> None:
 
     assert checks
     assert all(item["passed"] for item in checks)
+    assert all(item.get("code", "").startswith("RG") for item in checks)
+    assert all(item.get("message") == "ok" for item in checks)
 
 
 def test_release_gate_evaluate_fails_on_llm_tokens_and_breaches() -> None:
@@ -66,3 +70,22 @@ def test_release_gate_evaluate_fails_on_llm_tokens_and_breaches() -> None:
     assert "hitl_actions_recorded" in failed
     assert "llm_tokens_total_non_zero" in failed
     assert "draft_generation_mode_llm" in failed
+    assert all(item.get("code", "").startswith("RG") for item in checks)
+
+
+def test_release_gate_policy_resolution_prefers_cli_over_profile_defaults() -> None:
+    policy = resolve_gate_policy(
+        Namespace(
+            gate_profile="prod",
+            min_events_total=5,
+            min_observability_total_tasks=7,
+            max_duration_sla_breaches=2,
+            max_queue_wait_sla_breaches=3,
+            require_llm_tokens=True,
+        )
+    )
+    assert policy["min_events_total"] == 5
+    assert policy["min_observability_total_tasks"] == 7
+    assert policy["max_duration_sla_breaches"] == 2
+    assert policy["max_queue_wait_sla_breaches"] == 3
+    assert policy["require_llm_tokens"] is True

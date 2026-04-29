@@ -323,7 +323,7 @@ APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
 ```
 
 Optional strict policy knobs:
@@ -333,6 +333,24 @@ Optional strict policy knobs:
 - `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
 - `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
 - `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (+ `--draft-strategy llm` и рабочий OpenRouter key).
+
+Smoke output includes `checks[]` with short triage codes `RG001..RG012`; failed checks are duplicated in `failed_checks[]`.
+
+Финальный шаг release decision (официальный verdict для handoff):
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/release_decision_gate.sh --gate-profile stage
+```
+
+Expected result:
+
+- script exits `0`;
+- файл `backend/.release_gate/release_decision_*.json` содержит `status=pass`;
+- `decision_reason` отражает source of truth по smoke + pytest gates.
 
 ## 11. Shutdown
 

@@ -1,15 +1,15 @@
 [CmdletBinding()]
 param(
     [string]$HostName = "127.0.0.1",
-    [int]$Port = 8088,
+    [int]$Port = 8090,
     [ValidateSet("dev", "stage", "prod")]
-    [string]$GateProfile = "dev",
+    [string]$GateProfile = "stage",
+    [ValidateSet("auto", "deterministic", "llm")]
     [string]$DraftStrategy = "deterministic",
-    [string]$WorkflowMode = "multi_step",
-    [string]$HitlDecisionSequence = "needs_changes,approve",
     [switch]$RequireLlmTokens,
+    [switch]$BuildBinaryDemoDocs,
     [switch]$SkipKnowledgeIndexing,
-    [switch]$BuildBinaryDemoDocs
+    [switch]$SkipPytest
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,17 +47,16 @@ $prevPythonPath = $env:PYTHONPATH
 $env:PYTHONPATH = "$backendRoot;$backendRoot\packages"
 
 $argsList = @(
-    "$backendRoot\scripts\smoke_release_gate.py",
+    "$backendRoot\scripts\release_decision_gate.py",
     "--host", $HostName,
     "--port", $Port,
     "--gate-profile", $GateProfile,
-    "--draft-strategy", $DraftStrategy,
-    "--workflow-mode", $WorkflowMode,
-    "--hitl-decision-sequence", $HitlDecisionSequence
+    "--draft-strategy", $DraftStrategy
 )
 if ($RequireLlmTokens) { $argsList += "--require-llm-tokens" }
-if ($SkipKnowledgeIndexing) { $argsList += "--skip-knowledge-indexing" }
 if ($BuildBinaryDemoDocs) { $argsList += "--build-binary-demo-docs" }
+if ($SkipKnowledgeIndexing) { $argsList += "--skip-knowledge-indexing" }
+if ($SkipPytest) { $argsList += "--skip-pytest" }
 
 try {
     Push-Location $repoRoot

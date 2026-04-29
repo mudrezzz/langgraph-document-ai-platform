@@ -23,9 +23,11 @@
    - `tasks/observability/summary` и `hitl/observability/summary`.
 3. Script строит checks matrix и печатает JSON:
    - `gate_status=pass|fail`;
-   - `checks[]` со структурой `name/passed/expected/actual`;
+   - `checks[]` со структурой `code/name/passed/expected/actual/message`;
+   - `failed_checks[]` для быстрого triage;
    - `artifacts` со входными payloads для диагностики.
-4. Пороговые проверки параметризуются через env/CLI:
+4. Пороговые проверки параметризуются через env/CLI и profile presets:
+   - `--gate-profile dev|stage|prod`;
    - `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
    - `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
    - `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;

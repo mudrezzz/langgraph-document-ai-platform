@@ -14,6 +14,30 @@ from typing import Any
 
 from scripts.build_binary_demo_documents import build_binary_demo_documents
 
+GATE_PROFILES: dict[str, dict[str, Any]] = {
+    "dev": {
+        "min_events_total": 2,
+        "min_observability_total_tasks": 2,
+        "max_duration_sla_breaches": -1,
+        "max_queue_wait_sla_breaches": -1,
+        "require_llm_tokens": False,
+    },
+    "stage": {
+        "min_events_total": 2,
+        "min_observability_total_tasks": 3,
+        "max_duration_sla_breaches": 5,
+        "max_queue_wait_sla_breaches": 5,
+        "require_llm_tokens": False,
+    },
+    "prod": {
+        "min_events_total": 2,
+        "min_observability_total_tasks": 3,
+        "max_duration_sla_breaches": 0,
+        "max_queue_wait_sla_breaches": 0,
+        "require_llm_tokens": False,
+    },
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Release gate smoke: retrieval + authoring HITL + observability verdict")
@@ -36,34 +60,38 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--draft-strategy", default="deterministic", choices=["auto", "deterministic", "llm"])
     parser.add_argument("--workflow-mode", default="multi_step", choices=["single_pass", "multi_step"])
     parser.add_argument("--hitl-decision-sequence", default="needs_changes,approve")
-    parser.add_argument("--min-events-total", type=int, default=_env_int("APP_RELEASE_GATE_MIN_EVENTS_TOTAL", 2))
+    parser.add_argument(
+        "--gate-profile",
+        choices=sorted(GATE_PROFILES.keys()),
+        default=os.getenv("APP_RELEASE_GATE_PROFILE", "dev").strip().lower() or "dev",
+    )
+    parser.add_argument("--min-events-total", type=int, default=None)
     parser.add_argument(
         "--min-observability-total-tasks",
         type=int,
-        default=_env_int("APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS", 2),
+        default=None,
     )
     parser.add_argument(
         "--max-duration-sla-breaches",
         type=int,
-        default=_env_int("APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES", -1),
+        default=None,
         help="-1 отключает проверку.",
     )
     parser.add_argument(
         "--max-queue-wait-sla-breaches",
         type=int,
-        default=_env_int("APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES", -1),
+        default=None,
         help="-1 отключает проверку.",
     )
-    parser.add_argument(
-        "--require-llm-tokens",
-        action="store_true",
-        default=_env_bool("APP_RELEASE_GATE_REQUIRE_LLM_TOKENS", False),
-    )
+    parser.add_argument("--require-llm-tokens", dest="require_llm_tokens", action="store_true")
+    parser.add_argument("--no-require-llm-tokens", dest="require_llm_tokens", action="store_false")
+    parser.set_defaults(require_llm_tokens=None)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    gate_policy = resolve_gate_policy(args)
     repo_root = Path(__file__).resolve().parents[2]
     backend_root = repo_root / "backend"
     base_url = f"http://{args.host}:{args.port}"
@@ -143,16 +171,20 @@ def main() -> None:
             observability=observability,
             hitl_summary=hitl_summary,
             authoring_status=authoring_payload["status_payload"],
-            require_llm_tokens=args.require_llm_tokens,
-            min_events_total=args.min_events_total,
-            min_observability_total_tasks=args.min_observability_total_tasks,
-            max_duration_sla_breaches=args.max_duration_sla_breaches,
-            max_queue_wait_sla_breaches=args.max_queue_wait_sla_breaches,
+            require_llm_tokens=bool(gate_policy["require_llm_tokens"]),
+            min_events_total=int(gate_policy["min_events_total"]),
+            min_observability_total_tasks=int(gate_policy["min_observability_total_tasks"]),
+            max_duration_sla_breaches=int(gate_policy["max_duration_sla_breaches"]),
+            max_queue_wait_sla_breaches=int(gate_policy["max_queue_wait_sla_breaches"]),
         )
         gate_status = "pass" if all(item["passed"] for item in checks) else "fail"
+        failed_checks = [item for item in checks if not item["passed"]]
         payload = {
             "gate_status": gate_status,
+            "gate_profile": args.gate_profile,
+            "gate_policy": gate_policy,
             "checks": checks,
+            "failed_checks": failed_checks,
             "artifacts": {
                 "base_url": base_url,
                 "knowledge_indexing": indexing_payload,
@@ -190,6 +222,7 @@ def evaluate_release_gate(
     events_total = _as_non_negative_int(retrieval_events_summary.get("total_events"))
     checks.append(
         _check(
+            code="RG001",
             name="retrieval_events_total",
             passed=events_total >= max(1, min_events_total),
             expected=f">= {max(1, min_events_total)}",
@@ -203,6 +236,7 @@ def evaluate_release_gate(
     )
     checks.append(
         _check(
+            code="RG002",
             name="retrieval_transition_running_to_completed",
             passed=has_running_to_completed,
             expected=True,
@@ -211,6 +245,7 @@ def evaluate_release_gate(
     )
     checks.append(
         _check(
+            code="RG003",
             name="retrieval_events_daily_non_empty",
             passed=bool(retrieval_events_summary.get("daily")),
             expected=True,
@@ -219,6 +254,7 @@ def evaluate_release_gate(
     )
     checks.append(
         _check(
+            code="RG004",
             name="retrieval_events_weekly_non_empty",
             passed=bool(retrieval_events_summary.get("weekly")),
             expected=True,
@@ -229,6 +265,7 @@ def evaluate_release_gate(
     total_tasks = _as_non_negative_int(observability.get("total_tasks"))
     checks.append(
         _check(
+            code="RG005",
             name="observability_total_tasks",
             passed=total_tasks >= max(1, min_observability_total_tasks),
             expected=f">= {max(1, min_observability_total_tasks)}",
@@ -237,6 +274,7 @@ def evaluate_release_gate(
     )
     checks.append(
         _check(
+            code="RG006",
             name="observability_daily_non_empty",
             passed=bool(observability.get("daily")),
             expected=True,
@@ -245,6 +283,7 @@ def evaluate_release_gate(
     )
     checks.append(
         _check(
+            code="RG007",
             name="observability_weekly_non_empty",
             passed=bool(observability.get("weekly")),
             expected=True,
@@ -256,6 +295,7 @@ def evaluate_release_gate(
     if max_duration_sla_breaches >= 0:
         checks.append(
             _check(
+                code="RG008",
                 name="duration_sla_breaches",
                 passed=duration_breaches <= max_duration_sla_breaches,
                 expected=f"<= {max_duration_sla_breaches}",
@@ -267,6 +307,7 @@ def evaluate_release_gate(
     if max_queue_wait_sla_breaches >= 0:
         checks.append(
             _check(
+                code="RG009",
                 name="queue_wait_sla_breaches",
                 passed=queue_wait_breaches <= max_queue_wait_sla_breaches,
                 expected=f"<= {max_queue_wait_sla_breaches}",
@@ -277,6 +318,7 @@ def evaluate_release_gate(
     hitl_total_actions = _as_non_negative_int(hitl_summary.get("total_actions"))
     checks.append(
         _check(
+            code="RG010",
             name="hitl_actions_recorded",
             passed=hitl_total_actions >= 1,
             expected=">= 1",
@@ -290,6 +332,7 @@ def evaluate_release_gate(
         draft_mode = str(details.get("draft_generation_mode", ""))
         checks.append(
             _check(
+                code="RG011",
                 name="llm_tokens_total_non_zero",
                 passed=llm_tokens_total > 0,
                 expected="> 0",
@@ -298,6 +341,7 @@ def evaluate_release_gate(
         )
         checks.append(
             _check(
+                code="RG012",
                 name="draft_generation_mode_llm",
                 passed=draft_mode == "llm",
                 expected="llm",
@@ -546,8 +590,58 @@ def _request(method: str, url: str, payload: dict[str, Any] | None = None) -> tu
         return 0, {}
 
 
-def _check(*, name: str, passed: bool, expected: Any, actual: Any) -> dict[str, Any]:
-    return {"name": name, "passed": bool(passed), "expected": expected, "actual": actual}
+def _check(*, code: str, name: str, passed: bool, expected: Any, actual: Any) -> dict[str, Any]:
+    message = "ok" if passed else f"{code}:{name} expected={expected} actual={actual}"
+    return {
+        "code": code,
+        "name": name,
+        "passed": bool(passed),
+        "expected": expected,
+        "actual": actual,
+        "message": message,
+    }
+
+
+def resolve_gate_policy(args: argparse.Namespace) -> dict[str, Any]:
+    profile_name = str(args.gate_profile).strip().lower()
+    if profile_name not in GATE_PROFILES:
+        raise ValueError(f"Unsupported gate profile: {profile_name}")
+
+    policy = dict(GATE_PROFILES[profile_name])
+
+    env_min_events_total = _env_int("APP_RELEASE_GATE_MIN_EVENTS_TOTAL", policy["min_events_total"])
+    env_min_observability_total_tasks = _env_int(
+        "APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS",
+        policy["min_observability_total_tasks"],
+    )
+    env_max_duration_sla_breaches = _env_int(
+        "APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES",
+        policy["max_duration_sla_breaches"],
+    )
+    env_max_queue_wait_sla_breaches = _env_int(
+        "APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES",
+        policy["max_queue_wait_sla_breaches"],
+    )
+    env_require_llm_tokens = _env_bool("APP_RELEASE_GATE_REQUIRE_LLM_TOKENS", bool(policy["require_llm_tokens"]))
+
+    policy["min_events_total"] = env_min_events_total
+    policy["min_observability_total_tasks"] = env_min_observability_total_tasks
+    policy["max_duration_sla_breaches"] = env_max_duration_sla_breaches
+    policy["max_queue_wait_sla_breaches"] = env_max_queue_wait_sla_breaches
+    policy["require_llm_tokens"] = env_require_llm_tokens
+
+    if args.min_events_total is not None:
+        policy["min_events_total"] = max(1, int(args.min_events_total))
+    if args.min_observability_total_tasks is not None:
+        policy["min_observability_total_tasks"] = max(1, int(args.min_observability_total_tasks))
+    if args.max_duration_sla_breaches is not None:
+        policy["max_duration_sla_breaches"] = int(args.max_duration_sla_breaches)
+    if args.max_queue_wait_sla_breaches is not None:
+        policy["max_queue_wait_sla_breaches"] = int(args.max_queue_wait_sla_breaches)
+    if args.require_llm_tokens is not None:
+        policy["require_llm_tokens"] = bool(args.require_llm_tokens)
+
+    return policy
 
 
 def _as_non_negative_int(raw: Any) -> int:

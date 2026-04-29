@@ -58,7 +58,13 @@
   - проверяет read-model endpoint `GET /api/v1/hitl/actions` для текущего task.
 - `smoke_release_gate.sh` — unified release-gate smoke c итоговым JSON verdict (`gate_status=pass|fail`).
   - path: optional `knowledge-indexing` -> `retrieval` -> `authoring + HITL` -> `events/observability/hitl-observability` checks;
-  - поддерживает env/CLI thresholds (`APP_RELEASE_GATE_*`) и optional проверку `llm_tokens_*`.
+  - поддерживает policy profile `--gate-profile dev|stage|prod`;
+  - поддерживает env/CLI thresholds (`APP_RELEASE_GATE_*`) и optional проверку `llm_tokens_*`;
+  - `checks[]` содержит short codes `RG001..RG012` для triage.
+- `release_decision_gate.sh` — финальный orchestrator релизного решения.
+  - запускает `smoke_release_gate` и full pytest gate;
+  - пишет machine-readable verdict в `backend/.release_gate/release_decision_*.json` и markdown summary;
+  - итоговый статус: `pass|fail` + `decision_reason`.
 - `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
 
 ### Пример полного цикла
@@ -141,14 +147,18 @@ APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CE
 
 # Unified release gate smoke verdict (pass/fail):
 APP_RUNTIME_PROFILE=prod APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph APP_DB_SCHEMA=app \
-  bash backend/scripts/smoke_release_gate.sh --port 8088
+  bash backend/scripts/smoke_release_gate.sh --port 8088 --gate-profile stage
 
 # Optional strict LLM token gate:
 OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
 OPENROUTER_MODEL="$(awk -F= '/^OPENROUTER_MODEL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
 OPENROUTER_BASE_URL="$(awk -F= '/^OPENROUTER_BASE_URL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
 APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1 \
-  bash backend/scripts/smoke_release_gate.sh --port 8088 --draft-strategy llm --require-llm-tokens
+  bash backend/scripts/smoke_release_gate.sh --port 8088 --gate-profile prod --draft-strategy llm --require-llm-tokens
+
+# Final release decision orchestrator (smoke + pytest):
+APP_RUNTIME_PROFILE=prod APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph APP_DB_SCHEMA=app \
+  bash backend/scripts/release_decision_gate.sh --gate-profile stage
 bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
@@ -182,6 +192,7 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `smoke_authoring_async_api.ps1`
 - `demo_release_authoring_async_hitl_case.ps1`
 - `smoke_release_gate.ps1`
+- `release_decision_gate.ps1`
 
 ## Production Runbook
 

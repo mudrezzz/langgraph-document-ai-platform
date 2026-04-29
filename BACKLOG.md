@@ -1128,8 +1128,9 @@ Third slice done:
 - добавлен unified release-gate smoke matrix:
   - `backend/scripts/smoke_release_gate.py` + wrappers `smoke_release_gate.sh/.ps1`;
   - flow: optional `knowledge-indexing` -> `retrieval` -> `authoring + HITL` -> observability checks;
-  - JSON verdict: `gate_status=pass|fail`, `checks[]` (`name`, `passed`, `expected`, `actual`), diagnostic `artifacts`.
+  - JSON verdict: `gate_status=pass|fail`, `checks[]` (`code`, `name`, `passed`, `expected`, `actual`, `message`), `failed_checks[]`, diagnostic `artifacts`.
 - release-gate thresholds вынесены в env/CLI contract:
+  - `--gate-profile dev|stage|prod` с baseline presets;
   - `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
   - `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
   - `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
@@ -1141,6 +1142,34 @@ Third slice done:
 - добавлен ADR `0090-unified-release-gate-smoke-matrix.md`;
 - targeted tests: `5 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `318 passed`.
+
+Fourth slice done:
+
+- `smoke_release_gate` усилен policy-профилями и triage output:
+  - `--gate-profile dev|stage|prod` (с baseline presets);
+  - `checks[]` теперь содержит short codes `RG001..RG012` и `message`;
+  - отдельный `failed_checks[]` для быстрого анализа причин fail verdict;
+- profile/env/CLI override policy закреплена в `resolve_gate_policy(...)` и покрыта unit tests;
+- scripts/runbook docs обновлены под новый профильный контракт (`stage/prod` примеры);
+- targeted tests: `6 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `319 passed`.
+
+Fifth slice done:
+
+- добавлен финальный release decision orchestrator:
+  - `backend/scripts/release_decision_gate.py` + wrappers `release_decision_gate.sh/.ps1`;
+  - orchestrator запускает `smoke_release_gate` + full pytest gate и пишет unified verdict artifacts:
+    - `backend/.release_gate/release_decision_*.json`;
+    - `backend/.release_gate/release_decision_*.md`;
+- unified decision payload фиксирует:
+  - `status`, `decision_reason`, `failed_checks[]`;
+  - `smoke_release_gate` summary;
+  - `test_gate_summary`;
+  - `profile`, `commit_sha`, `branch`, `timestamp_utc`;
+- добавлен ADR `0091-final-release-decision-contract.md`;
+- runbook contract tests обновлены на обязательный `release_decision_gate.sh`;
+- targeted tests: `8 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `321 passed`.
 
 Scope:
 

@@ -879,8 +879,6 @@ bash backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.
 2. получает итоговый task artifact и summary событий;
 3. сохраняет итог в `output/authoring_traceability_result.json`.
 
-## 22. Завершение и остановка сервисов
-
 ## 22. Unified Release Gate Smoke (PASS/FAIL JSON)
 
 ```bash
@@ -888,13 +886,14 @@ APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
 PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
 ```
 
 Что увидеть:
 
 - JSON содержит `gate_status=pass|fail`;
-- `checks[]` содержит matrix проверок (`name`, `passed`, `expected`, `actual`);
+- `checks[]` содержит matrix проверок (`code`, `name`, `passed`, `expected`, `actual`, `message`);
+- `failed_checks[]` дублирует только упавшие проверки;
 - `artifacts` содержит payloads:
   - `retrieval_events_summary`;
   - `observability_summary`;
@@ -909,7 +908,33 @@ bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
 - `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
 - `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (требует `--draft-strategy llm` и рабочий OpenRouter key).
 
-## 23. Завершение и остановка сервисов
+Профили policy:
+
+- `--gate-profile dev` (мягкий baseline);
+- `--gate-profile stage` (умеренно строгий);
+- `--gate-profile prod` (строгий baseline, нулевые SLA breaches по умолчанию).
+
+## 23. Final Release Decision Gate (официальный verdict)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/release_decision_gate.sh --host 127.0.0.1 --port 8090 --gate-profile stage
+```
+
+Что увидеть:
+
+- script завершился кодом `0`;
+- создан `backend/.release_gate/release_decision_*.json`;
+- в JSON:
+  - `status=pass`;
+  - `decision_reason`;
+  - `failed_checks` (пустой список при pass);
+  - `test_gate_summary.summary_line` с итогом pytest gate.
+
+## 24. Завершение и остановка сервисов
 
 Если запускали `--keep-server`, остановить API:
 

@@ -135,7 +135,11 @@
   - `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md` фиксирует checklist передачи production-boundary baseline.
 - добавлен unified release-gate smoke:
   - `backend/scripts/smoke_release_gate.sh/.ps1/.py`;
-  - JSON verdict `gate_status=pass|fail` с matrix checks по retrieval events, task observability SLA, HITL observability и optional LLM token proof.
+  - JSON verdict `gate_status=pass|fail` с matrix checks по retrieval events, task observability SLA, HITL observability и optional LLM token proof;
+  - checks отдают short triage-codes `RG001..RG012` и поддерживают policy profile `dev|stage|prod`.
+- добавлен финальный orchestrator релизного решения:
+  - `backend/scripts/release_decision_gate.sh/.ps1/.py`;
+  - объединяет `smoke_release_gate` + full pytest gate и пишет итоговый verdict в `backend/.release_gate/release_decision_*.json/.md`.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -574,7 +578,7 @@ bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.
 APP_RUNTIME_PROFILE=prod \
 APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
 APP_DB_SCHEMA=app \
-bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
 ```
 
 43. Unified Release Gate Smoke с обязательным LLM token proof (Linux):
@@ -585,7 +589,16 @@ OPENROUTER_MODEL="$(awk -F= '/^OPENROUTER_MODEL=/{print substr($0, index($0,"=")
 OPENROUTER_BASE_URL="$(awk -F= '/^OPENROUTER_BASE_URL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
 APP_RUNTIME_PROFILE=prod APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph APP_DB_SCHEMA=app \
 APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1 \
-bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --draft-strategy llm --require-llm-tokens
+bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile prod --draft-strategy llm --require-llm-tokens
+```
+
+44. Final Release Decision Gate (Linux):
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+bash ./backend/scripts/release_decision_gate.sh --host 127.0.0.1 --port 8090 --gate-profile stage
 ```
 
 38. Остановить Redis + Celery worker (Linux):

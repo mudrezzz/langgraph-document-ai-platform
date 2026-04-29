@@ -229,7 +229,11 @@
 - unified release-gate smoke matrix:
   - `backend/scripts/smoke_release_gate.sh/.ps1/.py` собирает proof payload по `events/summary`, `tasks/observability/summary` и `hitl/observability/summary`;
   - script возвращает machine-readable `gate_status=pass|fail` + `checks[]` с expected/actual;
-  - thresholds конфигурируются через `APP_RELEASE_GATE_*` env contract и optional `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS`.
+  - thresholds конфигурируются через `APP_RELEASE_GATE_*` env contract и optional `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS`;
+  - policy profiles `dev|stage|prod` дают baseline presets, а checks содержат short triage-codes `RG001..RG012`.
+- final release decision orchestrator:
+  - `backend/scripts/release_decision_gate.sh/.ps1/.py` объединяет `smoke_release_gate` и full pytest gate;
+  - формирует unified verdict artifact (`status`, `decision_reason`, `failed_checks`, `test_gate_summary`, `commit_sha`) в `backend/.release_gate`.
 - file-based demo pipeline для release readiness:
   - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
   - запуск retrieval через `case_dataset_path`;
