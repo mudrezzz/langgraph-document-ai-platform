@@ -1106,6 +1106,23 @@ First slice done:
 - targeted tests: `98 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `315 passed`.
 
+Second slice done:
+
+- observability SLA metrics добавлены поверх existing task read-model:
+  - overall и per-task-type `p50/p95` для `duration_ms` и `queue_wait_ms`;
+  - overall и per-task-type SLA breach counters:
+    - `duration_sla_breaches_total`;
+    - `queue_wait_sla_breaches_total`;
+  - env-driven thresholds:
+    - `APP_SLA_TASK_DURATION_MS`;
+    - `APP_SLA_QUEUE_WAIT_MS`;
+- `GET /api/v1/tasks/observability/summary` расширен периодными SLA time buckets:
+  - `daily[]` и `weekly[]` (`total_tasks`, `completed_tasks`, `failed_tasks`, `waiting_human_tasks`, SLA breaches);
+- обновлены contracts/api mappings/tests (unit + integration + e2e);
+- добавлен ADR `0089-observability-sla-percentiles-and-time-buckets.md`;
+- targeted tests: `76 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `316 passed`.
+
 Scope:
 
 - quality evaluation workflow;

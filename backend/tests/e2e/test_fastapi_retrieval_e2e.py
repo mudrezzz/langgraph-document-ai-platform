@@ -344,9 +344,17 @@ def test_e2e_task_observability_summary_endpoint(server_base_url: str) -> None:
     assert status == 200
     assert body["total_tasks"] >= 1
     assert body["completed_tasks"] >= 1
+    assert "p50_duration_ms" in body
+    assert "p95_duration_ms" in body
+    assert "duration_sla_breaches_total" in body
+    assert "p50_queue_wait_ms" in body
+    assert "p95_queue_wait_ms" in body
+    assert "queue_wait_sla_breaches_total" in body
     assert "avg_selected_block_count" in body
     assert "avg_confidence" in body
     assert "llm_tokens_total" in body
+    assert "daily" in body
+    assert "weekly" in body
     assert any(item["task_type"] == "retrieval_pack" for item in body["task_types"])
 
 

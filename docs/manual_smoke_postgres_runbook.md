@@ -70,6 +70,8 @@ APP_CELERY_INDEXING_QUEUE=knowledge-indexing
 APP_CELERY_RETRIEVAL_QUEUE=retrieval
 APP_HITL_MAX_ITERATIONS=2
 APP_HITL_WAIT_TIMEOUT_SEC=1800
+APP_SLA_TASK_DURATION_MS=0
+APP_SLA_QUEUE_WAIT_MS=0
 APP_AUTH_ENABLED=false
 APP_INDEXING_QUALITY_POLICY_NAME=default_indexing_quality_policy_v1
 APP_INDEXING_QUALITY_BLOCKING_FLAGS=empty_document,no_content_blocks,pdf_no_extractable_text,ocr_text_not_recovered
@@ -190,6 +192,7 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/observability/summary" \
 - в `summary.transitions` есть `running -> completed`.
 - в `summary.daily[]` и `summary.weekly[]` есть хотя бы один бакет с `total_events > 0`;
 - в observability summary присутствуют поля `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `llm_tokens_total`.
+- при включенных SLA env thresholds (`APP_SLA_TASK_DURATION_MS`, `APP_SLA_QUEUE_WAIT_MS`) в observability видны `p50/p95` и breach counters (`duration_sla_breaches_total`, `queue_wait_sla_breaches_total`).
 
 ## 6. Расширенный demo: single-file сценарий
 

@@ -185,7 +185,11 @@
   - `GET /api/v1/tasks/observability/summary`;
   - фильтры `status`, `task_type`, `from`, `to`;
   - current-state counts, async totals и latency/queue wait aggregates по `task_type`;
-  - execution quality/token aggregates: `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `unresolved_gaps_total`, `llm_tokens_*`.
+  - execution quality/token aggregates: `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `unresolved_gaps_total`, `llm_tokens_*`;
+  - SLA aggregates:
+    - `p50/p95` для `duration_ms` и `queue_wait_ms`;
+    - env-driven thresholds/breaches (`APP_SLA_TASK_DURATION_MS`, `APP_SLA_QUEUE_WAIT_MS`);
+    - period buckets `daily[]/weekly[]` с completed/failed/waiting_human breakdown.
 - authoring API:
   - `POST /api/v1/tasks/authoring/start`;
   - `POST /api/v1/tasks/authoring/start_async`;

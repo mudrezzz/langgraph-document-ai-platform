@@ -52,6 +52,8 @@
   - текущие counts по статусам;
   - async/queue aggregates;
   - latency breakdown по `task_type`;
+  - SLA percentiles/breaches (`p50/p95`, threshold/breach counters);
+  - day/week observability buckets (`daily[]`, `weekly[]`);
   - quality/token aggregates (`avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `llm_tokens_*`).
 - добавлен reviewer observability endpoint `GET /api/v1/hitl/observability/summary`:
   - decision mix, pending/completed counts, `avg_iteration`, `max_iteration`;
@@ -869,11 +871,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 Ответ:
 
 - `total_tasks`, `queued_tasks`, `running_tasks`, `waiting_human_tasks`, `completed_tasks`, `failed_tasks`;
-- `async_tasks`, `avg_duration_ms`, `max_duration_ms`, `avg_queue_wait_ms`;
+- `async_tasks`, `avg_duration_ms`, `p50_duration_ms`, `p95_duration_ms`, `max_duration_ms`;
+- `duration_sla_threshold_ms`, `duration_sla_breaches_total`;
+- `avg_queue_wait_ms`, `p50_queue_wait_ms`, `p95_queue_wait_ms`;
+- `queue_wait_sla_threshold_ms`, `queue_wait_sla_breaches_total`;
 - `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `unresolved_gaps_total`;
 - `llm_tokens_prompt_total`, `llm_tokens_completion_total`, `llm_tokens_total`;
+- `daily[]`, `weekly[]` с полями `bucket_start`, `total_tasks`, `completed_tasks`, `failed_tasks`, `waiting_human_tasks`, `duration_sla_breaches_total`, `queue_wait_sla_breaches_total`;
 - `statuses[]`;
-- `task_types[]` с breakdown по `task_type`, включая `avg_selected_block_count`, `avg_confidence`, `unresolved_gaps_total`, `llm_tokens_*`.
+- `task_types[]` с breakdown по `task_type`, включая `p50/p95`, SLA breach counters, quality/token aggregates.
+
+SLA thresholds настраиваются env-переменными:
+
+- `APP_SLA_TASK_DURATION_MS` (0/empty = disabled);
+- `APP_SLA_QUEUE_WAIT_MS` (0/empty = disabled).
 
 ## Контракт GET /api/v1/tasks/{task_id}/artifact
 

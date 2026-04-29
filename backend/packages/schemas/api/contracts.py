@@ -119,13 +119,31 @@ class TaskTypeObservabilitySummaryItem(BaseModel):
     completed_total: int = 0
     failed_total: int = 0
     avg_duration_ms: int | None = None
+    p50_duration_ms: int | None = None
+    p95_duration_ms: int | None = None
+    duration_sla_breaches_total: int = 0
     avg_queue_wait_ms: int | None = None
+    p50_queue_wait_ms: int | None = None
+    p95_queue_wait_ms: int | None = None
+    queue_wait_sla_breaches_total: int = 0
     avg_selected_block_count: float | None = None
     avg_confidence: float | None = None
     unresolved_gaps_total: int = 0
     llm_tokens_prompt_total: int = 0
     llm_tokens_completion_total: int = 0
     llm_tokens_total: int = 0
+
+
+class TaskObservabilityTimeBucketSummaryItem(BaseModel):
+    """Периодный срез observability по задачам."""
+
+    bucket_start: datetime
+    total_tasks: int
+    completed_tasks: int = 0
+    failed_tasks: int = 0
+    waiting_human_tasks: int = 0
+    duration_sla_breaches_total: int = 0
+    queue_wait_sla_breaches_total: int = 0
 
 
 class TaskObservabilityResponse(BaseModel):
@@ -139,8 +157,16 @@ class TaskObservabilityResponse(BaseModel):
     failed_tasks: int = 0
     async_tasks: int = 0
     avg_duration_ms: int | None = None
+    p50_duration_ms: int | None = None
+    p95_duration_ms: int | None = None
     max_duration_ms: int | None = None
+    duration_sla_threshold_ms: int | None = None
+    duration_sla_breaches_total: int = 0
     avg_queue_wait_ms: int | None = None
+    p50_queue_wait_ms: int | None = None
+    p95_queue_wait_ms: int | None = None
+    queue_wait_sla_threshold_ms: int | None = None
+    queue_wait_sla_breaches_total: int = 0
     avg_selected_block_count: float | None = None
     avg_confidence: float | None = None
     tasks_with_unresolved_gaps: int = 0
@@ -148,6 +174,8 @@ class TaskObservabilityResponse(BaseModel):
     llm_tokens_prompt_total: int = 0
     llm_tokens_completion_total: int = 0
     llm_tokens_total: int = 0
+    daily: list[TaskObservabilityTimeBucketSummaryItem] = Field(default_factory=list)
+    weekly: list[TaskObservabilityTimeBucketSummaryItem] = Field(default_factory=list)
     statuses: list[TaskStatusSummaryItem] = Field(default_factory=list)
     task_types: list[TaskTypeObservabilitySummaryItem] = Field(default_factory=list)
 

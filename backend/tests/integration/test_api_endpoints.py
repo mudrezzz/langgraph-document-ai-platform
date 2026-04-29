@@ -793,6 +793,8 @@ def test_task_events_summary_endpoint_returns_aggregates(client: TestClient) -> 
 
 def test_task_observability_summary_endpoint_returns_aggregates(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ASYNC_PROVIDER", "inline")
+    monkeypatch.setenv("APP_SLA_TASK_DURATION_MS", "1")
+    monkeypatch.setenv("APP_SLA_QUEUE_WAIT_MS", "1")
     _ = _create_task(client)
     _ = _create_task_async(client)
     _ = _create_authoring_task_async(client, hitl_required=True)
@@ -805,10 +807,20 @@ def test_task_observability_summary_endpoint_returns_aggregates(client: TestClie
     assert payload["async_tasks"] >= 1
     assert payload["completed_tasks"] >= 2
     assert payload["waiting_human_tasks"] >= 1
+    assert payload["p50_duration_ms"] is not None
+    assert payload["p95_duration_ms"] is not None
+    assert payload["duration_sla_threshold_ms"] == 1
+    assert payload["duration_sla_breaches_total"] >= 1
+    assert payload["p50_queue_wait_ms"] is not None
+    assert payload["p95_queue_wait_ms"] is not None
+    assert payload["queue_wait_sla_threshold_ms"] == 1
+    assert payload["queue_wait_sla_breaches_total"] >= 0
     assert "avg_selected_block_count" in payload
     assert "avg_confidence" in payload
     assert "tasks_with_unresolved_gaps" in payload
     assert "llm_tokens_total" in payload
+    assert payload["daily"]
+    assert payload["weekly"]
     statuses = {item["status"]: item["total"] for item in payload["statuses"]}
     assert statuses["completed"] >= 2
     assert statuses["waiting_human"] >= 1
@@ -820,6 +832,12 @@ def test_task_observability_summary_endpoint_returns_aggregates(client: TestClie
     assert "avg_confidence" in task_types["retrieval_pack"]
     assert "unresolved_gaps_total" in task_types["retrieval_pack"]
     assert "llm_tokens_total" in task_types["authoring_pack"]
+    assert "p50_duration_ms" in task_types["retrieval_pack"]
+    assert "p95_duration_ms" in task_types["retrieval_pack"]
+    assert "duration_sla_breaches_total" in task_types["retrieval_pack"]
+    assert "p50_queue_wait_ms" in task_types["retrieval_pack"]
+    assert "p95_queue_wait_ms" in task_types["retrieval_pack"]
+    assert "queue_wait_sla_breaches_total" in task_types["retrieval_pack"]
 
 
 def test_task_events_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:

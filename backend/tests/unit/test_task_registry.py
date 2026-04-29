@@ -487,3 +487,70 @@ def test_task_service_summarize_tasks_returns_observability_aggregates() -> None
     assert task_types["knowledge_indexing"].unresolved_gaps_total == 1
     assert task_types["authoring_pack"].llm_tokens_total == 150
     assert completed_task.details["duration_ms"] == 7000
+
+
+def test_task_service_summarize_tasks_returns_sla_percentiles_and_time_buckets(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("APP_SLA_TASK_DURATION_MS", "3500")
+    monkeypatch.setenv("APP_SLA_QUEUE_WAIT_MS", "2500")
+
+    registry = InMemoryTaskRegistry()
+    service = TaskApplicationService(
+        registry=registry,
+        checkpoint_store=LangGraphPostgresCheckpointStore(dsn=None, use_fallback_if_unset=True),
+    )
+
+    base = datetime(2026, 4, 28, 10, 0, tzinfo=timezone.utc)
+    registry.save(
+        TaskRecord(
+            task_id="sla-task-1",
+            task_type="retrieval_pack",
+            status="completed",
+            current_node="completed",
+            details={"execution_mode": "async", "queue_wait_ms": 1000},
+            created_at=base,
+            updated_at=base + timedelta(seconds=1),
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="sla-task-2",
+            task_type="retrieval_pack",
+            status="failed",
+            current_node="failed",
+            details={"execution_mode": "async", "queue_wait_ms": 3000},
+            created_at=base + timedelta(days=1),
+            updated_at=base + timedelta(days=1, seconds=4),
+        )
+    )
+    registry.save(
+        TaskRecord(
+            task_id="sla-task-3",
+            task_type="authoring_pack",
+            status="waiting_human",
+            current_node="hitl",
+            details={"execution_mode": "async", "queue_wait_ms": 5000},
+            created_at=base + timedelta(days=8),
+            updated_at=base + timedelta(days=8, seconds=6),
+        )
+    )
+
+    summary = service.summarize_tasks()
+    assert summary.duration_sla_threshold_ms == 3500
+    assert summary.queue_wait_sla_threshold_ms == 2500
+    assert summary.p50_duration_ms == 4000
+    assert summary.p95_duration_ms == 6000
+    assert summary.duration_sla_breaches_total == 2
+    assert summary.p50_queue_wait_ms == 3000
+    assert summary.p95_queue_wait_ms == 5000
+    assert summary.queue_wait_sla_breaches_total == 2
+    assert len(summary.daily) == 3
+    assert len(summary.weekly) == 2
+    assert sum(item.total_tasks for item in summary.daily) == 3
+    assert sum(item.duration_sla_breaches_total for item in summary.daily) == summary.duration_sla_breaches_total
+    assert sum(item.queue_wait_sla_breaches_total for item in summary.daily) == summary.queue_wait_sla_breaches_total
+    task_types = {item.task_type: item for item in summary.task_types}
+    assert task_types["retrieval_pack"].p95_duration_ms == 4000
+    assert task_types["retrieval_pack"].duration_sla_breaches_total == 1
+    assert task_types["authoring_pack"].queue_wait_sla_breaches_total == 1

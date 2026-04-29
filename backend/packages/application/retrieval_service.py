@@ -21,6 +21,7 @@ from schemas.api.contracts import (
     TaskEventsSummaryResponse,
     TaskHistoryItem,
     TaskObservabilityResponse,
+    TaskObservabilityTimeBucketSummaryItem,
     TaskStatusSummaryItem,
     TaskTypeObservabilitySummaryItem,
     TaskHistoryResponse,
@@ -379,8 +380,16 @@ class RetrievalApplicationService:
             failed_tasks=summary.failed_tasks,
             async_tasks=summary.async_tasks,
             avg_duration_ms=summary.avg_duration_ms,
+            p50_duration_ms=summary.p50_duration_ms,
+            p95_duration_ms=summary.p95_duration_ms,
             max_duration_ms=summary.max_duration_ms,
+            duration_sla_threshold_ms=summary.duration_sla_threshold_ms,
+            duration_sla_breaches_total=summary.duration_sla_breaches_total,
             avg_queue_wait_ms=summary.avg_queue_wait_ms,
+            p50_queue_wait_ms=summary.p50_queue_wait_ms,
+            p95_queue_wait_ms=summary.p95_queue_wait_ms,
+            queue_wait_sla_threshold_ms=summary.queue_wait_sla_threshold_ms,
+            queue_wait_sla_breaches_total=summary.queue_wait_sla_breaches_total,
             avg_selected_block_count=summary.avg_selected_block_count,
             avg_confidence=summary.avg_confidence,
             tasks_with_unresolved_gaps=summary.tasks_with_unresolved_gaps,
@@ -388,6 +397,30 @@ class RetrievalApplicationService:
             llm_tokens_prompt_total=summary.llm_tokens_prompt_total,
             llm_tokens_completion_total=summary.llm_tokens_completion_total,
             llm_tokens_total=summary.llm_tokens_total,
+            daily=[
+                TaskObservabilityTimeBucketSummaryItem(
+                    bucket_start=item.bucket_start,
+                    total_tasks=item.total_tasks,
+                    completed_tasks=item.completed_tasks,
+                    failed_tasks=item.failed_tasks,
+                    waiting_human_tasks=item.waiting_human_tasks,
+                    duration_sla_breaches_total=item.duration_sla_breaches_total,
+                    queue_wait_sla_breaches_total=item.queue_wait_sla_breaches_total,
+                )
+                for item in summary.daily
+            ],
+            weekly=[
+                TaskObservabilityTimeBucketSummaryItem(
+                    bucket_start=item.bucket_start,
+                    total_tasks=item.total_tasks,
+                    completed_tasks=item.completed_tasks,
+                    failed_tasks=item.failed_tasks,
+                    waiting_human_tasks=item.waiting_human_tasks,
+                    duration_sla_breaches_total=item.duration_sla_breaches_total,
+                    queue_wait_sla_breaches_total=item.queue_wait_sla_breaches_total,
+                )
+                for item in summary.weekly
+            ],
             statuses=[TaskStatusSummaryItem(status=item.status, total=item.total) for item in summary.statuses],
             task_types=[
                 TaskTypeObservabilitySummaryItem(
@@ -397,7 +430,13 @@ class RetrievalApplicationService:
                     completed_total=item.completed_total,
                     failed_total=item.failed_total,
                     avg_duration_ms=item.avg_duration_ms,
+                    p50_duration_ms=item.p50_duration_ms,
+                    p95_duration_ms=item.p95_duration_ms,
+                    duration_sla_breaches_total=item.duration_sla_breaches_total,
                     avg_queue_wait_ms=item.avg_queue_wait_ms,
+                    p50_queue_wait_ms=item.p50_queue_wait_ms,
+                    p95_queue_wait_ms=item.p95_queue_wait_ms,
+                    queue_wait_sla_breaches_total=item.queue_wait_sla_breaches_total,
                     avg_selected_block_count=item.avg_selected_block_count,
                     avg_confidence=item.avg_confidence,
                     unresolved_gaps_total=item.unresolved_gaps_total,

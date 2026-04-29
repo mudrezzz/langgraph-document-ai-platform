@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
@@ -102,7 +103,13 @@ class TaskTypeObservabilityStat(BaseModel):
     completed_total: int = 0
     failed_total: int = 0
     avg_duration_ms: int | None = None
+    p50_duration_ms: int | None = None
+    p95_duration_ms: int | None = None
+    duration_sla_breaches_total: int = 0
     avg_queue_wait_ms: int | None = None
+    p50_queue_wait_ms: int | None = None
+    p95_queue_wait_ms: int | None = None
+    queue_wait_sla_breaches_total: int = 0
     avg_selected_block_count: float | None = None
     avg_confidence: float | None = None
     unresolved_gaps_total: int = 0
@@ -122,8 +129,16 @@ class TaskObservabilitySummary(BaseModel):
     failed_tasks: int = 0
     async_tasks: int = 0
     avg_duration_ms: int | None = None
+    p50_duration_ms: int | None = None
+    p95_duration_ms: int | None = None
     max_duration_ms: int | None = None
+    duration_sla_threshold_ms: int | None = None
+    duration_sla_breaches_total: int = 0
     avg_queue_wait_ms: int | None = None
+    p50_queue_wait_ms: int | None = None
+    p95_queue_wait_ms: int | None = None
+    queue_wait_sla_threshold_ms: int | None = None
+    queue_wait_sla_breaches_total: int = 0
     avg_selected_block_count: float | None = None
     avg_confidence: float | None = None
     tasks_with_unresolved_gaps: int = 0
@@ -131,8 +146,22 @@ class TaskObservabilitySummary(BaseModel):
     llm_tokens_prompt_total: int = 0
     llm_tokens_completion_total: int = 0
     llm_tokens_total: int = 0
+    daily: list["TaskObservabilityTimeBucketStat"] = Field(default_factory=list)
+    weekly: list["TaskObservabilityTimeBucketStat"] = Field(default_factory=list)
     statuses: list[TaskStatusStat] = Field(default_factory=list)
     task_types: list[TaskTypeObservabilityStat] = Field(default_factory=list)
+
+
+class TaskObservabilityTimeBucketStat(BaseModel):
+    """Периодные агрегаты observability по задачам."""
+
+    bucket_start: datetime
+    total_tasks: int
+    completed_tasks: int = 0
+    failed_tasks: int = 0
+    waiting_human_tasks: int = 0
+    duration_sla_breaches_total: int = 0
+    queue_wait_sla_breaches_total: int = 0
 
 
 class TaskCursor(BaseModel):
@@ -828,15 +857,23 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
     unresolved_gaps_total = 0
     llm_tokens_prompt_total = 0
     llm_tokens_completion_total = 0
+    duration_sla_threshold_ms = _sla_threshold_ms("APP_SLA_TASK_DURATION_MS")
+    queue_wait_sla_threshold_ms = _sla_threshold_ms("APP_SLA_QUEUE_WAIT_MS")
+    duration_sla_breaches_total = 0
+    queue_wait_sla_breaches_total = 0
 
     for task in tasks:
         status_buckets[task.status] = status_buckets.get(task.status, 0) + 1
         task_durations = _task_duration_ms(task)
         if task_durations is not None:
             durations.append(task_durations)
+            if duration_sla_threshold_ms is not None and task_durations > duration_sla_threshold_ms:
+                duration_sla_breaches_total += 1
         task_queue_wait = _task_queue_wait_ms(task)
         if task_queue_wait is not None:
             queue_waits.append(task_queue_wait)
+            if queue_wait_sla_threshold_ms is not None and task_queue_wait > queue_wait_sla_threshold_ms:
+                queue_wait_sla_breaches_total += 1
         task_selected_block_count = _task_selected_block_count(task)
         if task_selected_block_count is not None:
             selected_block_counts.append(task_selected_block_count)
@@ -860,6 +897,8 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
                 "failed_total": 0,
                 "durations": [],
                 "queue_waits": [],
+                "duration_sla_breaches_total": 0,
+                "queue_wait_sla_breaches_total": 0,
                 "selected_block_counts": [],
                 "confidence_values": [],
                 "unresolved_gaps_total": 0,
@@ -876,8 +915,12 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
             bucket["failed_total"] += 1
         if task_durations is not None:
             bucket["durations"].append(task_durations)
+            if duration_sla_threshold_ms is not None and task_durations > duration_sla_threshold_ms:
+                bucket["duration_sla_breaches_total"] += 1
         if task_queue_wait is not None:
             bucket["queue_waits"].append(task_queue_wait)
+            if queue_wait_sla_threshold_ms is not None and task_queue_wait > queue_wait_sla_threshold_ms:
+                bucket["queue_wait_sla_breaches_total"] += 1
         if task_selected_block_count is not None:
             bucket["selected_block_counts"].append(task_selected_block_count)
         if task_confidence is not None:
@@ -899,7 +942,13 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
                 completed_total=int(bucket["completed_total"]),
                 failed_total=int(bucket["failed_total"]),
                 avg_duration_ms=_avg_int(bucket["durations"]),
+                p50_duration_ms=_percentile_int(bucket["durations"], 50),
+                p95_duration_ms=_percentile_int(bucket["durations"], 95),
+                duration_sla_breaches_total=int(bucket["duration_sla_breaches_total"]),
                 avg_queue_wait_ms=_avg_int(bucket["queue_waits"]),
+                p50_queue_wait_ms=_percentile_int(bucket["queue_waits"], 50),
+                p95_queue_wait_ms=_percentile_int(bucket["queue_waits"], 95),
+                queue_wait_sla_breaches_total=int(bucket["queue_wait_sla_breaches_total"]),
                 avg_selected_block_count=_avg_float(bucket["selected_block_counts"]),
                 avg_confidence=_avg_float(bucket["confidence_values"]),
                 unresolved_gaps_total=int(bucket["unresolved_gaps_total"]),
@@ -919,8 +968,16 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
         failed_tasks=status_buckets.get("failed", 0),
         async_tasks=sum(1 for task in tasks if str(task.details.get("execution_mode", "sync")) == "async"),
         avg_duration_ms=_avg_int(durations),
+        p50_duration_ms=_percentile_int(durations, 50),
+        p95_duration_ms=_percentile_int(durations, 95),
         max_duration_ms=max(durations) if durations else None,
+        duration_sla_threshold_ms=duration_sla_threshold_ms,
+        duration_sla_breaches_total=duration_sla_breaches_total,
         avg_queue_wait_ms=_avg_int(queue_waits),
+        p50_queue_wait_ms=_percentile_int(queue_waits, 50),
+        p95_queue_wait_ms=_percentile_int(queue_waits, 95),
+        queue_wait_sla_threshold_ms=queue_wait_sla_threshold_ms,
+        queue_wait_sla_breaches_total=queue_wait_sla_breaches_total,
         avg_selected_block_count=_avg_float(selected_block_counts),
         avg_confidence=_avg_float(confidence_values),
         tasks_with_unresolved_gaps=tasks_with_unresolved_gaps,
@@ -928,6 +985,18 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
         llm_tokens_prompt_total=llm_tokens_prompt_total,
         llm_tokens_completion_total=llm_tokens_completion_total,
         llm_tokens_total=llm_tokens_prompt_total + llm_tokens_completion_total,
+        daily=_build_task_observability_time_buckets(
+            tasks,
+            period="daily",
+            duration_sla_threshold_ms=duration_sla_threshold_ms,
+            queue_wait_sla_threshold_ms=queue_wait_sla_threshold_ms,
+        ),
+        weekly=_build_task_observability_time_buckets(
+            tasks,
+            period="weekly",
+            duration_sla_threshold_ms=duration_sla_threshold_ms,
+            queue_wait_sla_threshold_ms=queue_wait_sla_threshold_ms,
+        ),
         statuses=status_items,
         task_types=task_type_items,
     )
@@ -978,6 +1047,67 @@ def _build_task_event_time_buckets(
             bucket_start=bucket_start,
             total_events=int(payload["total_events"]),
             unique_tasks=len(payload["task_ids"]),
+        )
+        for bucket_start, payload in bucket_stats.items()
+    ]
+    result.sort(key=lambda item: item.bucket_start, reverse=True)
+    return result
+
+
+def _build_task_observability_time_buckets(
+    tasks: list[TaskRecord],
+    *,
+    period: str,
+    duration_sla_threshold_ms: int | None,
+    queue_wait_sla_threshold_ms: int | None,
+) -> list[TaskObservabilityTimeBucketStat]:
+    if period not in {"daily", "weekly"}:
+        raise ValueError(f"Unsupported period: {period}")
+
+    bucket_stats: dict[datetime, dict[str, int]] = {}
+    for task in tasks:
+        timestamp = _effective_task_timestamp(task)
+        if period == "daily":
+            bucket_start = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            bucket_start = _start_of_iso_week(timestamp)
+
+        payload = bucket_stats.setdefault(
+            bucket_start,
+            {
+                "total_tasks": 0,
+                "completed_tasks": 0,
+                "failed_tasks": 0,
+                "waiting_human_tasks": 0,
+                "duration_sla_breaches_total": 0,
+                "queue_wait_sla_breaches_total": 0,
+            },
+        )
+        payload["total_tasks"] += 1
+        if task.status == "completed":
+            payload["completed_tasks"] += 1
+        if task.status == "failed":
+            payload["failed_tasks"] += 1
+        if task.status == "waiting_human":
+            payload["waiting_human_tasks"] += 1
+
+        duration_ms = _task_duration_ms(task)
+        if duration_sla_threshold_ms is not None and duration_ms is not None and duration_ms > duration_sla_threshold_ms:
+            payload["duration_sla_breaches_total"] += 1
+
+        queue_wait_ms = _task_queue_wait_ms(task)
+        if queue_wait_sla_threshold_ms is not None and queue_wait_ms is not None and queue_wait_ms > queue_wait_sla_threshold_ms:
+            payload["queue_wait_sla_breaches_total"] += 1
+
+    result = [
+        TaskObservabilityTimeBucketStat(
+            bucket_start=bucket_start,
+            total_tasks=payload["total_tasks"],
+            completed_tasks=payload["completed_tasks"],
+            failed_tasks=payload["failed_tasks"],
+            waiting_human_tasks=payload["waiting_human_tasks"],
+            duration_sla_breaches_total=payload["duration_sla_breaches_total"],
+            queue_wait_sla_breaches_total=payload["queue_wait_sla_breaches_total"],
         )
         for bucket_start, payload in bucket_stats.items()
     ]
@@ -1062,6 +1192,33 @@ def _avg_float(values: list[int] | list[float]) -> float | None:
     if not values:
         return None
     return round(float(sum(values) / len(values)), 4)
+
+
+def _percentile_int(values: list[int], percentile: int) -> int | None:
+    if not values:
+        return None
+    if percentile <= 0:
+        return min(values)
+    if percentile >= 100:
+        return max(values)
+
+    ordered = sorted(values)
+    # nearest-rank percentile for predictable dashboard semantics.
+    rank = max(1, math.ceil((percentile / 100) * len(ordered)))
+    return ordered[rank - 1]
+
+
+def _sla_threshold_ms(env_name: str) -> int | None:
+    raw = os.getenv(env_name, "").strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
+    return value
 
 
 def _duration_ms_from_iso(start_raw: Any, end_raw: Any) -> int | None:
