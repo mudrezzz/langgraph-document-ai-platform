@@ -226,6 +226,10 @@
 - production runbook/handoff baseline:
   - `docs/production_runbook.md` описывает deploy/migrate/smoke/backup/restore/rollback/release gate для stage/prod rehearsal;
   - `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md` фиксирует handoff checklist для Increment 30.
+- unified release-gate smoke matrix:
+  - `backend/scripts/smoke_release_gate.sh/.ps1/.py` собирает proof payload по `events/summary`, `tasks/observability/summary` и `hitl/observability/summary`;
+  - script возвращает machine-readable `gate_status=pass|fail` + `checks[]` с expected/actual;
+  - thresholds конфигурируются через `APP_RELEASE_GATE_*` env contract и optional `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS`.
 - file-based demo pipeline для release readiness:
   - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
   - запуск retrieval через `case_dataset_path`;

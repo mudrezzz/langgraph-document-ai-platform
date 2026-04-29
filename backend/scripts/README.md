@@ -56,6 +56,9 @@
 - `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact -> observability/summary`.
   - поддерживает `--hitl-decision-sequence` (например `needs_changes,approve`) для проверки итеративного HITL loop.
   - проверяет read-model endpoint `GET /api/v1/hitl/actions` для текущего task.
+- `smoke_release_gate.sh` — unified release-gate smoke c итоговым JSON verdict (`gate_status=pass|fail`).
+  - path: optional `knowledge-indexing` -> `retrieval` -> `authoring + HITL` -> `events/observability/hitl-observability` checks;
+  - поддерживает env/CLI thresholds (`APP_RELEASE_GATE_*`) и optional проверку `llm_tokens_*`.
 - `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
 
 ### Пример полного цикла
@@ -135,6 +138,17 @@ APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CE
 set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
   bash backend/scripts/demo_release_authoring_async_hitl_case.sh --port 8060 --hitl-decision-sequence needs_changes,approve
+
+# Unified release gate smoke verdict (pass/fail):
+APP_RUNTIME_PROFILE=prod APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph APP_DB_SCHEMA=app \
+  bash backend/scripts/smoke_release_gate.sh --port 8088
+
+# Optional strict LLM token gate:
+OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_MODEL="$(awk -F= '/^OPENROUTER_MODEL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_BASE_URL="$(awk -F= '/^OPENROUTER_BASE_URL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1 \
+  bash backend/scripts/smoke_release_gate.sh --port 8088 --draft-strategy llm --require-llm-tokens
 bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
@@ -167,6 +181,7 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 - `demo_release_authoring_traceability_case.ps1`
 - `smoke_authoring_async_api.ps1`
 - `demo_release_authoring_async_hitl_case.ps1`
+- `smoke_release_gate.ps1`
 
 ## Production Runbook
 

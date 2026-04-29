@@ -881,6 +881,36 @@ bash backend/scripts/demo_release_authoring_traceability_case.sh --host 127.0.0.
 
 ## 22. Завершение и остановка сервисов
 
+## 22. Unified Release Gate Smoke (PASS/FAIL JSON)
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+```
+
+Что увидеть:
+
+- JSON содержит `gate_status=pass|fail`;
+- `checks[]` содержит matrix проверок (`name`, `passed`, `expected`, `actual`);
+- `artifacts` содержит payloads:
+  - `retrieval_events_summary`;
+  - `observability_summary`;
+  - `hitl_summary`;
+  - task payloads indexing/retrieval/authoring.
+
+Полезные env knobs:
+
+- `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
+- `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
+- `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
+- `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
+- `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (требует `--draft-strategy llm` и рабочий OpenRouter key).
+
+## 23. Завершение и остановка сервисов
+
 Если запускали `--keep-server`, остановить API:
 
 ```bash

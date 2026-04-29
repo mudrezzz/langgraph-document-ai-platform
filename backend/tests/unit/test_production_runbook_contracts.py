@@ -24,6 +24,7 @@ def test_production_runbook_references_existing_operational_scripts() -> None:
         "backend/scripts/smoke_template_library_mcp.sh",
         "backend/scripts/smoke_review_approval_mcp.sh",
         "backend/scripts/smoke_configuration_library_mcp.sh",
+        "backend/scripts/smoke_release_gate.sh",
         "backend/scripts/postgres_down.sh",
     ]
 

@@ -133,6 +133,9 @@
 - добавлен production runbook/handoff для Increment 30:
   - `docs/production_runbook.md` описывает deploy, migrate, FastAPI/MCP/async smoke, RBAC rehearsal, backup/restore, rollback и full release gate;
   - `docs/handoff/2026-04-27_increment_30_production_boundary_handoff.md` фиксирует checklist передачи production-boundary baseline.
+- добавлен unified release-gate smoke:
+  - `backend/scripts/smoke_release_gate.sh/.ps1/.py`;
+  - JSON verdict `gate_status=pass|fail` с matrix checks по retrieval events, task observability SLA, HITL observability и optional LLM token proof.
 - добавлен Authoring API MVP:
   - `POST /api/v1/tasks/authoring/start`;
   - `GET /api/v1/tasks/{task_id}/artifact`;
@@ -563,6 +566,26 @@ APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 \
 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 \
 APP_HITL_MAX_ITERATIONS=2 \
 bash ./backend/scripts/demo_release_authoring_async_hitl_case.sh --host 127.0.0.1 --port 8060 --hitl-decision-sequence needs_changes,approve
+```
+
+42. Unified Release Gate Smoke (Linux):
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+```
+
+43. Unified Release Gate Smoke с обязательным LLM token proof (Linux):
+
+```bash
+OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_MODEL="$(awk -F= '/^OPENROUTER_MODEL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_BASE_URL="$(awk -F= '/^OPENROUTER_BASE_URL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+APP_RUNTIME_PROFILE=prod APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph APP_DB_SCHEMA=app \
+APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1 \
+bash ./backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --draft-strategy llm --require-llm-tokens
 ```
 
 38. Остановить Redis + Celery worker (Linux):

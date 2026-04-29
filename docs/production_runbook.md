@@ -1,7 +1,7 @@
 # Production Runbook
 
-Дата обновления: 2026-04-27
-Статус: Increment 30 production-boundary baseline
+Дата обновления: 2026-04-29
+Статус: Increment 32 release-gate matrix baseline
 
 Этот runbook описывает минимальный stage/prod rehearsal для backend/framework контура: PostgreSQL, pgvector, FastAPI, Celery/Redis, MCP services, auth/RBAC smoke, backup/restore и rollback.
 
@@ -315,6 +315,24 @@ Required result for this baseline:
 - all unit/integration/e2e tests pass;
 - Docker async e2e runs;
 - OpenRouter external LLM test runs when credentials are present.
+
+Дополнительно прогоните unified release-gate smoke verdict:
+
+```bash
+APP_RUNTIME_PROFILE=prod \
+APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
+APP_DB_SCHEMA=app \
+PATH="$(pwd)/.venv/bin:$PATH" \
+bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088
+```
+
+Optional strict policy knobs:
+
+- `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
+- `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
+- `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
+- `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
+- `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (+ `--draft-strategy llm` и рабочий OpenRouter key).
 
 ## 11. Shutdown
 

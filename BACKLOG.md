@@ -1123,6 +1123,25 @@ Second slice done:
 - targeted tests: `76 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `316 passed`.
 
+Third slice done:
+
+- добавлен unified release-gate smoke matrix:
+  - `backend/scripts/smoke_release_gate.py` + wrappers `smoke_release_gate.sh/.ps1`;
+  - flow: optional `knowledge-indexing` -> `retrieval` -> `authoring + HITL` -> observability checks;
+  - JSON verdict: `gate_status=pass|fail`, `checks[]` (`name`, `passed`, `expected`, `actual`), diagnostic `artifacts`.
+- release-gate thresholds вынесены в env/CLI contract:
+  - `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
+  - `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
+  - `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
+  - `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
+  - `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS`.
+- обновлены runbook/scripts docs и contract tests:
+  - `backend/tests/unit/test_smoke_release_gate_script.py`;
+  - `backend/tests/unit/test_production_runbook_contracts.py` теперь проверяет `smoke_release_gate.sh` в runbook.
+- добавлен ADR `0090-unified-release-gate-smoke-matrix.md`;
+- targeted tests: `5 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `318 passed`.
+
 Scope:
 
 - quality evaluation workflow;
