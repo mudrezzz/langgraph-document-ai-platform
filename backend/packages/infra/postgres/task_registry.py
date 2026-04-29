@@ -8,11 +8,13 @@ from application.task_service import (
     TaskEventListPage,
     TaskEventRecord,
     TaskEventSummary,
+    TaskEventTimeBucketStat,
     TaskEventTransitionStat,
     TaskListPage,
     TaskObservabilitySummary,
     TaskRecord,
     TaskRegistry,
+    _build_task_event_summary,
     _build_task_observability_summary,
     _filter_tasks_for_summary,
     build_task_cursor,
@@ -432,6 +434,38 @@ class PostgresTaskRegistry(TaskRegistry):
                 )
                 totals_row = cur.fetchone() or {}
 
+                cur.execute(
+                    f"""
+                    SELECT
+                        date_trunc('day', created_at) AS bucket_start,
+                        COUNT(*) AS total_events,
+                        COUNT(DISTINCT task_id) AS unique_tasks
+                    FROM {self._schema}.task_events
+                    WHERE {where_clause}
+                    GROUP BY bucket_start
+                    ORDER BY bucket_start DESC
+                    """
+                    ,
+                    tuple(params),
+                )
+                daily_rows = cur.fetchall()
+
+                cur.execute(
+                    f"""
+                    SELECT
+                        date_trunc('week', created_at) AS bucket_start,
+                        COUNT(*) AS total_events,
+                        COUNT(DISTINCT task_id) AS unique_tasks
+                    FROM {self._schema}.task_events
+                    WHERE {where_clause}
+                    GROUP BY bucket_start
+                    ORDER BY bucket_start DESC
+                    """
+                    ,
+                    tuple(params),
+                )
+                weekly_rows = cur.fetchall()
+
         transitions = [
             TaskEventTransitionStat(
                 from_status=row.get("from_status"),
@@ -444,6 +478,22 @@ class PostgresTaskRegistry(TaskRegistry):
             total_events=int(totals_row.get("total_events", 0) or 0),
             unique_tasks=int(totals_row.get("unique_tasks", 0) or 0),
             transitions=transitions,
+            daily=[
+                TaskEventTimeBucketStat(
+                    bucket_start=_normalize_datetime(row["bucket_start"]),
+                    total_events=int(row["total_events"]),
+                    unique_tasks=int(row["unique_tasks"]),
+                )
+                for row in daily_rows
+            ],
+            weekly=[
+                TaskEventTimeBucketStat(
+                    bucket_start=_normalize_datetime(row["bucket_start"]),
+                    total_events=int(row["total_events"]),
+                    unique_tasks=int(row["unique_tasks"]),
+                )
+                for row in weekly_rows
+            ],
         )
 
     def summarize_tasks(
@@ -661,22 +711,7 @@ class PostgresTaskRegistry(TaskRegistry):
                 continue
             filtered.append(item)
 
-        buckets: dict[tuple[str | None, str], int] = {}
-        for item in filtered:
-            key = (item.from_status, item.to_status)
-            buckets[key] = buckets.get(key, 0) + 1
-
-        transitions = [
-            TaskEventTransitionStat(from_status=from_status_key, to_status=to_status_key, total=total)
-            for (from_status_key, to_status_key), total in buckets.items()
-        ]
-        transitions.sort(key=lambda item: (-item.total, item.to_status, item.from_status or ""))
-
-        return TaskEventSummary(
-            total_events=len(filtered),
-            unique_tasks=len({item.task_id for item in filtered}),
-            transitions=transitions,
-        )
+        return _build_task_event_summary(filtered)
 
 
 def _effective_task_timestamp(task: TaskRecord) -> datetime:

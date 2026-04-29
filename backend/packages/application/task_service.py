@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 from uuid import uuid4
 
@@ -74,6 +74,16 @@ class TaskEventSummary(BaseModel):
     total_events: int
     unique_tasks: int
     transitions: list[TaskEventTransitionStat] = Field(default_factory=list)
+    daily: list["TaskEventTimeBucketStat"] = Field(default_factory=list)
+    weekly: list["TaskEventTimeBucketStat"] = Field(default_factory=list)
+
+
+class TaskEventTimeBucketStat(BaseModel):
+    """Агрегированная запись task events по временному бакету."""
+
+    bucket_start: datetime
+    total_events: int
+    unique_tasks: int
 
 
 class TaskStatusStat(BaseModel):
@@ -93,6 +103,12 @@ class TaskTypeObservabilityStat(BaseModel):
     failed_total: int = 0
     avg_duration_ms: int | None = None
     avg_queue_wait_ms: int | None = None
+    avg_selected_block_count: float | None = None
+    avg_confidence: float | None = None
+    unresolved_gaps_total: int = 0
+    llm_tokens_prompt_total: int = 0
+    llm_tokens_completion_total: int = 0
+    llm_tokens_total: int = 0
 
 
 class TaskObservabilitySummary(BaseModel):
@@ -108,6 +124,13 @@ class TaskObservabilitySummary(BaseModel):
     avg_duration_ms: int | None = None
     max_duration_ms: int | None = None
     avg_queue_wait_ms: int | None = None
+    avg_selected_block_count: float | None = None
+    avg_confidence: float | None = None
+    tasks_with_unresolved_gaps: int = 0
+    unresolved_gaps_total: int = 0
+    llm_tokens_prompt_total: int = 0
+    llm_tokens_completion_total: int = 0
+    llm_tokens_total: int = 0
     statuses: list[TaskStatusStat] = Field(default_factory=list)
     task_types: list[TaskTypeObservabilityStat] = Field(default_factory=list)
 
@@ -372,23 +395,7 @@ class InMemoryTaskRegistry(TaskRegistry):
             if normalized_to and item_created_at > normalized_to:
                 continue
             filtered.append(item)
-
-        buckets: dict[tuple[str | None, str], int] = {}
-        for item in filtered:
-            key = (item.from_status, item.to_status)
-            buckets[key] = buckets.get(key, 0) + 1
-
-        transitions = [
-            TaskEventTransitionStat(from_status=from_status_key, to_status=to_status_key, total=total)
-            for (from_status_key, to_status_key), total in buckets.items()
-        ]
-        transitions.sort(key=lambda item: (-item.total, item.to_status, item.from_status or ""))
-
-        return TaskEventSummary(
-            total_events=len(filtered),
-            unique_tasks=len({item.task_id for item in filtered}),
-            transitions=transitions,
-        )
+        return _build_task_event_summary(filtered)
 
     def _register_status_event(self, *, previous: TaskRecord | None, current: TaskRecord) -> None:
         # Для аудита пишем событие только при создании или реальной смене статуса.
@@ -639,6 +646,12 @@ class TaskApplicationService:
             queue_wait_ms = _duration_ms_from_iso(details.get("queued_at"), details.get("started_at"))
             if queue_wait_ms is not None:
                 details["queue_wait_ms"] = queue_wait_ms
+        if details.get("duration_ms") is None:
+            completed_or_failed_at = details.get("completed_at") or details.get("failed_at")
+            if details.get("started_at") and completed_or_failed_at:
+                duration_ms = _duration_ms_from_iso(details.get("started_at"), completed_or_failed_at)
+                if duration_ms is not None:
+                    details["duration_ms"] = duration_ms
 
 
 class TaskWorkflowNodeEventSink:
@@ -809,6 +822,12 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
     type_buckets: dict[str, dict[str, Any]] = {}
     durations: list[int] = []
     queue_waits: list[int] = []
+    selected_block_counts: list[int] = []
+    confidence_values: list[float] = []
+    tasks_with_unresolved_gaps = 0
+    unresolved_gaps_total = 0
+    llm_tokens_prompt_total = 0
+    llm_tokens_completion_total = 0
 
     for task in tasks:
         status_buckets[task.status] = status_buckets.get(task.status, 0) + 1
@@ -818,6 +837,19 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
         task_queue_wait = _task_queue_wait_ms(task)
         if task_queue_wait is not None:
             queue_waits.append(task_queue_wait)
+        task_selected_block_count = _task_selected_block_count(task)
+        if task_selected_block_count is not None:
+            selected_block_counts.append(task_selected_block_count)
+        task_confidence = _task_confidence(task)
+        if task_confidence is not None:
+            confidence_values.append(task_confidence)
+        task_unresolved_gaps = _task_unresolved_gaps_count(task)
+        if task_unresolved_gaps > 0:
+            tasks_with_unresolved_gaps += 1
+            unresolved_gaps_total += task_unresolved_gaps
+        task_prompt_tokens, task_completion_tokens = _task_llm_tokens(task)
+        llm_tokens_prompt_total += task_prompt_tokens
+        llm_tokens_completion_total += task_completion_tokens
 
         bucket = type_buckets.setdefault(
             task.task_type,
@@ -828,6 +860,11 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
                 "failed_total": 0,
                 "durations": [],
                 "queue_waits": [],
+                "selected_block_counts": [],
+                "confidence_values": [],
+                "unresolved_gaps_total": 0,
+                "llm_tokens_prompt_total": 0,
+                "llm_tokens_completion_total": 0,
             },
         )
         bucket["total"] += 1
@@ -841,6 +878,13 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
             bucket["durations"].append(task_durations)
         if task_queue_wait is not None:
             bucket["queue_waits"].append(task_queue_wait)
+        if task_selected_block_count is not None:
+            bucket["selected_block_counts"].append(task_selected_block_count)
+        if task_confidence is not None:
+            bucket["confidence_values"].append(task_confidence)
+        bucket["unresolved_gaps_total"] += task_unresolved_gaps
+        bucket["llm_tokens_prompt_total"] += task_prompt_tokens
+        bucket["llm_tokens_completion_total"] += task_completion_tokens
 
     status_items = [TaskStatusStat(status=name, total=total) for name, total in status_buckets.items()]
     status_items.sort(key=lambda item: (-item.total, item.status))
@@ -856,6 +900,12 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
                 failed_total=int(bucket["failed_total"]),
                 avg_duration_ms=_avg_int(bucket["durations"]),
                 avg_queue_wait_ms=_avg_int(bucket["queue_waits"]),
+                avg_selected_block_count=_avg_float(bucket["selected_block_counts"]),
+                avg_confidence=_avg_float(bucket["confidence_values"]),
+                unresolved_gaps_total=int(bucket["unresolved_gaps_total"]),
+                llm_tokens_prompt_total=int(bucket["llm_tokens_prompt_total"]),
+                llm_tokens_completion_total=int(bucket["llm_tokens_completion_total"]),
+                llm_tokens_total=int(bucket["llm_tokens_prompt_total"]) + int(bucket["llm_tokens_completion_total"]),
             )
         )
     task_type_items.sort(key=lambda item: (-item.total, item.task_type))
@@ -871,9 +921,73 @@ def _build_task_observability_summary(tasks: list[TaskRecord]) -> TaskObservabil
         avg_duration_ms=_avg_int(durations),
         max_duration_ms=max(durations) if durations else None,
         avg_queue_wait_ms=_avg_int(queue_waits),
+        avg_selected_block_count=_avg_float(selected_block_counts),
+        avg_confidence=_avg_float(confidence_values),
+        tasks_with_unresolved_gaps=tasks_with_unresolved_gaps,
+        unresolved_gaps_total=unresolved_gaps_total,
+        llm_tokens_prompt_total=llm_tokens_prompt_total,
+        llm_tokens_completion_total=llm_tokens_completion_total,
+        llm_tokens_total=llm_tokens_prompt_total + llm_tokens_completion_total,
         statuses=status_items,
         task_types=task_type_items,
     )
+
+
+def _build_task_event_summary(events: list[TaskEventRecord]) -> TaskEventSummary:
+    buckets: dict[tuple[str | None, str], int] = {}
+    for item in events:
+        key = (item.from_status, item.to_status)
+        buckets[key] = buckets.get(key, 0) + 1
+
+    transitions = [
+        TaskEventTransitionStat(from_status=from_status_key, to_status=to_status_key, total=total)
+        for (from_status_key, to_status_key), total in buckets.items()
+    ]
+    transitions.sort(key=lambda item: (-item.total, item.to_status, item.from_status or ""))
+
+    return TaskEventSummary(
+        total_events=len(events),
+        unique_tasks=len({item.task_id for item in events}),
+        transitions=transitions,
+        daily=_build_task_event_time_buckets(events, period="daily"),
+        weekly=_build_task_event_time_buckets(events, period="weekly"),
+    )
+
+
+def _build_task_event_time_buckets(
+    events: list[TaskEventRecord],
+    *,
+    period: str,
+) -> list[TaskEventTimeBucketStat]:
+    if period not in {"daily", "weekly"}:
+        raise ValueError(f"Unsupported period: {period}")
+
+    bucket_stats: dict[datetime, dict[str, Any]] = {}
+    for event in events:
+        timestamp = _effective_event_timestamp(event)
+        if period == "daily":
+            bucket_start = timestamp.replace(hour=0, minute=0, second=0, microsecond=0)
+        else:
+            bucket_start = _start_of_iso_week(timestamp)
+        item = bucket_stats.setdefault(bucket_start, {"total_events": 0, "task_ids": set()})
+        item["total_events"] += 1
+        item["task_ids"].add(event.task_id)
+
+    result = [
+        TaskEventTimeBucketStat(
+            bucket_start=bucket_start,
+            total_events=int(payload["total_events"]),
+            unique_tasks=len(payload["task_ids"]),
+        )
+        for bucket_start, payload in bucket_stats.items()
+    ]
+    result.sort(key=lambda item: item.bucket_start, reverse=True)
+    return result
+
+
+def _start_of_iso_week(value: datetime) -> datetime:
+    normalized = _normalize_datetime(value)
+    return (normalized - timedelta(days=normalized.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def _task_duration_ms(task: TaskRecord) -> int | None:
@@ -893,10 +1007,61 @@ def _task_queue_wait_ms(task: TaskRecord) -> int | None:
     return None
 
 
+def _task_selected_block_count(task: TaskRecord) -> int | None:
+    value = task.details.get("selected_block_count")
+    if isinstance(value, int):
+        return max(0, value)
+    if isinstance(value, float):
+        return max(0, int(value))
+    return None
+
+
+def _task_confidence(task: TaskRecord) -> float | None:
+    value = task.details.get("confidence")
+    if isinstance(value, (int, float)):
+        return max(0.0, min(1.0, float(value)))
+    return None
+
+
+def _task_unresolved_gaps_count(task: TaskRecord) -> int:
+    value = task.details.get("unresolved_gaps")
+    if isinstance(value, list):
+        return len(value)
+    if isinstance(value, int):
+        return max(0, value)
+    return 0
+
+
+def _task_llm_tokens(task: TaskRecord) -> tuple[int, int]:
+    prompt_raw = task.details.get("llm_tokens_prompt")
+    completion_raw = task.details.get("llm_tokens_completion")
+    prompt = _normalize_token_counter(prompt_raw)
+    completion = _normalize_token_counter(completion_raw)
+    if prompt == 0 and completion == 0:
+        total = _normalize_token_counter(task.details.get("llm_tokens_total"))
+        if total > 0:
+            return total, 0
+    return prompt, completion
+
+
+def _normalize_token_counter(raw: Any) -> int:
+    if isinstance(raw, int):
+        return max(0, raw)
+    if isinstance(raw, float):
+        return max(0, int(raw))
+    return 0
+
+
 def _avg_int(values: list[int]) -> int | None:
     if not values:
         return None
     return int(sum(values) / len(values))
+
+
+def _avg_float(values: list[int] | list[float]) -> float | None:
+    if not values:
+        return None
+    return round(float(sum(values) / len(values)), 4)
 
 
 def _duration_ms_from_iso(start_raw: Any, end_raw: Any) -> int | None:

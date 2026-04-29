@@ -783,6 +783,12 @@ def test_task_events_summary_endpoint_returns_aggregates(client: TestClient) -> 
     }
     assert transitions[(None, "running")] >= 1
     assert transitions[("running", "completed")] >= 1
+    assert payload["daily"]
+    assert payload["weekly"]
+    assert sum(item["total_events"] for item in payload["daily"]) == payload["total_events"]
+    assert sum(item["total_events"] for item in payload["weekly"]) == payload["total_events"]
+    assert payload["daily"][0]["bucket_start"]
+    assert payload["weekly"][0]["bucket_start"]
 
 
 def test_task_observability_summary_endpoint_returns_aggregates(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -799,6 +805,10 @@ def test_task_observability_summary_endpoint_returns_aggregates(client: TestClie
     assert payload["async_tasks"] >= 1
     assert payload["completed_tasks"] >= 2
     assert payload["waiting_human_tasks"] >= 1
+    assert "avg_selected_block_count" in payload
+    assert "avg_confidence" in payload
+    assert "tasks_with_unresolved_gaps" in payload
+    assert "llm_tokens_total" in payload
     statuses = {item["status"]: item["total"] for item in payload["statuses"]}
     assert statuses["completed"] >= 2
     assert statuses["waiting_human"] >= 1
@@ -806,6 +816,10 @@ def test_task_observability_summary_endpoint_returns_aggregates(client: TestClie
     assert task_types["retrieval_pack"]["total"] >= 2
     assert task_types["retrieval_pack"]["async_total"] >= 1
     assert task_types["authoring_pack"]["total"] >= 1
+    assert "avg_selected_block_count" in task_types["retrieval_pack"]
+    assert "avg_confidence" in task_types["retrieval_pack"]
+    assert "unresolved_gaps_total" in task_types["retrieval_pack"]
+    assert "llm_tokens_total" in task_types["authoring_pack"]
 
 
 def test_task_events_endpoint_returns_400_for_invalid_cursor(client: TestClient) -> None:

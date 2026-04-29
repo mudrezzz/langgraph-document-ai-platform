@@ -1,7 +1,7 @@
 # System Architecture Overview
 
-Дата обновления: 2026-04-28
-Статус: Increment 31
+Дата обновления: 2026-04-29
+Статус: Increment 32
 
 ## 1. Целевой архитектурный ориентир
 
@@ -179,11 +179,13 @@
 - task events summary API:
   - `GET /api/v1/tasks/events/summary`;
   - фильтры `task_id`, `task_type`, `from_status`, `to_status`, `from`, `to`;
-  - агрегаты `total_events`, `unique_tasks`, `transitions(from_status,to_status,total)`.
+  - агрегаты `total_events`, `unique_tasks`, `transitions(from_status,to_status,total)`;
+  - time buckets `daily[]` и `weekly[]` (`bucket_start`, `total_events`, `unique_tasks`).
 - task observability summary API:
   - `GET /api/v1/tasks/observability/summary`;
   - фильтры `status`, `task_type`, `from`, `to`;
-  - current-state counts, async totals и latency/queue wait aggregates по `task_type`.
+  - current-state counts, async totals и latency/queue wait aggregates по `task_type`;
+  - execution quality/token aggregates: `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `unresolved_gaps_total`, `llm_tokens_*`.
 - authoring API:
   - `POST /api/v1/tasks/authoring/start`;
   - `POST /api/v1/tasks/authoring/start_async`;
@@ -205,6 +207,7 @@
   - Celery worker app слушает очереди `authoring`, `knowledge-indexing` и `retrieval`;
   - worker runtime normalizes host `source_paths` в `/workspace/...` для docker-compose bind mount только для indexing path;
   - execution metadata теперь фиксирует `correlation_id`, `async_provider`, `queue_name`, `queued_at`, `started_at`, `completed_at|failed_at`, `queue_wait_ms`;
+  - lifecycle details также включают `duration_ms` при наличии `started_at` и `completed_at|failed_at`;
   - observability aggregates строятся поверх existing task registry/task details без отдельной telemetry storage ветки;
   - Docker/Celery e2e подтверждает async path `queued -> running -> completed` для canonical indexing и retrieval.
 - production checkpointer для LangGraph:

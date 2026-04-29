@@ -1231,6 +1231,7 @@ class AuthoringApplicationService:
             artifact_metadata["draft_model_name"] = draft_result.metadata["model_name"]
         if draft_result.metadata.get("fallback_reason"):
             artifact_metadata["draft_fallback_reason"] = draft_result.metadata["fallback_reason"]
+        artifact_metadata.update(self._llm_token_fields(draft_result.metadata))
 
         artifact = self._artifact_service.write_artifact(
             artifact_type=request.artifact_type,
@@ -1294,6 +1295,7 @@ class AuthoringApplicationService:
                 "review_status": review_result.get("status"),
                 "final_recommendation": review_result.get("recommendation"),
                 "steps_summary": [step.model_dump(mode="json") for step in steps],
+                **self._llm_token_fields(draft_result.metadata),
             },
         )
         completed_task = self._task_service.get_task(task_id)
@@ -1352,6 +1354,7 @@ class AuthoringApplicationService:
             artifact_metadata["draft_model_provider"] = state.draft_generation_metadata.get("provider")
         if state.draft_generation_metadata.get("model_name"):
             artifact_metadata["draft_model_name"] = state.draft_generation_metadata.get("model_name")
+        artifact_metadata.update(self._llm_token_fields(state.draft_generation_metadata))
 
         artifact = self._artifact_service.write_artifact(
             artifact_type=state.artifact_type,
@@ -1415,6 +1418,7 @@ class AuthoringApplicationService:
                 "traceability_sources": len(traceability.get("source_refs", [])),
                 "traceability_sections": len(traceability.get("sections", [])),
                 "steps_summary": [step.model_dump(mode="json") for step in steps],
+                **self._llm_token_fields(state.draft_generation_metadata),
             },
         )
         task = self._task_service.get_task(task_id)
@@ -1687,8 +1691,60 @@ class AuthoringApplicationService:
             metadata={
                 "provider": self._llm_provider,
                 "model_name": self._llm_model_name,
+                **self._extract_llm_usage(prompt=prompt, content=content),
             },
         )
+
+    def _extract_llm_usage(self, *, prompt: str, content: str) -> dict[str, int]:
+        usage_payload = getattr(self._chat_model_gateway, "last_usage", {})
+        if not isinstance(usage_payload, dict):
+            usage_payload = {}
+
+        prompt_tokens = self._to_non_negative_int(usage_payload.get("prompt_tokens"))
+        completion_tokens = self._to_non_negative_int(usage_payload.get("completion_tokens"))
+        total_tokens = self._to_non_negative_int(usage_payload.get("total_tokens"))
+
+        if prompt_tokens == 0:
+            prompt_tokens = self._estimate_token_count(prompt)
+        if completion_tokens == 0:
+            completion_tokens = self._estimate_token_count(content)
+        if total_tokens == 0:
+            total_tokens = prompt_tokens + completion_tokens
+
+        return {
+            "llm_tokens_prompt": prompt_tokens,
+            "llm_tokens_completion": completion_tokens,
+            "llm_tokens_total": total_tokens,
+        }
+
+    def _llm_token_fields(self, metadata: dict[str, Any]) -> dict[str, int]:
+        prompt_tokens = self._to_non_negative_int(metadata.get("llm_tokens_prompt"))
+        completion_tokens = self._to_non_negative_int(metadata.get("llm_tokens_completion"))
+        total_tokens = self._to_non_negative_int(metadata.get("llm_tokens_total"))
+        if total_tokens == 0:
+            total_tokens = prompt_tokens + completion_tokens
+
+        if prompt_tokens == 0 and completion_tokens == 0 and total_tokens == 0:
+            return {}
+        return {
+            "llm_tokens_prompt": prompt_tokens,
+            "llm_tokens_completion": completion_tokens,
+            "llm_tokens_total": total_tokens,
+        }
+
+    def _estimate_token_count(self, text: str) -> int:
+        stripped = text.strip()
+        if not stripped:
+            return 0
+        # lightweight heuristic for observability fallback when provider usage is absent.
+        return max(1, int(len(stripped) / 4))
+
+    def _to_non_negative_int(self, value: Any) -> int:
+        if isinstance(value, int):
+            return max(0, value)
+        if isinstance(value, float):
+            return max(0, int(value))
+        return 0
 
     def _build_writer_draft_content(self, *, query: str, evidence_pack: EvidencePack, research_summary: str) -> str:
         return self._writer_draft_service.build_deterministic_draft(

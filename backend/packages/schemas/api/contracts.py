@@ -85,12 +85,22 @@ class TaskEventTransitionSummaryItem(BaseModel):
     total: int
 
 
+class TaskEventTimeBucketSummaryItem(BaseModel):
+    """Агрегированная запись task events по временному бакету."""
+
+    bucket_start: datetime
+    total_events: int
+    unique_tasks: int
+
+
 class TaskEventsSummaryResponse(BaseModel):
     """Сводка по переходам статусов задач."""
 
     total_events: int
     unique_tasks: int
     transitions: list[TaskEventTransitionSummaryItem] = Field(default_factory=list)
+    daily: list[TaskEventTimeBucketSummaryItem] = Field(default_factory=list)
+    weekly: list[TaskEventTimeBucketSummaryItem] = Field(default_factory=list)
 
 
 class TaskStatusSummaryItem(BaseModel):
@@ -110,6 +120,12 @@ class TaskTypeObservabilitySummaryItem(BaseModel):
     failed_total: int = 0
     avg_duration_ms: int | None = None
     avg_queue_wait_ms: int | None = None
+    avg_selected_block_count: float | None = None
+    avg_confidence: float | None = None
+    unresolved_gaps_total: int = 0
+    llm_tokens_prompt_total: int = 0
+    llm_tokens_completion_total: int = 0
+    llm_tokens_total: int = 0
 
 
 class TaskObservabilityResponse(BaseModel):
@@ -125,6 +141,13 @@ class TaskObservabilityResponse(BaseModel):
     avg_duration_ms: int | None = None
     max_duration_ms: int | None = None
     avg_queue_wait_ms: int | None = None
+    avg_selected_block_count: float | None = None
+    avg_confidence: float | None = None
+    tasks_with_unresolved_gaps: int = 0
+    unresolved_gaps_total: int = 0
+    llm_tokens_prompt_total: int = 0
+    llm_tokens_completion_total: int = 0
+    llm_tokens_total: int = 0
     statuses: list[TaskStatusSummaryItem] = Field(default_factory=list)
     task_types: list[TaskTypeObservabilitySummaryItem] = Field(default_factory=list)
 

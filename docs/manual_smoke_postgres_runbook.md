@@ -179,12 +179,17 @@ curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events" \
 curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/events/summary" \
   --data-urlencode "task_id=$TASK_ID" \
   --data-urlencode "task_type=retrieval_pack"
+
+curl -sS --get "http://127.0.0.1:8010/api/v1/tasks/observability/summary" \
+  --data-urlencode "task_type=retrieval_pack"
 ```
 
 Что увидеть:
 
 - в `events` есть переходы `null -> running` и `running -> completed`;
 - в `summary.transitions` есть `running -> completed`.
+- в `summary.daily[]` и `summary.weekly[]` есть хотя бы один бакет с `total_events > 0`;
+- в observability summary присутствуют поля `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `llm_tokens_total`.
 
 ## 6. Расширенный demo: single-file сценарий
 

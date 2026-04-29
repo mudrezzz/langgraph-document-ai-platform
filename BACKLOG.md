@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-28
+Дата обновления: 2026-04-29
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -1090,6 +1090,21 @@ Definition of Done:
 ## Increment 32: Governance, Quality и Release Gate
 
 Цель: завершить backend/framework foundation как управляемую production-ready основу.
+
+First slice done:
+
+- execution metrics MVP реализован поверх existing task read-model без новой telemetry storage:
+  - `GET /api/v1/tasks/events/summary` расширен `daily[]`/`weekly[]` (`bucket_start`, `total_events`, `unique_tasks`);
+  - `GET /api/v1/tasks/observability/summary` и breakdown по `task_type` расширены quality/token агрегатами:
+    - `avg_selected_block_count`, `avg_confidence`;
+    - `tasks_with_unresolved_gaps`, `unresolved_gaps_total`;
+    - `llm_tokens_prompt_total`, `llm_tokens_completion_total`, `llm_tokens_total`;
+- task lifecycle details теперь автоматически рассчитывают `duration_ms` при наличии `started_at` и `completed_at|failed_at`;
+- authoring LLM path сохраняет `llm_tokens_*` в draft metadata, artifact metadata и task details (provider usage + estimate fallback path);
+- обновлены API/unit/e2e tests для новых агрегатов и token fields;
+- добавлен ADR `0088-execution-metrics-mvp-day-week-and-token-quality-aggregates.md`;
+- targeted tests: `98 passed`;
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `315 passed`.
 
 Scope:
 

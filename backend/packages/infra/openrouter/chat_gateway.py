@@ -31,12 +31,19 @@ class OpenRouterChatModelGateway(IChatModelGateway):
         self._timeout_sec = timeout_sec
         self._app_name = app_name.strip() or "langgraph-document-ai-platform"
         self._app_url = app_url.strip() or "http://localhost"
+        self._last_usage: dict[str, int] = {}
 
     @property
     def model_name(self) -> str:
         """Возвращает имя модели, используемой gateway."""
 
         return self._model_name
+
+    @property
+    def last_usage(self) -> dict[str, int]:
+        """Возвращает usage последнего запроса (если API его отдал)."""
+
+        return dict(self._last_usage)
 
     def generate(self, prompt: str, *, metadata: dict[str, Any] | None = None) -> str:
         """Выполняет генерацию текста через OpenRouter chat/completions."""
@@ -93,6 +100,7 @@ class OpenRouterChatModelGateway(IChatModelGateway):
         content = _extract_content(response_payload)
         if not content.strip():
             raise RuntimeError("OpenRouter вернул пустой ответ")
+        self._last_usage = _extract_usage(response_payload)
 
         return content.strip()
 
@@ -120,3 +128,29 @@ def _extract_content(response_payload: dict[str, Any]) -> str:
         return "\n".join(parts)
 
     return ""
+
+
+def _extract_usage(response_payload: dict[str, Any]) -> dict[str, int]:
+    usage = response_payload.get("usage")
+    if not isinstance(usage, dict):
+        return {}
+
+    prompt_tokens = _as_non_negative_int(usage.get("prompt_tokens"))
+    completion_tokens = _as_non_negative_int(usage.get("completion_tokens"))
+    total_tokens = _as_non_negative_int(usage.get("total_tokens"))
+    if total_tokens == 0:
+        total_tokens = prompt_tokens + completion_tokens
+
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+
+def _as_non_negative_int(raw: Any) -> int:
+    if isinstance(raw, int):
+        return max(0, raw)
+    if isinstance(raw, float):
+        return max(0, int(raw))
+    return 0

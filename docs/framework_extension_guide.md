@@ -27,13 +27,14 @@
 8. Передавать `task_context.correlation_id`, если workflow участвует в сквозной трассировке.
 9. Если workflow должен попадать в audit/read-model, передать `WorkflowNodeEventSink` при создании workflow.
 10. Для task lifecycle audit использовать `TaskApplicationService.build_workflow_node_event_sink()`.
-11. Подключить workflow через application service или `WorkflowFactory`.
-12. Если workflow требует dependencies, регистрировать builder:
+11. Если workflow пишет execution details, использовать единые ключи observability (`selected_block_count`, `confidence`, `unresolved_gaps`, `llm_tokens_prompt|completion|total`) вместо ad-hoc naming.
+12. Подключить workflow через application service или `WorkflowFactory`.
+13. Если workflow требует dependencies, регистрировать builder:
    `factory.register_builder("key", lambda retriever: MyWorkflow(retriever=retriever), metadata={...})`.
-13. Если workflow не требует dependencies, допустима обратно совместимая регистрация класса:
+14. Если workflow не требует dependencies, допустима обратно совместимая регистрация класса:
    `factory.register("key", MyWorkflow)`.
-14. Для duplicate registration использовать явный `replace=True`; missing key и duplicate key должны обрабатываться через `WorkflowNotRegisteredError`/`WorkflowRegistrationError`.
-15. Добавить unit tests:
+15. Для duplicate registration использовать явный `replace=True`; missing key и duplicate key должны обрабатываться через `WorkflowNotRegisteredError`/`WorkflowRegistrationError`.
+16. Добавить unit tests:
    - invoke path;
    - resume path, если workflow resumable;
    - multi-node ordering и context propagation, если используется `workflow_nodes`;

@@ -15,6 +15,7 @@ from schemas.api.contracts import (
     StartRetrievalTaskRequest,
     StartTaskResponse,
     TaskEventItem,
+    TaskEventTimeBucketSummaryItem,
     TaskEventTransitionSummaryItem,
     TaskEventsResponse,
     TaskEventsSummaryResponse,
@@ -337,6 +338,22 @@ class RetrievalApplicationService:
                 )
                 for item in summary.transitions
             ],
+            daily=[
+                TaskEventTimeBucketSummaryItem(
+                    bucket_start=item.bucket_start,
+                    total_events=item.total_events,
+                    unique_tasks=item.unique_tasks,
+                )
+                for item in summary.daily
+            ],
+            weekly=[
+                TaskEventTimeBucketSummaryItem(
+                    bucket_start=item.bucket_start,
+                    total_events=item.total_events,
+                    unique_tasks=item.unique_tasks,
+                )
+                for item in summary.weekly
+            ],
         )
 
     def observability_summary(
@@ -364,6 +381,13 @@ class RetrievalApplicationService:
             avg_duration_ms=summary.avg_duration_ms,
             max_duration_ms=summary.max_duration_ms,
             avg_queue_wait_ms=summary.avg_queue_wait_ms,
+            avg_selected_block_count=summary.avg_selected_block_count,
+            avg_confidence=summary.avg_confidence,
+            tasks_with_unresolved_gaps=summary.tasks_with_unresolved_gaps,
+            unresolved_gaps_total=summary.unresolved_gaps_total,
+            llm_tokens_prompt_total=summary.llm_tokens_prompt_total,
+            llm_tokens_completion_total=summary.llm_tokens_completion_total,
+            llm_tokens_total=summary.llm_tokens_total,
             statuses=[TaskStatusSummaryItem(status=item.status, total=item.total) for item in summary.statuses],
             task_types=[
                 TaskTypeObservabilitySummaryItem(
@@ -374,6 +398,12 @@ class RetrievalApplicationService:
                     failed_total=item.failed_total,
                     avg_duration_ms=item.avg_duration_ms,
                     avg_queue_wait_ms=item.avg_queue_wait_ms,
+                    avg_selected_block_count=item.avg_selected_block_count,
+                    avg_confidence=item.avg_confidence,
+                    unresolved_gaps_total=item.unresolved_gaps_total,
+                    llm_tokens_prompt_total=item.llm_tokens_prompt_total,
+                    llm_tokens_completion_total=item.llm_tokens_completion_total,
+                    llm_tokens_total=item.llm_tokens_total,
                 )
                 for item in summary.task_types
             ],

@@ -11,7 +11,7 @@
 
 ## Статус
 
-Текущий инкремент: `Increment 31`.
+Текущий инкремент: `Increment 32`.
 
 Сделано:
 
@@ -46,11 +46,13 @@
   - фильтры `from_status`, `to_status`.
 - добавлен агрегированный endpoint аудита `GET /api/v1/tasks/events/summary`:
   - сводка `total_events`, `unique_tasks`;
-  - группировка переходов `from_status -> to_status` с полем `total`.
+  - группировка переходов `from_status -> to_status` с полем `total`;
+  - временные бакеты `daily[]` и `weekly[]` (`bucket_start`, `total_events`, `unique_tasks`).
 - добавлен observability read-model endpoint `GET /api/v1/tasks/observability/summary`:
   - текущие counts по статусам;
   - async/queue aggregates;
-  - latency breakdown по `task_type`.
+  - latency breakdown по `task_type`;
+  - quality/token aggregates (`avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `llm_tokens_*`).
 - добавлен reviewer observability endpoint `GET /api/v1/hitl/observability/summary`:
   - decision mix, pending/completed counts, `avg_iteration`, `max_iteration`;
   - breakdown по reviewer load поверх existing `hitl_actions` read-model.
@@ -868,8 +870,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\smoke_know
 
 - `total_tasks`, `queued_tasks`, `running_tasks`, `waiting_human_tasks`, `completed_tasks`, `failed_tasks`;
 - `async_tasks`, `avg_duration_ms`, `max_duration_ms`, `avg_queue_wait_ms`;
+- `avg_selected_block_count`, `avg_confidence`, `tasks_with_unresolved_gaps`, `unresolved_gaps_total`;
+- `llm_tokens_prompt_total`, `llm_tokens_completion_total`, `llm_tokens_total`;
 - `statuses[]`;
-- `task_types[]` с breakdown по `task_type`.
+- `task_types[]` с breakdown по `task_type`, включая `avg_selected_block_count`, `avg_confidence`, `unresolved_gaps_total`, `llm_tokens_*`.
 
 ## Контракт GET /api/v1/tasks/{task_id}/artifact
 
@@ -1196,7 +1200,9 @@ bash ./backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
 - `total_events`: общее число событий по фильтру;
 - `unique_tasks`: число уникальных `task_id` по фильтру;
-- `transitions`: агрегированные переходы со структурой `from_status`, `to_status`, `total`.
+- `transitions`: агрегированные переходы со структурой `from_status`, `to_status`, `total`;
+- `daily[]`: дневные агрегаты (`bucket_start`, `total_events`, `unique_tasks`);
+- `weekly[]`: недельные агрегаты (`bucket_start`, `total_events`, `unique_tasks`).
 
 ## Что будет в следующих итерациях
 
@@ -1220,7 +1226,9 @@ python3 -m pytest backend/tests -q
 Внешний integration тест с реальной LLM:
 
 ```bash
-set -a && source backend/.env && set +a
+OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_MODEL="$(awk -F= '/^OPENROUTER_MODEL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
+OPENROUTER_BASE_URL="$(awk -F= '/^OPENROUTER_BASE_URL=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
 RUN_EXTERNAL_LLM_TESTS=1 python3 -m pytest -q backend/tests/integration/test_authoring_openrouter_external.py
 ```
 

@@ -338,6 +338,10 @@ def test_postgres_task_registry_fallback_task_events_summary() -> None:
     transitions = {(item.from_status, item.to_status): item.total for item in summary.transitions}
     assert transitions[(None, "running")] == 2
     assert transitions[("running", "completed")] == 1
+    assert sum(item.total_events for item in summary.daily) == summary.total_events
+    assert sum(item.total_events for item in summary.weekly) == summary.total_events
+    assert summary.daily[0].bucket_start.tzinfo is not None
+    assert summary.weekly[0].bucket_start.tzinfo is not None
 
 
 def test_postgres_task_registry_fallback_task_events_summary_counts_queued_running_completed() -> None:
@@ -391,6 +395,9 @@ def test_task_service_summarize_tasks_returns_observability_aggregates() -> None
             "execution_mode": "async",
             "queue_name": "retrieval",
             "queued_at": "2026-04-26T10:00:00+00:00",
+            "selected_block_count": 4,
+            "confidence": 0.8,
+            "unresolved_gaps": ["low_evidence_count", "missing_methodology"],
         },
     )
     running = service.create_task(
@@ -412,6 +419,9 @@ def test_task_service_summarize_tasks_returns_observability_aggregates() -> None
             "execution_mode": "async",
             "queue_name": "knowledge-indexing",
             "started_at": "2026-04-26T10:00:03+00:00",
+            "selected_block_count": 2,
+            "confidence": 0.6,
+            "unresolved_gaps": ["missing_source_refs"],
         },
     )
     completed = service.create_task(
@@ -444,8 +454,12 @@ def test_task_service_summarize_tasks_returns_observability_aggregates() -> None
             "execution_mode": "async",
             "queue_name": "authoring",
             "completed_at": "2026-04-26T10:00:09+00:00",
+            "llm_tokens_prompt": 120,
+            "llm_tokens_completion": 30,
+            "llm_tokens_total": 150,
         },
     )
+    completed_task = service.get_task(completed.task_id)
 
     summary = service.summarize_tasks()
 
@@ -461,3 +475,15 @@ def test_task_service_summarize_tasks_returns_observability_aggregates() -> None
     task_types = {item.task_type: item for item in summary.task_types}
     assert task_types["authoring_pack"].avg_queue_wait_ms == 2000
     assert task_types["knowledge_indexing"].avg_queue_wait_ms == 3000
+    assert summary.avg_selected_block_count == 3.0
+    assert summary.avg_confidence == 0.7
+    assert summary.tasks_with_unresolved_gaps == 2
+    assert summary.unresolved_gaps_total == 3
+    assert summary.llm_tokens_prompt_total == 120
+    assert summary.llm_tokens_completion_total == 30
+    assert summary.llm_tokens_total == 150
+    assert task_types["retrieval_pack"].avg_selected_block_count == 4.0
+    assert task_types["knowledge_indexing"].avg_confidence == 0.6
+    assert task_types["knowledge_indexing"].unresolved_gaps_total == 1
+    assert task_types["authoring_pack"].llm_tokens_total == 150
+    assert completed_task.details["duration_ms"] == 7000

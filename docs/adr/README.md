@@ -98,3 +98,4 @@
 - `0085-pdf-multiline-form-and-rotated-layout-hardening.md`
 - `0086-ocr-confidence-calibration-and-policy-gate.md`
 - `0087-pdf-merged-table-hardening-and-demo-proof.md`
+- `0088-execution-metrics-mvp-day-week-and-token-quality-aggregates.md`

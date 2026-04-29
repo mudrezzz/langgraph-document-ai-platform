@@ -332,6 +332,8 @@ def test_e2e_task_events_summary_endpoint(server_base_url: str) -> None:
     transitions = {(item["from_status"], item["to_status"]) for item in body["transitions"]}
     assert (None, "running") in transitions
     assert ("running", "completed") in transitions
+    assert body["daily"]
+    assert body["weekly"]
 
 
 def test_e2e_task_observability_summary_endpoint(server_base_url: str) -> None:
@@ -342,6 +344,9 @@ def test_e2e_task_observability_summary_endpoint(server_base_url: str) -> None:
     assert status == 200
     assert body["total_tasks"] >= 1
     assert body["completed_tasks"] >= 1
+    assert "avg_selected_block_count" in body
+    assert "avg_confidence" in body
+    assert "llm_tokens_total" in body
     assert any(item["task_type"] == "retrieval_pack" for item in body["task_types"])
 
 
