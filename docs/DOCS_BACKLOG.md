@@ -49,10 +49,11 @@ Last Update: 2026-04-30
 | DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Planned | 2026-04-30 |  |
 | DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Planned | 2026-04-30 |  |
 | DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Добавлены `LICENSE` (Apache-2.0) и `docs/oss_license_rationale.md`. |
-| DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Planned | 2026-04-30 | Новый scope: после env catalog нужен copy-paste набор переменных по профилям для снижения ошибок запуска. |
+| DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_profile_snippets.md` с copy-paste профилями `dev/stage/prod` и рекомендуемыми smoke-командами. |
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыт DOC-021; добавлен env snippets guide для `dev/stage/prod`.
 - 2026-04-30: Закрыты DOC-015 и DOC-016; добавлены versioning policy и docs contract checks.
 - 2026-04-30: Закрыт DOC-020; зафиксирована лицензия Apache-2.0 и rationale.
 - 2026-04-30: Закрыты DOC-013 и DOC-014; добавлены governance и security policy документы.
