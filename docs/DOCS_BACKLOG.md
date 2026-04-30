@@ -51,9 +51,11 @@ Last Update: 2026-04-30
 | DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Добавлены `LICENSE` (Apache-2.0) и `docs/oss_license_rationale.md`. |
 | DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_profile_snippets.md` с copy-paste профилями `dev/stage/prod` и рекомендуемыми smoke-командами. |
 | DOC-022 | P0 | Repository Front Door | Переписать главный README как GitHub entrypoint (value proposition + CTA + быстрые маршруты) | Marketing-oriented root README | Done | 2026-04-30 | Полностью переработан `README.md`: короткий product pitch, сценарии использования, 5-minute quickstart и маршруты в `docs/developer_guide/*`; payload contracts перенесены в `api_reference.md`. |
+| DOC-023 | P0 | Agent Builder Onboarding | Добавить в корневой README быстрый HOW TO для сценария “создать нового агента/agent flow” + extension map | README quickstart extension block | Done | 2026-04-30 | В `README.md` добавлены разделы `Quickstart: Build A New Agent Flow` и `Extension Map` с прямыми маршрутами на `framework_concepts`, `extension_handbook`, `extension_recipes`, `api_reference`, `mcp_reference`, `persistence_reference`. |
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыт DOC-023; в корневой README добавлены быстрый путь для нового agent flow и карта типов расширений.
 - 2026-04-30: Закрыт DOC-022; корневой `README.md` переписан в формат GitHub-витрины и синхронизирован с developer guide.
 - 2026-04-30: Обновлен DOC-004 notes; `quickstart.md` переработан в навигационный HOW TO для разработчика.
 - 2026-04-30: Закрыты DOC-017, DOC-018 и DOC-019; добавлены examples catalog, ADR reading map и maintainer docs playbook.

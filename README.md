@@ -45,6 +45,33 @@ For profile-ready env snippets (`dev/stage/prod`) and complete smoke matrix, use
 - `docs/developer_guide/env_profile_snippets.md`
 - `backend/scripts/README.md`
 
+## Quickstart: Build A New Agent Flow
+
+This project treats an "agent" as:
+
+`workflow + tools + optional API/MCP boundary`
+
+Minimal path:
+
+1. Start from architecture/constraints:
+   - `docs/developer_guide/framework_concepts.md`
+   - `docs/framework_extension_guide.md`
+2. Pick a reusable blueprint:
+   - `docs/developer_guide/examples_catalog.md`
+3. Implement by playbook:
+   - `docs/developer_guide/extension_handbook.md`
+   - `docs/developer_guide/extension_recipes.md`
+4. Wire external interface (if needed):
+   - HTTP API: `docs/developer_guide/api_reference.md`
+   - MCP tools: `docs/developer_guide/mcp_reference.md`
+5. Verify and close:
+   - run smoke path from `backend/scripts/README.md`
+   - update docs and `docs/DOCS_BACKLOG.md`
+
+Developer-oriented deep quickstart:
+
+- `docs/developer_guide/quickstart.md`
+
 ## Choose Your Path
 
 - I need fast orientation in docs and role-based map:
@@ -93,6 +120,19 @@ Full architecture overview:
 - Worker execution plane: `backend/apps/worker`
 - Framework and contracts: `backend/packages/framework`, `backend/packages/schemas`
 - Scripts and gates: `backend/scripts`
+
+## Extension Map
+
+- `Workflow extension`: new graph/state-machine path.
+  - Start: `docs/developer_guide/extension_handbook.md` (Workflow extension playbook)
+- `Tool extension`: add domain tool with retry/idempotency/audit policy.
+  - Start: `docs/developer_guide/extension_handbook.md` (Tool extension playbook)
+- `MCP extension`: add or extend MCP service/toolset with scopes/roles.
+  - Start: `docs/developer_guide/extension_handbook.md` (MCP extension playbook)
+- `Persistence extension`: add store/read-model and additive migration.
+  - Start: `docs/developer_guide/persistence_reference.md`
+- `Domain extension`: add new business capability through `domain_*` + application service.
+  - Start: `docs/developer_guide/extension_recipes.md`
 
 ## Public Contract Surface
 
