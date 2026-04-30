@@ -45,14 +45,15 @@ Last Update: 2026-04-30
 | DOC-014 | P1 | Security | Подготовить SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Done | 2026-04-30 | Добавлен `SECURITY.md` с disclosure flow, scope и RBAC limitations. |
 | DOC-015 | P1 | Versioning | Зафиксировать документационную/контрактную versioning policy и deprecation policy | Versioning policy doc | Done | 2026-04-30 | Добавлен `docs/developer_guide/versioning_policy.md` с правилами stable/experimental deprecation и contract versioning. |
 | DOC-016 | P1 | QA for Docs | Ввести docs contract checks для новых разделов и обязательных ссылок | Unit tests for docs contracts | Done | 2026-04-30 | Обновлен `backend/tests/unit/test_developer_guide_contracts.py`: проверка новых обязательных guide-страниц и baseline checks для `docs/DOCS_BACKLOG.md`. |
-| DOC-017 | P2 | Examples Catalog | Каталог reusable примеров для integrators (retrieval-first, authoring-first, MCP-first) | Examples cookbook | Planned | 2026-04-30 |  |
-| DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Planned | 2026-04-30 |  |
-| DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Planned | 2026-04-30 |  |
+| DOC-017 | P2 | Examples Catalog | Каталог reusable примеров для integrators (retrieval-first, authoring-first, MCP-first) | Examples cookbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/examples_catalog.md` с retrieval-first/authoring-first/MCP-first/canonical сценариями. |
+| DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/adr_reading_map.md` с role-based fast path и topic map по ADR. |
+| DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/maintainer_playbook.md` с intake/triage/review/release cadence и DoD для docs PR. |
 | DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Добавлены `LICENSE` (Apache-2.0) и `docs/oss_license_rationale.md`. |
 | DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_profile_snippets.md` с copy-paste профилями `dev/stage/prod` и рекомендуемыми smoke-командами. |
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыты DOC-017, DOC-018 и DOC-019; добавлены examples catalog, ADR reading map и maintainer docs playbook.
 - 2026-04-30: Закрыт DOC-021; добавлен env snippets guide для `dev/stage/prod`.
 - 2026-04-30: Закрыты DOC-015 и DOC-016; добавлены versioning policy и docs contract checks.
 - 2026-04-30: Закрыт DOC-020; зафиксирована лицензия Apache-2.0 и rationale.

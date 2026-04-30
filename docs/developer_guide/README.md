@@ -1,7 +1,7 @@
 # External Developer Guide
 
 Дата обновления: 2026-04-30
-Статус: Increment 32+ documentation release (slice 3)
+Статус: Increment 32+ documentation release (slice 4)
 
 Этот раздел - единая точка входа для внешнего разработчика, который хочет использовать backend/framework библиотеку как production retrieval + authoring platform на LangGraph.
 
@@ -14,6 +14,7 @@
    - `docs/developer_guide/env_profile_snippets.md`
    - `docs/developer_guide/manual_demo_checks.md`
    - `docs/developer_guide/canonical_e2e_walkthrough.md`
+   - `docs/developer_guide/examples_catalog.md`
    - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/mcp_reference.md`
    - `docs/developer_guide/env_config_reference.md`
@@ -27,6 +28,7 @@
     - `docs/developer_guide/persistence_reference.md`
     - `docs/developer_guide/observability_reference.md`
     - `docs/developer_guide/versioning_policy.md`
+    - `docs/developer_guide/adr_reading_map.md`
     - `docs/developer_guide/extension_handbook.md`
     - `docs/developer_guide/public_contract_surface.md`
     - `docs/developer_guide/extension_recipes.md`
@@ -35,6 +37,7 @@
    - `docs/developer_guide/persistence_reference.md`
    - `docs/developer_guide/observability_reference.md`
    - `docs/developer_guide/versioning_policy.md`
+   - `docs/developer_guide/maintainer_playbook.md`
    - `docs/developer_guide/operations_and_release.md`
    - `docs/developer_guide/release_reproducible_flow.md`
    - `CONTRIBUTING.md`
@@ -72,8 +75,11 @@
 9. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
 10. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
 11. `versioning_policy.md`: сверить правила deprecation и contract versioning.
-12. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-13. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
-14. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-15. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
-16. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+12. `examples_catalog.md`: выбрать ближайший reusable сценарий интеграции.
+13. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+14. `adr_reading_map.md`: пройти ADR-путь по роли и теме изменений.
+15. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
+16. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+17. `maintainer_playbook.md`: сверить правила docs release/triage/review.
+18. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
+19. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
