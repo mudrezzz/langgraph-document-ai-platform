@@ -12,8 +12,12 @@
 1. Integrator:
    - `docs/developer_guide/quickstart.md`
    - `docs/developer_guide/manual_demo_checks.md`
+   - `docs/developer_guide/canonical_e2e_walkthrough.md`
+   - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/public_contract_surface.md`
 2. Contributor (framework/domain extension):
+   - `docs/developer_guide/framework_concepts.md`
+   - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/public_contract_surface.md`
    - `docs/developer_guide/extension_recipes.md`
    - `docs/framework_extension_guide.md`
@@ -40,6 +44,9 @@
 
 1. `quickstart.md`: поднять контур и выполнить первый retrieval smoke.
 2. `public_contract_surface.md`: зафиксировать границы stable/experimental перед изменениями.
-3. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-4. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-5. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+3. `framework_concepts.md`: зафиксировать execution model (runtime, async plane, HITL, quality gates).
+4. `canonical_e2e_walkthrough.md`: пройти полный path documents -> indexing -> retrieval -> authoring -> HITL -> artifact.
+5. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
+6. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+7. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+8. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
