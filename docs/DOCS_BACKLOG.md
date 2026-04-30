@@ -39,8 +39,8 @@ Last Update: 2026-04-30
 | DOC-008 | P0 | Env & Config | Сформировать единый каталог env-переменных и runtime effects | Configuration reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_config_reference.md` с runtime env catalog и profile effects. |
 | DOC-009 | P0 | Ops & Release | Упаковать smoke/release gate процесс как один reproducible flow | Operations + release playbook sync | Done | 2026-04-30 | Добавлен `docs/developer_guide/release_reproducible_flow.md`; обновлены `operations_and_release.md` и entrypoint-ссылки. |
 | DOC-010 | P0 | Extension Path | Детализировать extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Done | 2026-04-30 | Добавлен `docs/developer_guide/extension_handbook.md` с playbook-ами по workflow/tool/MCP/persistence/domain extension. |
-| DOC-011 | P1 | Persistence & Data | Описать БД-модель: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Planned | 2026-04-30 |  |
-| DOC-012 | P1 | Observability | Описать task events/observability/HITL observability и SLA интерпретацию | Observability handbook | Planned | 2026-04-30 |  |
+| DOC-011 | P1 | Persistence & Data | Описать БД-модель: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/persistence_reference.md` с data model map, migration policy, version lookup и rollback expectations. |
+| DOC-012 | P1 | Observability | Описать task events/observability/HITL observability и SLA интерпретацию | Observability handbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/observability_reference.md` с endpoint map, метриками и SLA interpretation rules. |
 | DOC-013 | P1 | Governance | Подготовить OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Planned | 2026-04-30 |  |
 | DOC-014 | P1 | Security | Подготовить SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Planned | 2026-04-30 |  |
 | DOC-015 | P1 | Versioning | Зафиксировать документационную/контрактную versioning policy и deprecation policy | Versioning policy doc | Planned | 2026-04-30 |  |
@@ -53,6 +53,8 @@ Last Update: 2026-04-30
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыт DOC-012; добавлен observability handbook.
+- 2026-04-30: Закрыт DOC-011; добавлен persistence/data reference.
 - 2026-04-30: Закрыт DOC-010; добавлен extension handbook по ключевым типам расширений.
 - 2026-04-30: Закрыт DOC-009; добавлен reproducible release flow guide.
 - 2026-04-30: Закрыты DOC-007 и DOC-008; добавлены `mcp_reference.md` и `env_config_reference.md`.

@@ -22,11 +22,15 @@
     - `docs/developer_guide/api_reference.md`
     - `docs/developer_guide/mcp_reference.md`
     - `docs/developer_guide/env_config_reference.md`
+    - `docs/developer_guide/persistence_reference.md`
+    - `docs/developer_guide/observability_reference.md`
     - `docs/developer_guide/extension_handbook.md`
     - `docs/developer_guide/public_contract_surface.md`
     - `docs/developer_guide/extension_recipes.md`
     - `docs/framework_extension_guide.md`
 3. Maintainer (runtime/release):
+   - `docs/developer_guide/persistence_reference.md`
+   - `docs/developer_guide/observability_reference.md`
    - `docs/developer_guide/operations_and_release.md`
    - `docs/developer_guide/release_reproducible_flow.md`
    - `docs/production_runbook.md`
@@ -55,8 +59,10 @@
 5. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
 6. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.
 7. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
-8. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-9. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
-10. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-11. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
-12. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+8. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
+9. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
+10. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+11. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
+12. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+13. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
+14. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
