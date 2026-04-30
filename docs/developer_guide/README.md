@@ -11,7 +11,7 @@
 
 1. Integrator:
    - `docs/developer_guide/quickstart.md`
-   - `backend/examples/README.md`
+   - `agent_examples/README.md`
    - `docs/developer_guide/design_patterns/README.md`
    - `docs/developer_guide/env_profile_snippets.md`
    - `docs/developer_guide/manual_demo_checks.md`
@@ -74,7 +74,7 @@
 2. `public_contract_surface.md`: зафиксировать границы stable/experimental перед изменениями.
 3. `framework_concepts.md`: зафиксировать execution model (runtime, async plane, HITL, quality gates).
 4. `canonical_e2e_walkthrough.md`: пройти полный path documents -> indexing -> retrieval -> authoring -> HITL -> artifact.
-5. `backend/examples/README.md`: выбрать runnable quickstart кейс и запустить его в `--execute`.
+5. `agent_examples/README.md`: выбрать runnable python-agent пример и запустить его через `run_example.py`.
 6. `design_patterns/README.md`: выбрать pattern под свою задачу и extension points.
 7. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
 8. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.

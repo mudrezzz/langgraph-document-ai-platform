@@ -55,10 +55,11 @@
    - API endpoint: `docs/developer_guide/api_reference.md`
    - MCP tool: `docs/developer_guide/mcp_reference.md`
 5. Используй пример для старта:
-   - retrieval-first
-   - authoring-first
-   - mcp-first  
-   из `docs/developer_guide/examples_catalog.md`.
+   - открой `agent_examples/README.md`;
+   - выбери pattern `retrieval_first | authoring_first | hitl_gate`;
+   - запусти `.venv/bin/python agent_examples/run_example.py --pattern <pattern>`.
+6. Для design patterns и extension points:
+   - `docs/developer_guide/design_patterns/README.md`.
 
 ## Цель C: разобраться с прод-путем и release
 

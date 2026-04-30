@@ -12,7 +12,7 @@
 ## Как пользоваться
 
 1. Выбери pattern по задаче.
-2. Запусти связанный runnable пример из `backend/examples/quickstart_agents.py`.
+2. Запусти связанный runnable пример из `agent_examples/run_example.py`.
 3. Повтори структуру extension points для своего кейса.
 4. Проверь изменения через smoke/tests и обнови docs backlog.
 
@@ -38,6 +38,7 @@
 Быстрый test path:
 
 ```bash
-.venv/bin/pytest -q backend/tests/unit/test_example_quickstart_agents.py
+.venv/bin/pytest -q agent_examples/tests/test_run_example.py
+.venv/bin/pytest -q backend/tests/unit/test_agent_examples_contracts.py
 .venv/bin/pytest -q backend/tests/unit/test_developer_guide_contracts.py
 ```

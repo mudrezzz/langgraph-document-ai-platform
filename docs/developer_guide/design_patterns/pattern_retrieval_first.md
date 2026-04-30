@@ -13,7 +13,7 @@
 ## Runnable пример
 
 ```bash
-.venv/bin/python backend/examples/quickstart_agents.py --example retrieval_faq_assistant --execute
+.venv/bin/python agent_examples/run_example.py --pattern retrieval_first
 ```
 
 ## Extension points

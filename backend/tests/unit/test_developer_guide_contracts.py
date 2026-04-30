@@ -12,7 +12,7 @@ def test_developer_guide_index_links_expected_pages() -> None:
 
     required_pages = [
         "docs/developer_guide/quickstart.md",
-        "backend/examples/README.md",
+        "agent_examples/README.md",
         "docs/developer_guide/design_patterns/README.md",
         "docs/developer_guide/design_patterns/pattern_retrieval_first.md",
         "docs/developer_guide/design_patterns/pattern_authoring_first.md",

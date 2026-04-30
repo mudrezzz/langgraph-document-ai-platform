@@ -52,7 +52,7 @@ Retrieval-first starter:
 ```bash
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
-bash backend/scripts/smoke_retrieval_api.sh --port 8010
+.venv/bin/python agent_examples/run_example.py --pattern retrieval_first
 ```
 
 Authoring-first starter:
@@ -60,7 +60,7 @@ Authoring-first starter:
 ```bash
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
-bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step
+.venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
 ## Quickstart: Build A New Agent Flow
@@ -110,9 +110,11 @@ Developer-oriented deep quickstart:
 
 ## Example Gallery And Patterns
 
-- Runnable examples catalog:
-  - `backend/examples/README.md`
-  - `.venv/bin/python backend/examples/quickstart_agents.py --list`
+- Product-style Python agent examples (single folder, no framework internals required):
+  - `agent_examples/README.md`
+  - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
+  - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
+  - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
   - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.

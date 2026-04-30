@@ -13,7 +13,7 @@
 ## Runnable пример
 
 ```bash
-.venv/bin/python backend/examples/quickstart_agents.py --example authoring_policy_brief --execute
+.venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
 ## Extension points

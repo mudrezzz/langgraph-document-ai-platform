@@ -14,7 +14,7 @@
 
 ```bash
 bash backend/scripts/async_up.sh
-.venv/bin/python backend/examples/quickstart_agents.py --example hitl_review_loop --execute
+.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
 ```
 
 ## Extension points
