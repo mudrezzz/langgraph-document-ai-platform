@@ -11,6 +11,8 @@
 
 1. Integrator:
    - `docs/developer_guide/quickstart.md`
+   - `backend/examples/README.md`
+   - `docs/developer_guide/design_patterns/README.md`
    - `docs/developer_guide/env_profile_snippets.md`
    - `docs/developer_guide/manual_demo_checks.md`
    - `docs/developer_guide/canonical_e2e_walkthrough.md`
@@ -21,6 +23,10 @@
    - `docs/developer_guide/public_contract_surface.md`
 2. Contributor (framework/domain extension):
     - `docs/developer_guide/framework_concepts.md`
+    - `docs/developer_guide/design_patterns/README.md`
+    - `docs/developer_guide/design_patterns/pattern_retrieval_first.md`
+    - `docs/developer_guide/design_patterns/pattern_authoring_first.md`
+    - `docs/developer_guide/design_patterns/pattern_hitl_gate.md`
     - `docs/developer_guide/api_reference.md`
     - `docs/developer_guide/mcp_reference.md`
     - `docs/developer_guide/env_config_reference.md`
@@ -68,18 +74,20 @@
 2. `public_contract_surface.md`: зафиксировать границы stable/experimental перед изменениями.
 3. `framework_concepts.md`: зафиксировать execution model (runtime, async plane, HITL, quality gates).
 4. `canonical_e2e_walkthrough.md`: пройти полный path documents -> indexing -> retrieval -> authoring -> HITL -> artifact.
-5. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
-6. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.
-7. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
-8. `env_profile_snippets.md`: взять готовый copy-paste env-профиль `dev/stage/prod`.
-9. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
-10. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
-11. `versioning_policy.md`: сверить правила deprecation и contract versioning.
-12. `examples_catalog.md`: выбрать ближайший reusable сценарий интеграции.
-13. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-14. `adr_reading_map.md`: пройти ADR-путь по роли и теме изменений.
-15. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
-16. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-17. `maintainer_playbook.md`: сверить правила docs release/triage/review.
-18. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
-19. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+5. `backend/examples/README.md`: выбрать runnable quickstart кейс и запустить его в `--execute`.
+6. `design_patterns/README.md`: выбрать pattern под свою задачу и extension points.
+7. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
+8. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.
+9. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
+10. `env_profile_snippets.md`: взять готовый copy-paste env-профиль `dev/stage/prod`.
+11. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
+12. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
+13. `versioning_policy.md`: сверить правила deprecation и contract versioning.
+14. `examples_catalog.md`: выбрать ближайший reusable сценарий интеграции.
+15. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+16. `adr_reading_map.md`: пройти ADR-путь по роли и теме изменений.
+17. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
+18. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+19. `maintainer_playbook.md`: сверить правила docs release/triage/review.
+20. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
+21. `operations_and_release.md`: прогнать release decision gate как final quality barrier.

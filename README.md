@@ -108,6 +108,15 @@ Developer-oriented deep quickstart:
   - `docs/developer_guide/release_reproducible_flow.md`
   - `docs/production_runbook.md`
 
+## Example Gallery And Patterns
+
+- Runnable examples catalog:
+  - `backend/examples/README.md`
+  - `.venv/bin/python backend/examples/quickstart_agents.py --list`
+- Design patterns library:
+  - `docs/developer_guide/design_patterns/README.md`
+  - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.
+
 ## 30-Second Architecture Story
 
 1. You send documents and tasks through API/MCP boundaries with typed contracts.

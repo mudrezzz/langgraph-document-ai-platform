@@ -106,6 +106,8 @@ Expected proof:
 
 ## 6. Related docs
 
+- `backend/examples/README.md`
+- `docs/developer_guide/design_patterns/README.md`
 - `docs/developer_guide/canonical_e2e_walkthrough.md`
 - `docs/developer_guide/mcp_reference.md`
 - `docs/developer_guide/release_reproducible_flow.md`
