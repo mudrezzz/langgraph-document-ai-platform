@@ -2,6 +2,10 @@
 
 Этот документ фиксирует production-like прогон для внешнего разработчика: smoke matrix -> release decision gate -> full pytest gate.
 
+Для линейного пошагового сценария используйте также:
+
+- `docs/developer_guide/release_reproducible_flow.md`
+
 ## 1. Runtime prerequisites
 
 - `.venv` с зависимостями (`pip install -e ./backend`)
@@ -64,6 +68,7 @@ bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workf
 
 ## 6. Связанные документы
 
+- `docs/developer_guide/release_reproducible_flow.md`
 - `docs/production_runbook.md`
 - `docs/manual_smoke_postgres_runbook.md`
 - `backend/scripts/README.md`

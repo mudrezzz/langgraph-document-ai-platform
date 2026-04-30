@@ -35,10 +35,10 @@ Last Update: 2026-04-30
 | DOC-004 | P0 | Onboarding | Подготовить quickstart-профили: local dev / stage-like / prod-like | Расширенный onboarding guide | Done | 2026-04-30 | Обновлен `docs/developer_guide/quickstart.md`: добавлены три профиля запуска (`dev`, `stage-like`, `prod-like`) с командами и expected outputs. |
 | DOC-005 | P0 | End-to-End | Добавить canonical walkthrough: documents -> indexing -> retrieval -> authoring -> HITL -> artifact | Сквозной practical guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/canonical_e2e_walkthrough.md`; guide привязан в `developer_guide/README.md` для Integrator path. |
 | DOC-006 | P0 | API Reference | Сформировать человеко-читаемый reference по FastAPI endpoints + payload contracts | API reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/api_reference.md` (endpoint groups, payload contracts, auth headers, error mapping). |
-| DOC-007 | P0 | MCP Reference | Сформировать reference по MCP services/tools/scopes/roles/errors | MCP reference guide | Planned | 2026-04-30 |  |
-| DOC-008 | P0 | Env & Config | Сформировать единый каталог env-переменных и runtime effects | Configuration reference | Planned | 2026-04-30 |  |
-| DOC-009 | P0 | Ops & Release | Упаковать smoke/release gate процесс как один reproducible flow | Operations + release playbook sync | Planned | 2026-04-30 |  |
-| DOC-010 | P0 | Extension Path | Детализировать extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Planned | 2026-04-30 |  |
+| DOC-007 | P0 | MCP Reference | Сформировать reference по MCP services/tools/scopes/roles/errors | MCP reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/mcp_reference.md` с service/tool matrix, scopes, required roles и error semantics. |
+| DOC-008 | P0 | Env & Config | Сформировать единый каталог env-переменных и runtime effects | Configuration reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_config_reference.md` с runtime env catalog и profile effects. |
+| DOC-009 | P0 | Ops & Release | Упаковать smoke/release gate процесс как один reproducible flow | Operations + release playbook sync | Done | 2026-04-30 | Добавлен `docs/developer_guide/release_reproducible_flow.md`; обновлены `operations_and_release.md` и entrypoint-ссылки. |
+| DOC-010 | P0 | Extension Path | Детализировать extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Done | 2026-04-30 | Добавлен `docs/developer_guide/extension_handbook.md` с playbook-ами по workflow/tool/MCP/persistence/domain extension. |
 | DOC-011 | P1 | Persistence & Data | Описать БД-модель: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Planned | 2026-04-30 |  |
 | DOC-012 | P1 | Observability | Описать task events/observability/HITL observability и SLA интерпретацию | Observability handbook | Planned | 2026-04-30 |  |
 | DOC-013 | P1 | Governance | Подготовить OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Planned | 2026-04-30 |  |
@@ -49,9 +49,14 @@ Last Update: 2026-04-30
 | DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Planned | 2026-04-30 |  |
 | DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Planned | 2026-04-30 |  |
 | DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Planned | 2026-04-30 | Кандидат по умолчанию: Apache-2.0 |
+| DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Planned | 2026-04-30 | Новый scope: после env catalog нужен copy-paste набор переменных по профилям для снижения ошибок запуска. |
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыт DOC-010; добавлен extension handbook по ключевым типам расширений.
+- 2026-04-30: Закрыт DOC-009; добавлен reproducible release flow guide.
+- 2026-04-30: Закрыты DOC-007 и DOC-008; добавлены `mcp_reference.md` и `env_config_reference.md`.
+- 2026-04-30: Добавлен DOC-021 (profile-ready env snippets/templates) как новый onboarding scope.
 - 2026-04-30: Закрыт DOC-006; добавлен API reference по FastAPI boundary.
 - 2026-04-30: Закрыт DOC-005; добавлен сквозной practical walkthrough `documents -> indexing -> retrieval -> authoring -> HITL -> artifact`.
 - 2026-04-30: Закрыт DOC-004; quickstart расширен профилями local dev / stage-like / prod-like.
