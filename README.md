@@ -45,6 +45,24 @@ For profile-ready env snippets (`dev/stage/prod`) and complete smoke matrix, use
 - `docs/developer_guide/env_profile_snippets.md`
 - `backend/scripts/README.md`
 
+## Copy-Paste Starters
+
+Retrieval-first starter:
+
+```bash
+bash backend/scripts/postgres_up.sh
+bash backend/scripts/postgres_migrate.sh
+bash backend/scripts/smoke_retrieval_api.sh --port 8010
+```
+
+Authoring-first starter:
+
+```bash
+bash backend/scripts/postgres_up.sh
+bash backend/scripts/postgres_migrate.sh
+bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step
+```
+
 ## Quickstart: Build A New Agent Flow
 
 This project treats an "agent" as:
@@ -89,6 +107,18 @@ Developer-oriented deep quickstart:
   - `docs/developer_guide/operations_and_release.md`
   - `docs/developer_guide/release_reproducible_flow.md`
   - `docs/production_runbook.md`
+
+## 30-Second Architecture Story
+
+1. You send documents and tasks through API/MCP boundaries with typed contracts.
+2. LangGraph workflows orchestrate retrieval/indexing/authoring and optional HITL loop.
+3. PostgreSQL + pgvector persist state, evidence, artifacts, and observability traces.
+
+What this gives your team:
+
+- Faster delivery: reusable extension surface for workflows, tools, and MCP services.
+- Lower risk: auditable lifecycle with task events, HITL actions, and release gates.
+- Cleaner ownership: contract-first boundaries between product, platform, and infra teams.
 
 ## Architecture At A Glance
 
