@@ -23,6 +23,7 @@
    - `docs/developer_guide/public_contract_surface.md`
 2. Contributor (framework/domain extension):
     - `docs/developer_guide/framework_concepts.md`
+    - `docs/developer_guide/agent_examples_demo_program.md`
     - `docs/developer_guide/design_patterns/README.md`
     - `docs/developer_guide/design_patterns/pattern_retrieval_first.md`
     - `docs/developer_guide/design_patterns/pattern_authoring_first.md`
@@ -75,19 +76,20 @@
 3. `framework_concepts.md`: зафиксировать execution model (runtime, async plane, HITL, quality gates).
 4. `canonical_e2e_walkthrough.md`: пройти полный path documents -> indexing -> retrieval -> authoring -> HITL -> artifact.
 5. `agent_examples/README.md`: выбрать runnable python-agent пример и запустить его через `run_example.py`.
-6. `design_patterns/README.md`: выбрать pattern под свою задачу и extension points.
-7. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
-8. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.
-9. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
-10. `env_profile_snippets.md`: взять готовый copy-paste env-профиль `dev/stage/prod`.
-11. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
-12. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
-13. `versioning_policy.md`: сверить правила deprecation и contract versioning.
-14. `examples_catalog.md`: выбрать ближайший reusable сценарий интеграции.
-15. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-16. `adr_reading_map.md`: пройти ADR-путь по роли и теме изменений.
-17. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
-18. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-19. `maintainer_playbook.md`: сверить правила docs release/triage/review.
-20. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
-21. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+6. `agent_examples_demo_program.md`: сверить целевую модель in-process demo-агентов и roadmap.
+7. `design_patterns/README.md`: выбрать pattern под свою задачу и extension points.
+8. `api_reference.md`: сверить endpoint-ы, payload contracts и error mapping.
+9. `mcp_reference.md`: сверить MCP tools/scopes/roles и error semantics.
+10. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
+11. `env_profile_snippets.md`: взять готовый copy-paste env-профиль `dev/stage/prod`.
+12. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
+13. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
+14. `versioning_policy.md`: сверить правила deprecation и contract versioning.
+15. `examples_catalog.md`: выбрать ближайший reusable сценарий интеграции.
+16. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+17. `adr_reading_map.md`: пройти ADR-путь по роли и теме изменений.
+18. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
+19. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+20. `maintainer_playbook.md`: сверить правила docs release/triage/review.
+21. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
+22. `operations_and_release.md`: прогнать release decision gate как final quality barrier.

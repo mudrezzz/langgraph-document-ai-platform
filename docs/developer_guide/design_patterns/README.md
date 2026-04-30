@@ -9,6 +9,10 @@
 - "какой минимальный рабочий скелет взять?"
 - "как не сломать контракты framework при расширении?"
 
+План replatform демо-агентов в in-process стиль:
+
+- `docs/developer_guide/agent_examples_demo_program.md`
+
 ## Как пользоваться
 
 1. Выбери pattern по задаче.
