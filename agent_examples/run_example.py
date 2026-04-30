@@ -10,6 +10,10 @@ from typing import Any
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from agent_examples.common.path_setup import ensure_backend_paths
+
+ensure_backend_paths(repo_root=Path(__file__).resolve().parents[1])
+
 from agent_examples.common.framework_client import FrameworkClient
 from agent_examples.common.io_utils import print_json, write_json
 from agent_examples.common.runtime import LocalApiRuntime
@@ -23,7 +27,6 @@ from agent_examples.patterns.retrieval_first.agent import RetrievalFirstAgent
 from agent_examples.patterns.retrieval_first.config import RetrievalFirstConfig
 from agent_examples.patterns.retrieval_first.prompts import DEFAULT_QUERY as RETRIEVAL_QUERY
 
-
 PATTERN_CHOICES = ("retrieval_first", "authoring_first", "hitl_gate")
 
 
@@ -32,6 +35,7 @@ class PatternDescriptor:
     pattern_id: str
     title: str
     default_query: str
+    execution_model: str
 
 
 PATTERN_INDEX = {
@@ -39,16 +43,19 @@ PATTERN_INDEX = {
         pattern_id="retrieval_first",
         title="Retrieval First Agent",
         default_query=RETRIEVAL_QUERY,
+        execution_model="in_process_framework_workflow",
     ),
     "authoring_first": PatternDescriptor(
         pattern_id="authoring_first",
         title="Authoring First Agent",
         default_query=AUTHORING_QUERY,
+        execution_model="api_runtime_client",
     ),
     "hitl_gate": PatternDescriptor(
         pattern_id="hitl_gate",
         title="HITL Gate Agent",
         default_query=HITL_QUERY,
+        execution_model="api_runtime_client",
     ),
 }
 
@@ -70,24 +77,43 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8210)
     parser.add_argument("--startup-timeout-sec", type=int, default=30)
-    parser.add_argument("--no-local-api", action="store_true", help="Do not start local uvicorn runtime.")
+    parser.add_argument("--no-local-api", action="store_true", help="Do not start local uvicorn runtime for API-driven patterns.")
     parser.add_argument("--hitl-decisions", default="needs_changes,approve")
     parser.add_argument("--output-json", default="")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
 
-def run_pattern(pattern: str, *, client: FrameworkClient, query: str, hitl_decisions: list[str]) -> dict[str, Any]:
-    if pattern == "retrieval_first":
-        agent = RetrievalFirstAgent(client=client, config=RetrievalFirstConfig())
-        return agent.run(query=query)
-    if pattern == "authoring_first":
-        agent = AuthoringFirstAgent(client=client, config=AuthoringFirstConfig())
-        return agent.run(query=query)
-    if pattern == "hitl_gate":
-        agent = HitlGateAgent(client=client, config=HitlGateConfig())
-        return agent.run(query=query, decisions=hitl_decisions)
-    raise ValueError(f"Unsupported pattern: {pattern}")
+def _run_in_process_retrieval(query: str) -> dict[str, Any]:
+    agent = RetrievalFirstAgent(config=RetrievalFirstConfig())
+    return agent.run(query=query)
+
+
+def _run_api_patterns(
+    pattern: str,
+    *,
+    query: str,
+    hitl_decisions: list[str],
+    host: str,
+    port: int,
+    startup_timeout_sec: int,
+    base_url: str,
+    no_local_api: bool,
+) -> dict[str, Any]:
+    def _run_with_client(client: FrameworkClient) -> dict[str, Any]:
+        if pattern == "authoring_first":
+            agent = AuthoringFirstAgent(client=client, config=AuthoringFirstConfig())
+            return agent.run(query=query)
+        if pattern == "hitl_gate":
+            agent = HitlGateAgent(client=client, config=HitlGateConfig())
+            return agent.run(query=query, decisions=hitl_decisions)
+        raise ValueError(f"Pattern {pattern} is not API-driven")
+
+    if no_local_api:
+        return _run_with_client(FrameworkClient(base_url=base_url))
+
+    with LocalApiRuntime(host=host, port=port, startup_timeout_sec=startup_timeout_sec):
+        return _run_with_client(FrameworkClient(base_url=base_url))
 
 
 def main() -> None:
@@ -106,25 +132,34 @@ def main() -> None:
         "pattern": args.pattern,
         "title": descriptor.title,
         "query": query,
-        "base_url": base_url,
         "mode": "dry_run" if args.dry_run else "execute",
+        "execution_model": descriptor.execution_model,
         "notes": [
-            "Examples use only framework public HTTP API.",
-            "Pattern code is located in agent_examples/patterns/<pattern>/agent.py.",
+            "Pattern code is located in agent_examples/patterns/<pattern>/.",
+            "retrieval_first is now in-process; authoring/hitl remain API-driven during transition.",
         ],
     }
+
+    if descriptor.execution_model == "api_runtime_client":
+        payload["base_url"] = base_url
 
     if args.dry_run:
         print_json(payload)
         return
 
-    if args.no_local_api:
-        client = FrameworkClient(base_url=base_url)
-        result = run_pattern(args.pattern, client=client, query=query, hitl_decisions=hitl_decisions)
+    if args.pattern == "retrieval_first":
+        result = _run_in_process_retrieval(query=query)
     else:
-        with LocalApiRuntime(host=args.host, port=args.port, startup_timeout_sec=args.startup_timeout_sec):
-            client = FrameworkClient(base_url=base_url)
-            result = run_pattern(args.pattern, client=client, query=query, hitl_decisions=hitl_decisions)
+        result = _run_api_patterns(
+            args.pattern,
+            query=query,
+            hitl_decisions=hitl_decisions,
+            host=args.host,
+            port=args.port,
+            startup_timeout_sec=args.startup_timeout_sec,
+            base_url=base_url,
+            no_local_api=args.no_local_api,
+        )
 
     payload["result"] = result
     print_json(payload)

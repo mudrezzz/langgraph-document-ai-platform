@@ -25,17 +25,22 @@
 1. Retrieval-First Agent  
    Когда: нужен быстрый Q&A/evidence path по документам.  
    Док: `docs/developer_guide/design_patterns/pattern_retrieval_first.md`  
-   Пример: `retrieval_faq_assistant`
+   Пример: `agent_examples/patterns/retrieval_first/main.py` (in-process).
 
 2. Authoring-First Agent  
    Когда: нужен управляемый процесс генерации итогового артефакта.  
    Док: `docs/developer_guide/design_patterns/pattern_authoring_first.md`  
-   Пример: `authoring_policy_brief`
+   Пример: `agent_examples/run_example.py --pattern authoring_first`
 
 3. HITL Gate Pattern  
    Когда: нужен reviewer loop и безопасный approve/rework path.  
    Док: `docs/developer_guide/design_patterns/pattern_hitl_gate.md`  
-   Пример: `hitl_review_loop`
+   Пример: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+
+Примечание по текущему статусу:
+
+- `retrieval_first` уже переведен в in-process pattern.
+- `authoring_first` и `hitl_gate` пока остаются API-driven в рамках переходного этапа.
 
 ## Проверка
 

@@ -8,9 +8,15 @@
 
 ## Скелет
 
-`ingest/index -> retrieval/start -> evidence -> optional resume`
+`build workflow -> invoke(state) -> evidence pack`
 
 ## Runnable пример
+
+```bash
+.venv/bin/python agent_examples/patterns/retrieval_first/main.py
+```
+
+или
 
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
@@ -18,9 +24,9 @@
 
 ## Extension points
 
-1. Сменить retrieval query/profile через args и filters.
-2. Подключить свой case dataset (`--extra-arg --case-dataset-id ...`).
-3. Добавить post-processing для evidence в application layer.
+1. Сменить retrieval query через `prompts.py` или `main.py --query`.
+2. Подключить свой case dataset через `main.py --dataset-id`.
+3. Изменить фильтры в `agent_examples/patterns/retrieval_first/tools.py`.
 
 ## Анти-паттерны
 

@@ -1,0 +1,26 @@
+{
+    "pattern": "retrieval_first",
+    "execution_model": "in_process_framework_workflow",
+    "query": "What are the top release risks and missing approvals?",
+    "case_dataset_id": "saa_release_readiness",
+    "confidence": 0.0,
+    "evidence_blocks": 5,
+    "top_sources": [
+        {
+            "doc_id": "METH-001",
+            "version": "1",
+            "block_id": "S-1"
+        },
+        {
+            "doc_id": "OPS-002",
+            "version": "3",
+            "block_id": "S-2"
+        }
+    ],
+    "unresolved_gaps": [
+        "low_confidence: top confidence 0.000, required 0.200"
+    ],
+    "confidence_notes": [
+        "top_confidence=0.000"
+    ]
+}

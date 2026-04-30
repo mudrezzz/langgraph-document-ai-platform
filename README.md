@@ -115,6 +115,7 @@ Developer-oriented deep quickstart:
   - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+  - current status: `retrieval_first` is in-process framework pattern, `authoring_first/hitl_gate` are transition API-driven patterns.
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
   - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.

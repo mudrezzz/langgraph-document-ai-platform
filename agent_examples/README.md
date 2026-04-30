@@ -2,14 +2,12 @@
 
 Дата обновления: 2026-04-30
 
-Это отдельная витрина примеров агентов на базе фреймворка.
+Это отдельная витрина Python-агентов на базе фреймворка.
 
-Цель:
+Ключевая идея:
 
-- открыть одну папку;
-- увидеть понятный Python-код агентов с комментариями;
-- запустить за пару команд;
-- взять шаблон и быстро сделать своего агента.
+- `retrieval_first` уже показывает целевой стиль: in-process framework usage;
+- `authoring_first` и `hitl_gate` пока в переходном API-driven режиме и будут replatform по roadmap.
 
 ## Структура
 
@@ -25,33 +23,36 @@ agent_examples/
 
 ## Быстрый запуск
 
-1. Поднять инфраструктуру:
+## A) In-process pattern (без инфраструктуры)
 
 ```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
+.venv/bin/python agent_examples/patterns/retrieval_first/main.py
 ```
 
-2. Запустить пример retrieval агента:
+или через общий раннер:
 
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
 ```
 
-3. Запустить пример authoring агента:
+## B) Transition patterns (API-driven до replatform)
+
+Для `authoring_first` / `hitl_gate` пока нужен runtime:
 
 ```bash
+bash backend/scripts/postgres_up.sh
+bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
-4. Запустить пример HITL агента:
+Для HITL async path:
 
 ```bash
 bash backend/scripts/async_up.sh
 .venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
 ```
 
-## Dry-run (без вызова API)
+## Dry-run
 
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first --dry-run
@@ -59,24 +60,22 @@ bash backend/scripts/async_up.sh
 
 ## Для тебя: как потестить быстро
 
-1. Контракт структуры примеров:
+1. Pattern tests для in-process retrieval:
 
 ```bash
-.venv/bin/pytest -q backend/tests/unit/test_agent_examples_contracts.py
+.venv/bin/pytest -q agent_examples/patterns/retrieval_first/tests/test_agent.py
 ```
 
-2. Unit тесты раннера:
+2. Unit тесты общего раннера:
 
 ```bash
 .venv/bin/pytest -q agent_examples/tests/test_run_example.py
 ```
 
-3. Smoke dry-run всех patterns:
+3. Контракт структуры examples:
 
 ```bash
-.venv/bin/python agent_examples/run_example.py --pattern retrieval_first --dry-run
-.venv/bin/python agent_examples/run_example.py --pattern authoring_first --dry-run
-.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --dry-run
+.venv/bin/pytest -q backend/tests/unit/test_agent_examples_contracts.py
 ```
 
 ## Cleanup

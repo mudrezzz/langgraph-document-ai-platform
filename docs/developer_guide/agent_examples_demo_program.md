@@ -1,7 +1,7 @@
 # Agent Examples Demo Program (In-Process)
 
 Дата обновления: 2026-04-30  
-Статус: Planned (replatform initiative)
+Статус: In Progress (DOC-030 completed; DOC-031..DOC-035 pending)
 
 ## 1. Product Goal
 

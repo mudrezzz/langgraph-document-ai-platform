@@ -1,20 +1,42 @@
-# Pattern Example: Retrieval First
+# Pattern Example: Retrieval First (In-Process)
 
 Что показывает:
 
-- как выглядит минимальный Python-агент поверх framework API;
-- как получить evidence pack за один вызов `agent.run(...)`.
+- как собрать агента как Python-композицию поверх framework contracts;
+- как запустить retrieval workflow напрямую (`invoke`), без HTTP transport.
 
-Основной код:
+## Структура pattern
 
-- `agent.py` - агент
-- `config.py` - конфиг кейса
-- `prompts.py` - стартовый prompt
+- `agent.py` - orchestration уровня агента
+- `workflow.py` - in-process вызов retrieval workflow
+- `tools.py` - базовые retrieval filters для старта
+- `config.py` - конфигурация demo-кейса
+- `main.py` - запуск одной командой
+- `tests/` - unit + smoke проверки
+- `expected_output/` - пример ожидаемого результата
 
-Запуск из корня репозитория:
+## Быстрый запуск
+
+Из корня репозитория:
 
 ```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
+.venv/bin/python agent_examples/patterns/retrieval_first/main.py
+```
+
+Альтернатива через общий раннер:
+
+```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
+```
+
+## Что модифицировать первым делом
+
+1. `prompts.py` - изменить бизнес-вопрос.
+2. `tools.py` - изменить `document_types`/filters.
+3. `config.py` - переключить dataset/requester.
+
+## Тесты
+
+```bash
+.venv/bin/pytest -q agent_examples/patterns/retrieval_first/tests/test_agent.py
 ```
