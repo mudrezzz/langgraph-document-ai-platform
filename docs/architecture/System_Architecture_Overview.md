@@ -14,7 +14,7 @@
 - FastAPI + FastMCP на сервисных границах;
 - PostgreSQL + pgvector для состояния, метаданных и векторов.
 
-## 2. Текущая реализация (Increment 31)
+## 2. Текущая реализация (Increment 32)
 
 Реализовано:
 
@@ -234,6 +234,10 @@
 - final release decision orchestrator:
   - `backend/scripts/release_decision_gate.sh/.ps1/.py` объединяет `smoke_release_gate` и full pytest gate;
   - формирует unified verdict artifact (`status`, `decision_reason`, `failed_checks`, `test_gate_summary`, `commit_sha`) в `backend/.release_gate`.
+- external developer documentation surface:
+  - единый docs entrypoint `docs/developer_guide/README.md`;
+  - практические usage/ops/extension guides для внешних интеграторов;
+  - manual demo proof path (включая PDF/PPTX canonical parsing checks) без изменения API/runtime contracts.
 - file-based demo pipeline для release readiness:
   - входной markdown `release_packet.md` -> генерация retrieval dataset JSON;
   - запуск retrieval через `case_dataset_path`;

@@ -9,6 +9,16 @@
 - `docs/тз_на_систему_документных_ai_агентов_на_lang_graph.md`
 - `docs/blueprint_oop_слой_и_архитектура_системы_на_lang_graph.md`
 
+## Документация для внешнего разработчика
+
+Единая точка входа для интеграции и расширения библиотеки:
+
+- `docs/developer_guide/README.md`
+- `docs/developer_guide/quickstart.md`
+- `docs/developer_guide/manual_demo_checks.md`
+- `docs/developer_guide/extension_recipes.md`
+- `docs/developer_guide/operations_and_release.md`
+
 ## Статус
 
 Текущий инкремент: `Increment 32`.
@@ -1379,3 +1389,4 @@ APP_DB_DSN=postgresql://user:password@localhost:5432/langgraph \
 3. `docs/architecture/System_Architecture_Overview.md` — актуальный снимок архитектуры и GAP к целевой модели.
 4. `BACKLOG.md` — roadmap и статус следующих инкрементов, если меняется план.
 5. `docs/framework_extension_guide.md` — правила расширения framework, если меняются extension patterns.
+6. `docs/developer_guide/*.md` — актуальная внешняя документация по использованию и расширению библиотеки.

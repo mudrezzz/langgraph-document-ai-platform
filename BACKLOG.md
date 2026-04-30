@@ -1171,6 +1171,21 @@ Fifth slice done:
 - targeted tests: `8 passed`;
 - full suite with Docker async e2e and OpenRouter external LLM enabled: `321 passed`.
 
+Sixth slice done:
+
+- выпущен внешний developer documentation surface для reusable backend/framework библиотеки:
+  - `docs/developer_guide/README.md` как единая входная точка;
+  - `quickstart.md` для bootstrap + first smoke;
+  - `manual_demo_checks.md` для ручного proof canonical indexing (включая PDF/PPTX);
+  - `extension_recipes.md` для workflow/tool/MCP/persistence extension path;
+  - `operations_and_release.md` для release gate и полного test gate.
+- `README.md` обновлен секцией внешней документации и обязательным сопровождением `docs/developer_guide/*.md`.
+- `System_Architecture_Overview.md` обновлен отражением нового public documentation surface.
+- добавлен ADR `0092-external-developer-documentation-surface.md` и обновлен ADR index.
+- добавлен unit docs-contract test `backend/tests/unit/test_developer_guide_contracts.py`.
+- targeted tests: `6 passed` (`test_developer_guide_contracts.py`, `test_production_runbook_contracts.py`);
+- full suite with Docker async e2e and OpenRouter external LLM enabled: `324 passed`.
+
 Scope:
 
 - quality evaluation workflow;
