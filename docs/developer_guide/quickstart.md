@@ -1,73 +1,94 @@
 # Quickstart
 
-## 1. Bootstrap окружение
+Дата обновления: 2026-04-30  
+Статус: Entry point для нового разработчика
 
-```bash
-cd /root/langgraph-document-ai-platform
-python3 -m venv .venv
-PATH="$(pwd)/.venv/bin:$PATH"
-pip install -e ./backend
-```
+Этот quickstart отвечает на вопрос:  
+`я зашел в docs/developer_guide, что делать дальше?`
 
-## 2. Поднять PostgreSQL + pgvector и применить миграции
+## 1. За 10 минут: понять карту проекта
 
-```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
-```
+Пройди в таком порядке:
 
-## 3. Профиль A: local dev (быстрая локальная проверка)
+1. `docs/developer_guide/public_contract_surface.md`
+2. `docs/developer_guide/framework_concepts.md`
+3. `docs/developer_guide/examples_catalog.md`
 
-Когда использовать: локальная разработка и быстрый feedback loop без async worker.
+Результат:
 
-```bash
-APP_RUNTIME_PROFILE=dev \
-APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
-APP_DB_SCHEMA=app \
-APP_ASYNC_PROVIDER=inline \
-PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_retrieval_api.sh --host 127.0.0.1 --port 8010
-```
+- понимаешь, что считается stable/experimental;
+- видишь, где framework, где application/domain/infra;
+- выбираешь ближайший пример под свою задачу.
 
-Ожидаемый результат: `task_status=completed`, `selected_blocks` не пустой, `events_summary_total > 0`.
+## 2. Выбери цель и иди по маршруту
 
-## 4. Профиль B: stage-like (canonical + indexed retrieval)
+## Цель A: расширить существующий функционал
 
-Когда использовать: проверка canonical indexing/retrieval, близкая к acceptance пути.
+Иди по шагам:
 
-```bash
-APP_RUNTIME_PROFILE=stage \
-APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
-APP_DB_SCHEMA=app \
-APP_ASYNC_PROVIDER=inline \
-PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
-```
+1. `docs/developer_guide/extension_handbook.md`  
+   Выбери тип расширения: `workflow | tool | MCP | persistence | domain`.
+2. `docs/developer_guide/extension_recipes.md`  
+   Возьми минимальный change set и quality gate.
+3. Нужны контракты:
+   - HTTP: `docs/developer_guide/api_reference.md`
+   - MCP: `docs/developer_guide/mcp_reference.md`
+4. После изменений:
+   - обнови `docs/DOCS_BACKLOG.md`
+   - проверь docs contracts:  
+     `.venv/bin/pytest -q backend/tests/unit/test_developer_guide_contracts.py`
 
-Ожидаемый результат: `retrieval_backend=pgvector`, `stored_blocks_total > 0`, `embeddings_indexed > 0`.
+## Цель B: быстро создать нового агента/agent flow
 
-## 5. Профиль C: prod-like (release gate baseline)
+В этом проекте “агент” обычно собирается как:  
+`workflow + tools + (опционально) MCP/API boundary`.
 
-Когда использовать: pre-release проверка execution/observability/HITL matrix.
+Быстрый путь:
 
-```bash
-APP_RUNTIME_PROFILE=prod \
-APP_DB_DSN=postgresql://app:app@127.0.0.1:55432/langgraph \
-APP_DB_SCHEMA=app \
-APP_ASYNC_PROVIDER=inline \
-PATH="$(pwd)/.venv/bin:$PATH" \
-bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
-```
+1. `docs/developer_guide/framework_concepts.md`  
+   Понять runtime модель (`BaseWorkflow`, async plane, HITL).
+2. `docs/developer_guide/extension_handbook.md`  
+   Разделы `Workflow extension` и `Tool extension`.
+3. `docs/framework_extension_guide.md`  
+   Проверить framework constraints и extension hooks.
+4. Нужен внешний интерфейс:
+   - API endpoint: `docs/developer_guide/api_reference.md`
+   - MCP tool: `docs/developer_guide/mcp_reference.md`
+5. Используй пример для старта:
+   - retrieval-first
+   - authoring-first
+   - mcp-first  
+   из `docs/developer_guide/examples_catalog.md`.
 
-Ожидаемый результат: `gate_status=pass` и пустой `failed_checks`.
+## Цель C: разобраться с прод-путем и release
 
-Если нужен async/celery rehearsal и полный релизный цикл, используйте:
+1. `docs/developer_guide/env_profile_snippets.md`
+2. `docs/developer_guide/release_reproducible_flow.md`
+3. `docs/developer_guide/operations_and_release.md`
+4. `docs/developer_guide/observability_reference.md`
 
-- `docs/developer_guide/operations_and_release.md`
-- `docs/production_runbook.md`
+## 3. Что читать по роли
 
-## 6. Завершение
+- Integrator:  
+  `examples_catalog -> api_reference -> mcp_reference -> env_profile_snippets`
+- Contributor:  
+  `framework_concepts -> extension_handbook -> extension_recipes -> adr_reading_map`
+- Maintainer:  
+  `maintainer_playbook -> observability_reference -> release_reproducible_flow`
 
-```bash
-bash backend/scripts/postgres_down.sh --remove-volumes
-```
+## 4. Если нужно именно поднять окружение
+
+Этот quickstart про навигацию по документации.  
+Для runtime/bootstrap используй:
+
+1. `docs/developer_guide/env_profile_snippets.md`
+2. `docs/developer_guide/manual_demo_checks.md`
+3. `backend/scripts/README.md`
+
+## 5. Минимальный definition of done для первой задачи
+
+После первого изменения в коде:
+
+1. Есть working path через smoke/demo.
+2. Обновлены релевантные docs.
+3. Обновлен `docs/DOCS_BACKLOG.md`.

@@ -32,7 +32,7 @@ Last Update: 2026-04-30
 | DOC-001 | P0 | Information Architecture | Сделать единый docs entrypoint для ролей Integrator/Contributor/Maintainer | Новый индекс структуры и маршрутов чтения | Done | 2026-04-30 | Обновлен `docs/developer_guide/README.md`: добавлен role-based entrypoint и маршруты чтения для Integrator/Contributor/Maintainer. |
 | DOC-002 | P0 | Public Contracts | Зафиксировать Public Contract Surface v1 (stable/experimental) | Документ с границами стабильности | Done | 2026-04-30 | Добавлен `docs/developer_guide/public_contract_surface.md` с stable/experimental/internal матрицей по API, MCP, схемам и runtime config. |
 | DOC-003 | P0 | Framework Concepts | Описать framework layers и execution model (LangGraph runtime, async plane, HITL, quality gates) | Concept guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/framework_concepts.md` с layer map, runtime model, async plane, HITL и quality gates. |
-| DOC-004 | P0 | Onboarding | Подготовить quickstart-профили: local dev / stage-like / prod-like | Расширенный onboarding guide | Done | 2026-04-30 | Обновлен `docs/developer_guide/quickstart.md`: добавлены три профиля запуска (`dev`, `stage-like`, `prod-like`) с командами и expected outputs. |
+| DOC-004 | P0 | Onboarding | Подготовить quickstart-профили: local dev / stage-like / prod-like | Расширенный onboarding guide | Done | 2026-04-30 | `quickstart.md` переработан в HOW TO entrypoint по целям разработчика (расширение, быстрый старт нового agent flow, release path), runtime-профили вынесены в `env_profile_snippets.md`. |
 | DOC-005 | P0 | End-to-End | Добавить canonical walkthrough: documents -> indexing -> retrieval -> authoring -> HITL -> artifact | Сквозной practical guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/canonical_e2e_walkthrough.md`; guide привязан в `developer_guide/README.md` для Integrator path. |
 | DOC-006 | P0 | API Reference | Сформировать человеко-читаемый reference по FastAPI endpoints + payload contracts | API reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/api_reference.md` (endpoint groups, payload contracts, auth headers, error mapping). |
 | DOC-007 | P0 | MCP Reference | Сформировать reference по MCP services/tools/scopes/roles/errors | MCP reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/mcp_reference.md` с service/tool matrix, scopes, required roles и error semantics. |
@@ -53,6 +53,7 @@ Last Update: 2026-04-30
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Обновлен DOC-004 notes; `quickstart.md` переработан в навигационный HOW TO для разработчика.
 - 2026-04-30: Закрыты DOC-017, DOC-018 и DOC-019; добавлены examples catalog, ADR reading map и maintainer docs playbook.
 - 2026-04-30: Закрыт DOC-021; добавлен env snippets guide для `dev/stage/prod`.
 - 2026-04-30: Закрыты DOC-015 и DOC-016; добавлены versioning policy и docs contract checks.

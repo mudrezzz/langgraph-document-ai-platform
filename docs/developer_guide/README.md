@@ -1,7 +1,7 @@
 # External Developer Guide
 
 Дата обновления: 2026-04-30
-Статус: Increment 32+ documentation release (slice 4)
+Статус: Increment 32+ documentation release (slice 5)
 
 Этот раздел - единая точка входа для внешнего разработчика, который хочет использовать backend/framework библиотеку как production retrieval + authoring platform на LangGraph.
 
@@ -64,7 +64,7 @@
 
 ## 4. Рекомендуемый learning path для нового разработчика
 
-1. `quickstart.md`: поднять контур и выполнить первый retrieval smoke.
+1. `quickstart.md`: выбрать маршрут по цели (расширение, новый агент, release path).
 2. `public_contract_surface.md`: зафиксировать границы stable/experimental перед изменениями.
 3. `framework_concepts.md`: зафиксировать execution model (runtime, async plane, HITL, quality gates).
 4. `canonical_e2e_walkthrough.md`: пройти полный path documents -> indexing -> retrieval -> authoring -> HITL -> artifact.
