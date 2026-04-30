@@ -12,6 +12,17 @@ def test_developer_guide_index_links_expected_pages() -> None:
 
     required_pages = [
         "docs/developer_guide/quickstart.md",
+        "docs/developer_guide/public_contract_surface.md",
+        "docs/developer_guide/framework_concepts.md",
+        "docs/developer_guide/canonical_e2e_walkthrough.md",
+        "docs/developer_guide/api_reference.md",
+        "docs/developer_guide/mcp_reference.md",
+        "docs/developer_guide/env_config_reference.md",
+        "docs/developer_guide/persistence_reference.md",
+        "docs/developer_guide/observability_reference.md",
+        "docs/developer_guide/extension_handbook.md",
+        "docs/developer_guide/release_reproducible_flow.md",
+        "docs/developer_guide/versioning_policy.md",
         "docs/developer_guide/manual_demo_checks.md",
         "docs/developer_guide/extension_recipes.md",
         "docs/developer_guide/operations_and_release.md",
@@ -50,3 +61,10 @@ def test_manual_demo_checks_cover_pdf_and_pptx_proof() -> None:
         "release_readiness_report.md",
     ]:
         assert required_fragment in manual
+
+
+def test_docs_backlog_contains_update_and_status_table() -> None:
+    backlog = (REPO_ROOT / "docs" / "DOCS_BACKLOG.md").read_text(encoding="utf-8")
+    assert "Last Update:" in backlog
+    assert "| ID | Priority | Workstream | Task | Deliverable | Status | Last Update | Notes |" in backlog
+    assert "DOC-001" in backlog

@@ -41,18 +41,21 @@ Last Update: 2026-04-30
 | DOC-010 | P0 | Extension Path | Детализировать extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Done | 2026-04-30 | Добавлен `docs/developer_guide/extension_handbook.md` с playbook-ами по workflow/tool/MCP/persistence/domain extension. |
 | DOC-011 | P1 | Persistence & Data | Описать БД-модель: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/persistence_reference.md` с data model map, migration policy, version lookup и rollback expectations. |
 | DOC-012 | P1 | Observability | Описать task events/observability/HITL observability и SLA интерпретацию | Observability handbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/observability_reference.md` с endpoint map, метриками и SLA interpretation rules. |
-| DOC-013 | P1 | Governance | Подготовить OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Planned | 2026-04-30 |  |
-| DOC-014 | P1 | Security | Подготовить SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Planned | 2026-04-30 |  |
-| DOC-015 | P1 | Versioning | Зафиксировать документационную/контрактную versioning policy и deprecation policy | Versioning policy doc | Planned | 2026-04-30 |  |
-| DOC-016 | P1 | QA for Docs | Ввести docs contract checks для новых разделов и обязательных ссылок | Unit tests for docs contracts | Planned | 2026-04-30 |  |
+| DOC-013 | P1 | Governance | Подготовить OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Done | 2026-04-30 | Добавлены `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`. |
+| DOC-014 | P1 | Security | Подготовить SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Done | 2026-04-30 | Добавлен `SECURITY.md` с disclosure flow, scope и RBAC limitations. |
+| DOC-015 | P1 | Versioning | Зафиксировать документационную/контрактную versioning policy и deprecation policy | Versioning policy doc | Done | 2026-04-30 | Добавлен `docs/developer_guide/versioning_policy.md` с правилами stable/experimental deprecation и contract versioning. |
+| DOC-016 | P1 | QA for Docs | Ввести docs contract checks для новых разделов и обязательных ссылок | Unit tests for docs contracts | Done | 2026-04-30 | Обновлен `backend/tests/unit/test_developer_guide_contracts.py`: проверка новых обязательных guide-страниц и baseline checks для `docs/DOCS_BACKLOG.md`. |
 | DOC-017 | P2 | Examples Catalog | Каталог reusable примеров для integrators (retrieval-first, authoring-first, MCP-first) | Examples cookbook | Planned | 2026-04-30 |  |
 | DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Planned | 2026-04-30 |  |
 | DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Planned | 2026-04-30 |  |
-| DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Planned | 2026-04-30 | Кандидат по умолчанию: Apache-2.0 |
+| DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Добавлены `LICENSE` (Apache-2.0) и `docs/oss_license_rationale.md`. |
 | DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Planned | 2026-04-30 | Новый scope: после env catalog нужен copy-paste набор переменных по профилям для снижения ошибок запуска. |
 
 ## Журнал изменений backlog
 
+- 2026-04-30: Закрыты DOC-015 и DOC-016; добавлены versioning policy и docs contract checks.
+- 2026-04-30: Закрыт DOC-020; зафиксирована лицензия Apache-2.0 и rationale.
+- 2026-04-30: Закрыты DOC-013 и DOC-014; добавлены governance и security policy документы.
 - 2026-04-30: Закрыт DOC-012; добавлен observability handbook.
 - 2026-04-30: Закрыт DOC-011; добавлен persistence/data reference.
 - 2026-04-30: Закрыт DOC-010; добавлен extension handbook по ключевым типам расширений.

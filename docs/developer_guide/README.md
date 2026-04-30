@@ -24,6 +24,7 @@
     - `docs/developer_guide/env_config_reference.md`
     - `docs/developer_guide/persistence_reference.md`
     - `docs/developer_guide/observability_reference.md`
+    - `docs/developer_guide/versioning_policy.md`
     - `docs/developer_guide/extension_handbook.md`
     - `docs/developer_guide/public_contract_surface.md`
     - `docs/developer_guide/extension_recipes.md`
@@ -31,8 +32,14 @@
 3. Maintainer (runtime/release):
    - `docs/developer_guide/persistence_reference.md`
    - `docs/developer_guide/observability_reference.md`
+   - `docs/developer_guide/versioning_policy.md`
    - `docs/developer_guide/operations_and_release.md`
    - `docs/developer_guide/release_reproducible_flow.md`
+   - `CONTRIBUTING.md`
+   - `CODE_OF_CONDUCT.md`
+   - `SUPPORT.md`
+   - `SECURITY.md`
+   - `LICENSE`
    - `docs/production_runbook.md`
    - `backend/scripts/README.md`
 
@@ -61,8 +68,9 @@
 7. `env_config_reference.md`: зафиксировать env-профиль перед запуском или деплоем.
 8. `persistence_reference.md`: сверить таблицы, version policy и rollback expectations.
 9. `observability_reference.md`: интерпретировать task/HITL observability и SLA aggregates.
-10. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
-11. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
-12. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
-13. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
-14. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
+10. `versioning_policy.md`: сверить правила deprecation и contract versioning.
+11. `manual_demo_checks.md`: убедиться в canonical indexing и реальном PDF/PPTX parsing path.
+12. `extension_handbook.md`: выбрать нужный playbook расширения (workflow/tool/MCP/persistence/domain).
+13. `extension_recipes.md`: добавить свой workflow/tool/MCP по текущим framework contracts.
+14. `release_reproducible_flow.md`: выполнить линейный reproducible release path.
+15. `operations_and_release.md`: прогнать release decision gate как final quality barrier.
