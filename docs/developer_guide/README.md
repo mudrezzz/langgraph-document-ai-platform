@@ -50,7 +50,7 @@
 
 ## 2. Что считается стабильным публичным контрактом
 
-- FastAPI endpoints в `backend/apps/api` и их payload contracts в `README.md`.
+- FastAPI endpoints в `backend/apps/api` и их payload contracts в `docs/developer_guide/api_reference.md`.
 - Framework extension path из `docs/framework_extension_guide.md`.
 - Production runtime path из `docs/production_runbook.md`.
 - Release acceptance scripts из `backend/scripts/*`.
