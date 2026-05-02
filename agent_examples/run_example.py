@@ -23,11 +23,14 @@ from agent_examples.patterns.authoring_first.prompts import DEFAULT_QUERY as AUT
 from agent_examples.patterns.hitl_gate.agent import HitlGateAgent
 from agent_examples.patterns.hitl_gate.config import HitlGateConfig
 from agent_examples.patterns.hitl_gate.prompts import DEFAULT_QUERY as HITL_QUERY
+from agent_examples.patterns.device_search.agent import DeviceSearchAgent
+from agent_examples.patterns.device_search.config import DeviceSearchConfig
+from agent_examples.patterns.device_search.prompts import DEFAULT_QUERY as DEVICE_SEARCH_QUERY
 from agent_examples.patterns.retrieval_first.agent import RetrievalFirstAgent
 from agent_examples.patterns.retrieval_first.config import RetrievalFirstConfig
 from agent_examples.patterns.retrieval_first.prompts import DEFAULT_QUERY as RETRIEVAL_QUERY
 
-PATTERN_CHOICES = ("retrieval_first", "authoring_first", "hitl_gate")
+PATTERN_CHOICES = ("retrieval_first", "authoring_first", "hitl_gate", "device_search")
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,12 @@ PATTERN_INDEX = {
         title="HITL Gate Agent",
         default_query=HITL_QUERY,
         execution_model="api_runtime_client",
+    ),
+    "device_search": PatternDescriptor(
+        pattern_id="device_search",
+        title="Device Search Agent",
+        default_query=DEVICE_SEARCH_QUERY,
+        execution_model="in_process_framework_workflow",
     ),
 }
 
@@ -87,6 +96,11 @@ def build_parser() -> argparse.ArgumentParser:
 def _run_in_process_retrieval(query: str) -> dict[str, Any]:
     agent = RetrievalFirstAgent(config=RetrievalFirstConfig())
     return agent.run(query=query)
+
+
+def _run_in_process_device_search(query: str) -> dict[str, Any]:
+    agent = DeviceSearchAgent(config=DeviceSearchConfig())
+    return agent.run(query=query, non_interactive=True)
 
 
 def _run_api_patterns(
@@ -149,6 +163,8 @@ def main() -> None:
 
     if args.pattern == "retrieval_first":
         result = _run_in_process_retrieval(query=query)
+    elif args.pattern == "device_search":
+        result = _run_in_process_device_search(query=query)
     else:
         result = _run_api_patterns(
             args.pattern,

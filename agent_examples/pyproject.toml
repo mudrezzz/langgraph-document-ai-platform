@@ -3,6 +3,9 @@ name = "langgraph-document-ai-agent-examples"
 version = "0.1.0"
 description = "Product-style Python examples for LangGraph Document AI Platform"
 requires-python = ">=3.12"
+dependencies = [
+    "ddgs>=9.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["agent_examples/tests"]
