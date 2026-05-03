@@ -18,6 +18,44 @@ Build retrieval, indexing, authoring, and human-in-the-loop review flows with au
 2. Authoring copilot with multi-step draft flow and iterative HITL review loop.
 3. Governance-aware template/repository/artifact services over MCP.
 
+## Install as a Library
+
+The framework core (`framework`, `schemas`, `infra.openrouter`) is available as
+a pip-installable package directly from this repository — no PyPI account needed.
+
+**Install latest from `main`:**
+
+```bash
+pip install "langgraph-dai @ git+https://github.com/mudrezzz/langgraph-document-ai-platform.git@main#subdirectory=backend/packages"
+```
+
+**Install a pinned release (reproducible builds):**
+
+```bash
+pip install "langgraph-dai @ git+https://github.com/mudrezzz/langgraph-document-ai-platform.git@v0.1.0#subdirectory=backend/packages"
+```
+
+**In `requirements.txt`:**
+
+```
+langgraph-dai @ git+https://github.com/mudrezzz/langgraph-document-ai-platform.git@v0.1.0#subdirectory=backend/packages
+```
+
+**Then import as usual:**
+
+```python
+from framework.workflows.base import BaseWorkflow, WorkflowNodeSpec
+from framework.models.interfaces import IChatModelGateway
+from schemas.rag.contracts import EvidencePack
+from infra.openrouter.chat_gateway import OpenRouterChatModelGateway
+```
+
+What is included: `framework`, `schemas`, `infra.openrouter`.
+What is excluded: PostgreSQL, Celery, pgvector, FastAPI — these are part of the
+full backend install and not needed for in-process agent development.
+
+---
+
 ## 5-Minute Quickstart (Linux)
 
 Requirements:
