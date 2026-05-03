@@ -21,9 +21,17 @@ env/
 .DS_Store
 Thumbs.db
 
+# Build and packaging artifacts
+dist/
+build/
+*.egg-info/
+
 # Runtime artifacts
 *.log
 
 # Local env files
 .env
 .env.*
+
+# codex workspace
+.codex
