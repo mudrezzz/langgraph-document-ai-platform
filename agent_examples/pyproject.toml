@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "langgraph-document-ai-agent-examples"
 version = "0.1.0"
@@ -5,6 +9,10 @@ description = "Product-style Python examples for LangGraph Document AI Platform"
 requires-python = ">=3.12"
 dependencies = [
     "ddgs>=9.0",
+    # Core framework — install from the monorepo.
+    # Pin to a specific tag or commit hash for reproducible builds:
+    #   @v0.1.0  or  @<commit-sha>
+    "langgraph-dai @ git+https://github.com/mudrezzz/langgraph-document-ai-platform.git@main#subdirectory=backend/packages",
 ]
 
 [tool.pytest.ini_options]

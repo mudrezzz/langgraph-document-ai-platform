@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "langgraph-dai"
+version = "0.1.0"
+description = "LangGraph Document AI Platform — core framework, schemas, and OpenRouter adapter"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.8,<3.0",
+    "langgraph>=1.1,<2.0",
+]
+
+[project.optional-dependencies]
+# Extras for users who need infrastructure adapters beyond openrouter
+postgres  = ["psycopg[binary]>=3.2,<4.0"]
+celery    = ["celery>=5.4,<6.0", "redis>=5.0,<6.0"]
+tei       = []   # placeholder — adds sentence-transformers when ready
+all-infra = [
+    "langgraph-dai[postgres,celery]",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+# Install only the agent-facing packages.
+# Heavy infra adapters (postgres, celery, pgvector, vllm, fastmcp) are NOT
+# included here — they live in the full backend install.
+include = [
+    "framework*",
+    "schemas*",
+    "infra",
+    "infra.openrouter",
+]
