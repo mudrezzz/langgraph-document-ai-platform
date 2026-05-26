@@ -56,7 +56,47 @@ full backend install and not needed for in-process agent development.
 
 ---
 
-## 5-Minute Quickstart (Linux)
+## 2-Minute Demo: No Docker, No Postgres
+
+This is the fastest first-success path for new users.
+
+This path does **not** require:
+
+- FastAPI backend
+- PostgreSQL / pgvector
+- Celery / Redis
+- MCP services
+
+Dry-run (safe, no external calls):
+
+```bash
+python agent_examples/run_example.py --pattern retrieval_first --dry-run
+```
+
+Execute in-process retrieval demo:
+
+```bash
+python agent_examples/run_example.py --pattern retrieval_first
+```
+
+Expected output shape:
+
+```json
+{
+  "pattern": "retrieval_first",
+  "mode": "execute",
+  "execution_model": "in_process_framework_workflow",
+  "result": {
+    "evidence_blocks": 1,
+    "top_sources": [
+      {"doc_id": "...", "version": "...", "block_id": "..."}
+    ],
+    "unresolved_gaps": ["..."]
+  }
+}
+```
+
+## 5-Minute Production Smoke Quickstart (Linux)
 
 Requirements:
 
