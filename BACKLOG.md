@@ -1229,6 +1229,7 @@ First slice done:
 - Slice 33.1.2: добавлен package-level README (`backend/packages/README.md`) под `readme = "README.md"` в package metadata.
 - Slice 33.1.3: в root README добавлен no-infra first-success path (`2-Minute Demo: No Docker, No Postgres`) с expected output; production smoke path сохранен как отдельный блок ниже.
 - Slice 33.1.4: обновлен `CONTRIBUTING.md` (first-time contributor section, docs/examples/packaging-only check profile, исправлены docs links).
+- Slice 33.2.1: добавлены issue forms и PR template в `.github` для структурированного contributor intake.
 
 Program document:
 

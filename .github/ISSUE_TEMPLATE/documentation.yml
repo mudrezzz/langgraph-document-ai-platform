@@ -1,0 +1,41 @@
+name: Documentation issue
+description: Report missing, confusing, or incorrect documentation.
+title: "docs: "
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us improve onboarding and clarity.
+  - type: input
+    id: page
+    attributes:
+      label: Which page is unclear?
+      description: File path or URL.
+      placeholder: "e.g. README.md or docs/developer_guide/quickstart.md"
+    validations:
+      required: true
+  - type: textarea
+    id: user_goal
+    attributes:
+      label: What were you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: where_blocked
+    attributes:
+      label: Where did you get blocked?
+    validations:
+      required: true
+  - type: textarea
+    id: expected_outcome
+    attributes:
+      label: What outcome did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: suggested_fix
+    attributes:
+      label: Suggested fix (optional)
+      description: Proposed wording, structure, or links.
