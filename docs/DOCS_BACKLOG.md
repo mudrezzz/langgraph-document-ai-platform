@@ -67,7 +67,7 @@ Last Update: 2026-05-26
 | DOC-036 | P0 | OSS Program Planning | Зафиксировать единую программу доработок contributor funnel с итерациями и слайсами | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Planned | 2026-05-26 | Базовый план для Increment 33; включает ограничения по stable contracts и Definition of Done на 30 дней. |
 | DOC-037 | P0 | Packaging Integrity | Синхронизировать package license/readme metadata с OSS policy репозитория | `backend/packages/pyproject.toml` + `backend/packages/README.md` | Done | 2026-05-26 | Закрыты Slice 33.1.1 и 33.1.2: package license metadata выровнен (`Apache-2.0`), добавлен package-level README под `readme = \"README.md\"`. |
 | DOC-038 | P0 | README No-Infra Entry | Добавить no-infra first-success path и expected output в root README | `README.md` update (2-minute demo + output proof) | Done | 2026-05-26 | Добавлен блок `2-Minute Demo: No Docker, No Postgres` с dry-run/execute командами, явным no-infra scope и expected output; production smoke path оставлен ниже. |
-| DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Planned | 2026-05-26 | Явный безопасный путь первого PR в зонах docs/examples/packaging. |
+| DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Done | 2026-05-26 | Добавлен `First-time contributors` section, описан безопасный путь первого PR, добавлен docs/examples/packaging-only check profile, исправлена ссылка на `docs/developer_guide/mcp_reference.md`. |
 | DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Planned | 2026-05-26 | Bug/docs/feature/question шаблоны + contract impact checklist в PR template. |
 | DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Planned | 2026-05-26 | Минимум 8 actionable `good first issue` с четкими acceptance criteria. |
 | DOC-042 | P2 | README Front Door v2 | Перестроить README под open-source front door и добавить comparison table | `README.md` restructure + use-case matrix | Planned | 2026-05-26 | `Who for`/`When not to use`/`No-infra demo`/`Docs map` как основной маршрут. |
@@ -76,6 +76,7 @@ Last Update: 2026-05-26
 
 ## Журнал изменений backlog
 
+- 2026-05-26: Закрыт DOC-039; обновлен `CONTRIBUTING.md` (first-time contributor path, link consistency, docs/examples/packaging-only checks).
 - 2026-05-26: Закрыт DOC-038; в root README добавлен no-infra demo entrypoint и expected output, production smoke path сохранен как отдельный блок ниже.
 - 2026-05-26: Закрыт DOC-037; завершены Slice 33.1.1 (license alignment) и Slice 33.1.2 (`backend/packages/README.md`).
 - 2026-05-26: DOC-037 переведен в `In Progress`; закрыт Slice 33.1.1 (package license metadata -> Apache-2.0), открыт remaining scope по package README.
