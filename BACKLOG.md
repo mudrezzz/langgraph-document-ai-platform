@@ -1226,6 +1226,7 @@ Definition of Done:
 First slice done:
 
 - Slice 33.1.1: package license metadata выровнен с root license (`backend/packages/pyproject.toml`: `Apache-2.0`).
+- Slice 33.1.2: добавлен package-level README (`backend/packages/README.md`) под `readme = "README.md"` в package metadata.
 
 Program document:
 

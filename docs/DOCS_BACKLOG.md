@@ -65,7 +65,7 @@ Last Update: 2026-05-26
 | DOC-034 | P1 | Async Batch Pattern | Добавить отдельный in-process demo pattern для batch/long-running сценариев | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | После стабилизации трех базовых P0 patterns. |
 | DOC-035 | P1 | MCP Facade Pattern | Добавить отдельный demo pattern `agent as MCP tools` поверх core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Planned | 2026-04-30 | Должен показать разделение core logic и MCP transport adapter. |
 | DOC-036 | P0 | OSS Program Planning | Зафиксировать единую программу доработок contributor funnel с итерациями и слайсами | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Planned | 2026-05-26 | Базовый план для Increment 33; включает ограничения по stable contracts и Definition of Done на 30 дней. |
-| DOC-037 | P0 | Packaging Integrity | Синхронизировать package license/readme metadata с OSS policy репозитория | `backend/packages/pyproject.toml` + `backend/packages/README.md` | In Progress | 2026-05-26 | Slice 33.1.1 закрыт: `license = Apache-2.0` в `backend/packages/pyproject.toml`; остается Slice 33.1.2 (`backend/packages/README.md`). |
+| DOC-037 | P0 | Packaging Integrity | Синхронизировать package license/readme metadata с OSS policy репозитория | `backend/packages/pyproject.toml` + `backend/packages/README.md` | Done | 2026-05-26 | Закрыты Slice 33.1.1 и 33.1.2: package license metadata выровнен (`Apache-2.0`), добавлен package-level README под `readme = \"README.md\"`. |
 | DOC-038 | P0 | README No-Infra Entry | Добавить no-infra first-success path и expected output в root README | `README.md` update (2-minute demo + output proof) | Planned | 2026-05-26 | Быстрый запуск без FastAPI/PostgreSQL/Celery/Redis/MCP должен идти до production path. |
 | DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Planned | 2026-05-26 | Явный безопасный путь первого PR в зонах docs/examples/packaging. |
 | DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Planned | 2026-05-26 | Bug/docs/feature/question шаблоны + contract impact checklist в PR template. |
@@ -76,6 +76,7 @@ Last Update: 2026-05-26
 
 ## Журнал изменений backlog
 
+- 2026-05-26: Закрыт DOC-037; завершены Slice 33.1.1 (license alignment) и Slice 33.1.2 (`backend/packages/README.md`).
 - 2026-05-26: DOC-037 переведен в `In Progress`; закрыт Slice 33.1.1 (package license metadata -> Apache-2.0), открыт remaining scope по package README.
 - 2026-05-26: Добавлены planned задачи DOC-036..DOC-044 для Increment 33 (OSS contributor funnel); создан программный документ `docs/developer_guide/oss_contributor_funnel_program.md`; `Last Update` обновлен.
 - 2026-04-30: Закрыт DOC-030; `retrieval_first` переведен в in-process framework pattern с отдельным `main.py`, workflow/tools и локальными тестами.
