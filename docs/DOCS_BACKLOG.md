@@ -1,7 +1,7 @@
 # Documentation Backlog (Framework)
 
 Дата старта: 2026-04-30  
-Last Update: 2026-04-30  
+Last Update: 2026-05-26  
 Статус: Active (living document)
 
 ## Назначение
@@ -64,9 +64,20 @@ Last Update: 2026-04-30
 | DOC-033 | P0 | Examples Test Harness | Добавить unified fast/full test lanes для `agent_examples` (structure/unit/smoke) | Test matrix doc + CI-ready command set | Planned | 2026-04-30 | Требуется для защиты от деградации примеров и рассинхрона с документацией. |
 | DOC-034 | P1 | Async Batch Pattern | Добавить отдельный in-process demo pattern для batch/long-running сценариев | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | После стабилизации трех базовых P0 patterns. |
 | DOC-035 | P1 | MCP Facade Pattern | Добавить отдельный demo pattern `agent as MCP tools` поверх core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Planned | 2026-04-30 | Должен показать разделение core logic и MCP transport adapter. |
+| DOC-036 | P0 | OSS Program Planning | Зафиксировать единую программу доработок contributor funnel с итерациями и слайсами | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Planned | 2026-05-26 | Базовый план для Increment 33; включает ограничения по stable contracts и Definition of Done на 30 дней. |
+| DOC-037 | P0 | Packaging Integrity | Синхронизировать package license/readme metadata с OSS policy репозитория | `backend/packages/pyproject.toml` + `backend/packages/README.md` | In Progress | 2026-05-26 | Slice 33.1.1 закрыт: `license = Apache-2.0` в `backend/packages/pyproject.toml`; остается Slice 33.1.2 (`backend/packages/README.md`). |
+| DOC-038 | P0 | README No-Infra Entry | Добавить no-infra first-success path и expected output в root README | `README.md` update (2-minute demo + output proof) | Planned | 2026-05-26 | Быстрый запуск без FastAPI/PostgreSQL/Celery/Redis/MCP должен идти до production path. |
+| DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Planned | 2026-05-26 | Явный безопасный путь первого PR в зонах docs/examples/packaging. |
+| DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Planned | 2026-05-26 | Bug/docs/feature/question шаблоны + contract impact checklist в PR template. |
+| DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Planned | 2026-05-26 | Минимум 8 actionable `good first issue` с четкими acceptance criteria. |
+| DOC-042 | P2 | README Front Door v2 | Перестроить README под open-source front door и добавить comparison table | `README.md` restructure + use-case matrix | Planned | 2026-05-26 | `Who for`/`When not to use`/`No-infra demo`/`Docs map` как основной маршрут. |
+| DOC-043 | P2 | Discoverability | Синхронизировать GitHub topics и позиционирование capabilities | Repository topics + docs notes | Planned | 2026-05-26 | Topics до 20, только под реальные возможности репозитория. |
+| DOC-044 | P2 | Contributor Motivation & Feedback Loop | Добавить мотивационный и feedback контур для внешних контрибьюторов | README/CONTRIBUTING messaging + `FEEDBACK.md` + project update template | Planned | 2026-05-26 | Включает блок про добровольную поддержку токенами без нарушения governance (no pay-to-prioritize). |
 
 ## Журнал изменений backlog
 
+- 2026-05-26: DOC-037 переведен в `In Progress`; закрыт Slice 33.1.1 (package license metadata -> Apache-2.0), открыт remaining scope по package README.
+- 2026-05-26: Добавлены planned задачи DOC-036..DOC-044 для Increment 33 (OSS contributor funnel); создан программный документ `docs/developer_guide/oss_contributor_funnel_program.md`; `Last Update` обновлен.
 - 2026-04-30: Закрыт DOC-030; `retrieval_first` переведен в in-process framework pattern с отдельным `main.py`, workflow/tools и локальными тестами.
 - 2026-04-30: Добавлен и закрыт DOC-029 (детальный roadmap replatform demo-агентов в in-process стиль); добавлены planned задачи DOC-030..DOC-035.
 - 2026-04-30: Закрыты DOC-027 и DOC-028; внедрен новый product-style каталог `agent_examples/` и интегрирован как основной entrypoint для python-примеров агентов.

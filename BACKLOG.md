@@ -1,6 +1,6 @@
 # Implementation Backlog
 
-Дата обновления: 2026-04-29
+Дата обновления: 2026-05-26
 
 Документ фиксирует план завершения backend/framework части платформы. Пока основной фокус остается на reusable framework, LangGraph runtime, service boundaries, persistence, MCP и demo/acceptance сценариях. Frontend и продуктовые домены расширяются только после стабилизации backend foundation.
 
@@ -1216,6 +1216,64 @@ Definition of Done:
 - новый продуктовый workflow добавляется через documented extension path;
 - demo acceptance подтверждает полный путь `documents -> canonical indexing -> pgvector retrieval -> authoring -> HITL -> artifact -> traceability -> audit`;
 - дальнейшее развитие может переходить к frontend/product layer без закрепления временных backend contracts.
+
+## Increment 33: OSS Contributor Funnel and Community Readiness
+
+Статус: Planned.
+
+Цель: упаковать backend/framework foundation в contributor-friendly open source контур, сохранив production-first контрактную дисциплину.
+
+First slice done:
+
+- Slice 33.1.1: package license metadata выровнен с root license (`backend/packages/pyproject.toml`: `Apache-2.0`).
+
+Program document:
+
+- `docs/developer_guide/oss_contributor_funnel_program.md`
+
+Iteration plan:
+
+1. Iteration 33.1 (P0, Day 1-5): foundation fixes.
+2. Iteration 33.2 (P1, Day 6-14): contributor funnel setup.
+3. Iteration 33.3 (P2, Day 15-21): public front door restructuring.
+4. Iteration 33.4 (P2, Day 22-30): community messaging + feedback loop.
+
+Planned slices:
+
+- Slice 33.1.1: согласовать package license metadata с root Apache-2.0 лицензией.
+- Slice 33.1.2: добавить `backend/packages/README.md` под `readme = "README.md"` в package metadata.
+- Slice 33.1.3: добавить в root README `2-Minute Demo: No Docker, No Postgres` (на базе `agent_examples/run_example.py --pattern retrieval_first`).
+- Slice 33.1.4: доработать `CONTRIBUTING.md` (first-time contributor section, безопасный path, link consistency).
+- Slice 33.2.1: добавить `.github/ISSUE_TEMPLATE/*` и `.github/pull_request_template.md`.
+- Slice 33.2.2: расширить labels/triage baseline под open source intake (`docs`, `examples`, `ci`, `packaging`, `community`, `needs maintainer review`, `blocked`, `security`).
+- Slice 33.2.3: создать initial public backlog 15-20 issues, из них минимум 8 `good first issue`.
+- Slice 33.3.1: перестроить README entrypoint (who-for, when-not-to-use, no-infra demo, docs map, contributing).
+- Slice 33.3.2: добавить comparison/use-case table для честной квалификации сценариев.
+- Slice 33.3.3: добавить GitHub topics по фактическим capabilities проекта (<=20).
+- Slice 33.4.1: добавить contributor-motivation copy (публичный OSS трек как подтверждаемый инженерный вклад).
+- Slice 33.4.2: добавить policy-блок про добровольную поддержку проекта токенами (без pay-to-prioritize и без feature guarantees).
+- Slice 33.4.3: запустить feedback loop (`FEEDBACK.md`) и двунедельный project update шаблон.
+
+Scope:
+
+- community/onboarding/documentation packaging;
+- GitHub issues/labels/templates triage contour;
+- внешний contributor funnel до первого PR;
+- feedback pipeline и регулярные updates.
+
+Contract safety:
+
+- не менять stable API/MCP contracts без maintainer review и синхронизации `public_contract_surface.md` + references;
+- не удалять production smoke/release path; только перестраивать приоритет entrypoints.
+
+Definition of Done:
+
+- no-infra demo path стоит раньше production setup в README;
+- package/license metadata согласованы;
+- созданы issue/PR templates и initial issue backlog;
+- в `CONTRIBUTING.md` есть first-time contributor section;
+- добавлены GitHub topics и feedback tracker;
+- подготовлен минимум один public update и один external post draft.
 
 ## Later Product/UI Track
 

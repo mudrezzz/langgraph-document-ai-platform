@@ -1,7 +1,7 @@
 # External Developer Guide
 
-Дата обновления: 2026-04-30
-Статус: Increment 32+ documentation release (slice 5)
+Дата обновления: 2026-05-26
+Статус: Increment 33 documentation planning sync
 
 Этот раздел - единая точка входа для внешнего разработчика, который хочет использовать backend/framework библиотеку как production retrieval + authoring platform на LangGraph.
 
@@ -47,6 +47,7 @@
    - `docs/developer_guide/maintainer_playbook.md`
    - `docs/developer_guide/operations_and_release.md`
    - `docs/developer_guide/release_reproducible_flow.md`
+   - `docs/developer_guide/oss_contributor_funnel_program.md`
    - `CONTRIBUTING.md`
    - `CODE_OF_CONDUCT.md`
    - `SUPPORT.md`
