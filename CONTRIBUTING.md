@@ -27,6 +27,12 @@
 - `help wanted` — задачи, где поддержка контрибьюторов особенно важна;
 - `community` — улучшение contributor experience и процесса.
 
+Для вайбкодеров:
+
+- Это открытый OSS-проект, где можно начать с маленьких задач и быстро получить проверяемый результат.
+- Рекомендуем progression path: `docs -> examples -> packaging -> CI -> deeper framework tasks`.
+- Ключевое правило: быстрые итерации приветствуются, но качество фиксируется через checks + review.
+
 ## 3. Contribution flow
 
 1. Откройте issue с кратким proposal (problem -> scope -> expected behavior).
@@ -49,6 +55,7 @@
 2. Уточните scope в issue-комментарии перед началом работы.
 3. Держите изменения узкими: один PR = одна задача.
 4. Если правите public contracts, заранее отметьте это в PR (`needs maintainer review`).
+5. После 1-2 docs/examples PR переходите к `packaging` или `ci` задачам, где impact также легко проверить.
 
 ## 5. Required checks
 

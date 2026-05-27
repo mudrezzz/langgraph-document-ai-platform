@@ -290,6 +290,12 @@ Stable/experimental/internal matrix and versioning/deprecation policy:
 - Contribute where impact is easy to verify: onboarding docs, examples, packaging, CI, and maintainer process.
 - Work through explicit contract/governance boundaries, with reviews focused on quality and reproducibility.
 
+For vibe-coders:
+
+- This repository is intentionally open to vibe-coder contributions through small, well-scoped issues.
+- You can start from docs/examples tasks, ship quickly, and build a public OSS track with review-backed outcomes.
+- Growth path is explicit: docs -> examples -> packaging -> CI -> deeper framework changes.
+
 ## Contributing and Governance
 
 - Contributing: `CONTRIBUTING.md`
