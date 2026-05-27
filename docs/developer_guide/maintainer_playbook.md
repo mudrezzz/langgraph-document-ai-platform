@@ -1,7 +1,7 @@
 # Maintainer Playbook (Docs)
 
-Дата обновления: 2026-04-30  
-Статус: Active (P2 maintainer process)
+Дата обновления: 2026-05-27  
+Статус: Active (Increment 33 triage baseline)
 
 Документ описывает process для поддержки документации как живой contract surface.
 
@@ -86,3 +86,52 @@ PR считается готовым, если:
 2. `docs/DOCS_BACKLOG.md` синхронизирован.
 3. Docs tests проходят.
 4. Есть понятный summary изменений.
+
+## 8. Label taxonomy baseline
+
+Maintainer baseline labels для intake/triage:
+
+- `good first issue`
+- `help wanted`
+- `docs`
+- `examples`
+- `ci`
+- `packaging`
+- `bug`
+- `enhancement`
+- `question`
+- `discussion`
+- `needs maintainer review`
+- `blocked`
+- `security`
+- `community`
+
+Правило: каждый новый issue получает как минимум один label типа (`bug`/`enhancement`/`docs`/`question`) и при необходимости один workflow label (`needs maintainer review`/`blocked`).
+
+## 9. Triage SLA and status policy
+
+Best-effort SLA:
+
+1. Новый issue: первая реакция/разметка в течение 72 часов.
+2. Новый PR: первичная реакция в течение 5 рабочих дней.
+3. Security issue: не обсуждать детали публично, перенаправлять в процесс из `SECURITY.md`.
+
+Triage status baseline:
+
+- `actionable`
+- `needs info`
+- `duplicate`
+- `not planned`
+- `maintainer review`
+
+Минимум для каждого нового issue:
+
+1. label;
+2. triage status;
+3. короткий maintainer-комментарий с next step.
+
+Issue closure baseline:
+
+1. `duplicate` -> закрыть с ссылкой на source issue.
+2. `needs info` без ответа 14-21 дней -> закрыть с комментарием о возможности переоткрытия с данными.
+3. out-of-scope/support-only запросы -> закрыть с явной причиной и ссылкой на релевантный docs path.

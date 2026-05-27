@@ -1,7 +1,7 @@
 # Documentation Backlog (Framework)
 
 Дата старта: 2026-04-30  
-Last Update: 2026-05-26  
+Last Update: 2026-05-27  
 Статус: Active (living document)
 
 ## Назначение
@@ -69,13 +69,14 @@ Last Update: 2026-05-26
 | DOC-038 | P0 | README No-Infra Entry | Добавить no-infra first-success path и expected output в root README | `README.md` update (2-minute demo + output proof) | Done | 2026-05-26 | Добавлен блок `2-Minute Demo: No Docker, No Postgres` с dry-run/execute командами, явным no-infra scope и expected output; production smoke path оставлен ниже. |
 | DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Done | 2026-05-26 | Добавлен `First-time contributors` section, описан безопасный путь первого PR, добавлен docs/examples/packaging-only check profile, исправлена ссылка на `docs/developer_guide/mcp_reference.md`. |
 | DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Done | 2026-05-26 | Добавлены issue forms (`bug_report`, `documentation`, `feature_request`, `question`) и PR template с type/test/contract/checklist секциями. |
-| DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Planned | 2026-05-26 | Минимум 8 actionable `good first issue` с четкими acceptance criteria. |
+| DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | In Progress | 2026-05-27 | Закрыт Slice 33.2.2: labels созданы в GitHub repo, triage baseline зафиксирован в `docs/developer_guide/maintainer_playbook.md`; остается Slice 33.2.3 (публичный issue backlog 15-20 задач, >=8 `good first issue`). |
 | DOC-042 | P2 | README Front Door v2 | Перестроить README под open-source front door и добавить comparison table | `README.md` restructure + use-case matrix | Planned | 2026-05-26 | `Who for`/`When not to use`/`No-infra demo`/`Docs map` как основной маршрут. |
 | DOC-043 | P2 | Discoverability | Синхронизировать GitHub topics и позиционирование capabilities | Repository topics + docs notes | Planned | 2026-05-26 | Topics до 20, только под реальные возможности репозитория. |
 | DOC-044 | P2 | Contributor Motivation & Feedback Loop | Добавить мотивационный и feedback контур для внешних контрибьюторов | README/CONTRIBUTING messaging + `FEEDBACK.md` + project update template | Planned | 2026-05-26 | Включает блок про добровольную поддержку токенами без нарушения governance (no pay-to-prioritize). |
 
 ## Журнал изменений backlog
 
+- 2026-05-27: DOC-041 переведен в `In Progress`; закрыт Slice 33.2.2 (labels + triage baseline), pending scope перенесен на Slice 33.2.3 (initial public issue backlog).
 - 2026-05-26: Закрыт DOC-040; добавлены `.github/ISSUE_TEMPLATE/*` и `.github/pull_request_template.md` для структурированного issue/PR intake.
 - 2026-05-26: Закрыт DOC-039; обновлен `CONTRIBUTING.md` (first-time contributor path, link consistency, docs/examples/packaging-only checks).
 - 2026-05-26: Закрыт DOC-038; в root README добавлен no-infra demo entrypoint и expected output, production smoke path сохранен как отдельный блок ниже.
