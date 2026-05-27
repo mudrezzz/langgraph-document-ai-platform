@@ -235,3 +235,21 @@ Apache License 2.0 (`LICENSE`).
 License rationale:
 
 - `docs/oss_license_rationale.md`
+
+## When to use this platform
+
+Consider using LangGraph Document AI Platform when:
+
+- You are building a **production-grade document-centric AI system** that needs auditable task lifecycles, typed contracts, and release gates.
+- Your team requires **human-in-the-loop (HITL)** review flows for sensitive document operations like authoring, indexing, or artifact generation.
+- You need **end-to-end traceability** from document ingestion → retrieval → authoring → review → final artifact.
+- You are already using or planning to use **LangGraph** and want a structured framework on top of it.
+
+## When NOT to use this platform
+
+Do NOT use this platform if:
+
+- You are building a **simple chatbot or a quick prototype** that doesn't need production-grade observability — this platform will be overkill.
+- You don't need **auditability or human-in-the-loop** reviews for document workflows.
+- You prefer a **lightweight, serverless** approach without managing PostgreSQL, Celery, Redis, or async workers.
+- You are looking for a **plug-and-play UI** — this project provides APIs and framework extensions, not a pre-built frontend.
