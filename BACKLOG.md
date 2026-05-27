@@ -1231,6 +1231,7 @@ First slice done:
 - Slice 33.1.4: обновлен `CONTRIBUTING.md` (first-time contributor section, docs/examples/packaging-only check profile, исправлены docs links).
 - Slice 33.2.1: добавлены issue forms и PR template в `.github` для структурированного contributor intake.
 - Slice 33.2.2: labels baseline применен в GitHub repo; triage SLA/status/closure policy добавлены в `docs/developer_guide/maintainer_playbook.md`.
+- Slice 33.2.3: создан initial public issue backlog (16 issues, включая newcomer-friendly `good first issue` набор).
 
 Program document:
 
