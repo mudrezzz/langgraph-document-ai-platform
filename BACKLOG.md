@@ -1235,6 +1235,7 @@ First slice done:
 - Slice 33.3.1: root README перестроен в front-door порядок (who-for/when-not-to-use/no-infra-first/docs map) с сохранением production smoke path.
 - Slice 33.3.2: в root README добавлена comparison/use-case таблица (`Need / Use this project? / Why`) для ранней квалификации пользователей.
 - Slice 33.3.3: в GitHub репозитории добавлены discoverability topics по фактическим capabilities проекта (14 topics).
+- Slice 33.4.1: добавлены contributor motivation блоки (`Why Contribute`) в root README и `CONTRIBUTING.md`.
 
 Program document:
 

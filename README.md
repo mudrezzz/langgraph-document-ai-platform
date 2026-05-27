@@ -283,6 +283,13 @@ Stable/experimental/internal matrix and versioning/deprecation policy:
 - `docs/developer_guide/public_contract_surface.md`
 - `docs/developer_guide/versioning_policy.md`
 
+## Why Contribute
+
+- Build a visible open-source track on a production-oriented LangGraph codebase.
+- Start with scoped tasks (`good first issue`, `help wanted`, `community`) and ship measurable improvements.
+- Contribute where impact is easy to verify: onboarding docs, examples, packaging, CI, and maintainer process.
+- Work through explicit contract/governance boundaries, with reviews focused on quality and reproducibility.
+
 ## Contributing and Governance
 
 - Contributing: `CONTRIBUTING.md`

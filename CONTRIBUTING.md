@@ -13,7 +13,21 @@
 
 Приоритет изменений: reproducibility, backward-compatible contracts, observability.
 
-## 2. Contribution flow
+## 2. Why your contribution matters
+
+Вклад в этот проект — это публично проверяемый engineering track:
+
+- задачи и обсуждения прозрачны в issues/PR history;
+- изменения проверяются через тесты/smoke и review;
+- вклад виден по impact в onboarding/docs/examples/packaging/CI.
+
+Где лучше начать:
+
+- `good first issue` — узкие newcomer-friendly задачи;
+- `help wanted` — задачи, где поддержка контрибьюторов особенно важна;
+- `community` — улучшение contributor experience и процесса.
+
+## 3. Contribution flow
 
 1. Откройте issue с кратким proposal (problem -> scope -> expected behavior).
 2. Подготовьте изменение в отдельной ветке.
@@ -21,7 +35,7 @@
 4. Прогоните минимальные проверки (см. ниже).
 5. Откройте PR с кратким changelog и рисками.
 
-## 3. First-time contributors
+## 4. First-time contributors
 
 Если это ваш первый вклад, начните с задач в безопасной зоне:
 
@@ -36,7 +50,7 @@
 3. Держите изменения узкими: один PR = одна задача.
 4. Если правите public contracts, заранее отметьте это в PR (`needs maintainer review`).
 
-## 4. Required checks
+## 5. Required checks
 
 Минимально перед PR:
 
@@ -53,7 +67,7 @@
 2. targeted tests только для затронутого примера/модуля (если применимо)
 3. в PR явно указать, что full smoke не запускался, потому что contract/runtime не менялись
 
-## 5. Contract safety rules
+## 6. Contract safety rules
 
 - Не меняйте public contracts без обновления:
   - `docs/developer_guide/public_contract_surface.md`
@@ -61,7 +75,7 @@
 - Для schema changes используйте additive migrations.
 - Не ломайте latest/history semantics для canonical/versioned stores.
 
-## 6. Commit and PR style
+## 7. Commit and PR style
 
 - Commit message: коротко и предметно (`docs: ...`, `feat: ...`, `fix: ...`).
 - В PR обязательно:
@@ -69,11 +83,11 @@
   - как проверяли;
   - какие риски/ограничения остались.
 
-## 7. Communication
+## 8. Communication
 
 - Уважайте review feedback.
 - Для спорных архитектурных решений добавляйте/обновляйте ADR.
 
-## 8. Code of Conduct
+## 9. Code of Conduct
 
 Этот проект придерживается правил из `CODE_OF_CONDUCT.md`.
