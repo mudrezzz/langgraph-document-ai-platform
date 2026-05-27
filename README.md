@@ -296,6 +296,12 @@ For vibe-coders:
 - You can start from docs/examples tasks, ship quickly, and build a public OSS track with review-backed outcomes.
 - Growth path is explicit: docs -> examples -> packaging -> CI -> deeper framework changes.
 
+AI-assisted contribution policy:
+
+- “Token contribution” here means contribution made with AI agents (vibe-coding), not financial/token donations.
+- AI-assisted PRs are welcome if they meet the same quality bar: clear scope, reproducible checks, and review-ready diffs.
+- No fast-track merge or roadmap priority is granted based on contribution style alone.
+
 ## Contributing and Governance
 
 - Contributing: `CONTRIBUTING.md`

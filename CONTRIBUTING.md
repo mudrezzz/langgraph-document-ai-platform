@@ -32,6 +32,13 @@
 - Это открытый OSS-проект, где можно начать с маленьких задач и быстро получить проверяемый результат.
 - Рекомендуем progression path: `docs -> examples -> packaging -> CI -> deeper framework tasks`.
 - Ключевое правило: быстрые итерации приветствуются, но качество фиксируется через checks + review.
+- Под “вкладом токенами” в рамках этого проекта понимается вклад через AI-агентов (vibe-coding), а не финансовая поддержка.
+
+AI-assisted contribution policy:
+
+- AI-assisted PR принимается по тем же правилам, что и любой другой: ясный scope, проверяемые проверки, review-ready diff.
+- Contribution style (manual vs AI-assisted) не дает приоритета в roadmap и не ускоряет merge автоматически.
+- Security/governance требования обязательны для всех (`SECURITY.md`, contract safety rules).
 
 ## 3. Contribution flow
 

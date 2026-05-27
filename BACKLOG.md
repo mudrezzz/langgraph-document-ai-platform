@@ -1236,6 +1236,7 @@ First slice done:
 - Slice 33.3.2: в root README добавлена comparison/use-case таблица (`Need / Use this project? / Why`) для ранней квалификации пользователей.
 - Slice 33.3.3: в GitHub репозитории добавлены discoverability topics по фактическим capabilities проекта (14 topics).
 - Slice 33.4.1: добавлены contributor motivation блоки (`Why Contribute`) в root README и `CONTRIBUTING.md`, включая explicit path для vibe-coders.
+- Slice 33.4.2: добавлен AI-assisted contribution policy блок (\"token contribution\" = contribution via AI agents, not donations; единый quality/governance bar для всех).
 
 Program document:
 
