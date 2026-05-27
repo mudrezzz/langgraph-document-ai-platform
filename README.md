@@ -16,6 +16,16 @@ Build retrieval, indexing, authoring, and human-in-the-loop review flows with au
 - You need a hosted SaaS UI out of the box today.
 - You want zero-infrastructure production runtime from day one.
 
+## Use-Case Fit
+
+| Need | Use this project? | Why |
+|---|---|---|
+| Simple chatbot over one PDF | Probably no | The platform is optimized for production-grade document workflows with broader contracts and runtime boundaries. |
+| Auditable document AI backend | Yes | Provides task lifecycle, provenance/evidence mapping, HITL loops, and release gate patterns. |
+| LangGraph workflow framework for document agents | Yes | Exposes reusable framework contracts, examples, and extension playbooks. |
+| Hosted SaaS UI out of the box | Not yet | Current focus is backend/framework foundation; UI/product layer is a later track. |
+| MCP tools for document workflows | Yes | Includes documented MCP service boundaries for retrieval/repository/artifact/template/review/config paths. |
+
 ## Why This Project
 
 - End-to-end document AI flow in one stack: `ingest -> index -> retrieve -> author -> review -> artifact`.

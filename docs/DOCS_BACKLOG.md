@@ -76,6 +76,7 @@ Last Update: 2026-05-27
 
 ## Журнал изменений backlog
 
+- 2026-05-27: Дополнен scope DOC-042: в root README добавлена comparison/use-case таблица для ранней квалификации сценариев.
 - 2026-05-27: Закрыт DOC-042; root README перестроен под front-door onboarding flow (no-infra success path до production smoke path, явный docs map и contributor navigation).
 - 2026-05-27: Закрыт DOC-041; сформирован initial public backlog из 16 issues (`#1..#16`) с новой label taxonomy, включая `good first issue` для newcomer-friendly задач.
 - 2026-05-27: DOC-041 переведен в `In Progress`; закрыт Slice 33.2.2 (labels + triage baseline), pending scope перенесен на Slice 33.2.3 (initial public issue backlog).
