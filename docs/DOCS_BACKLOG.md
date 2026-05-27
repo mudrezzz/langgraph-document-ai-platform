@@ -71,11 +71,12 @@ Last Update: 2026-05-27
 | DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Done | 2026-05-26 | Добавлены issue forms (`bug_report`, `documentation`, `feature_request`, `question`) и PR template с type/test/contract/checklist секциями. |
 | DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Done | 2026-05-27 | Закрыты Slice 33.2.2 и 33.2.3: label taxonomy применен, triage baseline задокументирован, создано 16 public issues (#1-#16), из них >=8 помечены `good first issue`. |
 | DOC-042 | P2 | README Front Door v2 | Перестроить README под open-source front door и добавить comparison table | `README.md` restructure + use-case matrix | Done | 2026-05-27 | README перестроен в front-door порядок: `Who this is for` -> `When not to use` -> `2-Minute Demo` -> `Example Output` -> `What You Can Build` -> `Architecture` -> `Production Smoke` -> `Documentation Map` -> `Contributing` -> `License`. |
-| DOC-043 | P2 | Discoverability | Синхронизировать GitHub topics и позиционирование capabilities | Repository topics + docs notes | Planned | 2026-05-26 | Topics до 20, только под реальные возможности репозитория. |
+| DOC-043 | P2 | Discoverability | Синхронизировать GitHub topics и позиционирование capabilities | Repository topics + docs notes | Done | 2026-05-27 | В репозитории применены topics по фактическим capabilities: `langgraph`, `document-ai`, `rag`, `mcp`, `human-in-the-loop`, `pgvector`, `fastapi`, `celery`, `openrouter`, `ai-agents`, `document-processing`, `retrieval-augmented-generation`, `pdf-processing`, `workflow-automation`. |
 | DOC-044 | P2 | Contributor Motivation & Feedback Loop | Добавить мотивационный и feedback контур для внешних контрибьюторов | README/CONTRIBUTING messaging + `FEEDBACK.md` + project update template | Planned | 2026-05-26 | Включает блок про добровольную поддержку токенами без нарушения governance (no pay-to-prioritize). |
 
 ## Журнал изменений backlog
 
+- 2026-05-27: Закрыт DOC-043; в GitHub репозитории добавлены capability-aligned topics (14 штук, <=20).
 - 2026-05-27: Дополнен scope DOC-042: в root README добавлена comparison/use-case таблица для ранней квалификации сценариев.
 - 2026-05-27: Закрыт DOC-042; root README перестроен под front-door onboarding flow (no-infra success path до production smoke path, явный docs map и contributor navigation).
 - 2026-05-27: Закрыт DOC-041; сформирован initial public backlog из 16 issues (`#1..#16`) с новой label taxonomy, включая `good first issue` для newcomer-friendly задач.
