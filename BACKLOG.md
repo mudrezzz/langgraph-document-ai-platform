@@ -1232,6 +1232,7 @@ First slice done:
 - Slice 33.2.1: добавлены issue forms и PR template в `.github` для структурированного contributor intake.
 - Slice 33.2.2: labels baseline применен в GitHub repo; triage SLA/status/closure policy добавлены в `docs/developer_guide/maintainer_playbook.md`.
 - Slice 33.2.3: создан initial public issue backlog (16 issues, включая newcomer-friendly `good first issue` набор).
+- Slice 33.3.1: root README перестроен в front-door порядок (who-for/when-not-to-use/no-infra-first/docs map) с сохранением production smoke path.
 
 Program document:
 

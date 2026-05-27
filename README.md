@@ -4,6 +4,18 @@ Production-oriented platform for document-centric AI agents on top of LangGraph.
 
 Build retrieval, indexing, authoring, and human-in-the-loop review flows with auditable task lifecycle, typed contracts, and release gates.
 
+## Who This Is For
+
+- Teams building auditable document-centric AI flows on LangGraph.
+- Integrators who need typed contracts across API/MCP/workflow boundaries.
+- Contributors extending examples, docs, packaging, CI, and framework extension surface.
+
+## When Not To Use This Project
+
+- You only need a simple chatbot over one small PDF.
+- You need a hosted SaaS UI out of the box today.
+- You want zero-infrastructure production runtime from day one.
+
 ## Why This Project
 
 - End-to-end document AI flow in one stack: `ingest -> index -> retrieve -> author -> review -> artifact`.
@@ -11,12 +23,6 @@ Build retrieval, indexing, authoring, and human-in-the-loop review flows with au
 - Auditable by design: task history, task events, observability summaries, HITL action timeline.
 - Strong extension surface for teams: workflow/tool/MCP/persistence/domain playbooks.
 - Clear public contract boundaries for integrators and contributors.
-
-## What You Can Build
-
-1. Retrieval-first assistant with canonical knowledge indexing and evidence packs.
-2. Authoring copilot with multi-step draft flow and iterative HITL review loop.
-3. Governance-aware template/repository/artifact services over MCP.
 
 ## Install as a Library
 
@@ -79,7 +85,7 @@ Execute in-process retrieval demo:
 python agent_examples/run_example.py --pattern retrieval_first
 ```
 
-Expected output shape:
+## Example Output
 
 ```json
 {
@@ -95,6 +101,47 @@ Expected output shape:
   }
 }
 ```
+
+## What You Can Build
+
+1. Retrieval-first assistant with canonical knowledge indexing and evidence packs.
+2. Authoring copilot with multi-step draft flow and iterative HITL review loop.
+3. Governance-aware template/repository/artifact services over MCP.
+
+## 30-Second Architecture Story
+
+1. You send documents and tasks through API/MCP boundaries with typed contracts.
+2. LangGraph workflows orchestrate retrieval/indexing/authoring and optional HITL loop.
+3. PostgreSQL + pgvector persist state, evidence, artifacts, and observability traces.
+
+What this gives your team:
+
+- Faster delivery: reusable extension surface for workflows, tools, and MCP services.
+- Lower risk: auditable lifecycle with task events, HITL actions, and release gates.
+- Cleaner ownership: contract-first boundaries between product, platform, and infra teams.
+
+## Architecture At A Glance
+
+```text
+Clients / Integrators
+        |
+        v
+FastAPI + MCP Boundaries
+        |
+        v
+Framework Layer (LangGraph Workflows)
+        |
+        v
+Application Services (retrieval/indexing/authoring/HITL)
+        |
+        v
+Persistence + Adapters (PostgreSQL, pgvector, external gateways)
+```
+
+Full architecture overview:
+
+- `docs/architecture/System_Architecture_Overview.md`
+- `docs/adr/README.md`
 
 ## 5-Minute Production Smoke Quickstart (Linux)
 
@@ -141,6 +188,36 @@ bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
+## Example Gallery And Patterns
+
+- Product-style Python agent examples (single folder, no framework internals required):
+  - `agent_examples/README.md`
+  - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
+  - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
+  - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+  - current status: `retrieval_first` is in-process framework pattern, `authoring_first/hitl_gate` are transition API-driven patterns.
+- Design patterns library:
+  - `docs/developer_guide/design_patterns/README.md`
+  - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.
+
+## Documentation Map
+
+- I need fast orientation in docs and role-based map:
+  - `docs/developer_guide/README.md`
+  - `docs/developer_guide/quickstart.md`
+- I want to extend framework functionality:
+  - `docs/developer_guide/extension_handbook.md`
+  - `docs/developer_guide/extension_recipes.md`
+  - `docs/framework_extension_guide.md`
+- I want to build a new agent flow quickly:
+  - `docs/developer_guide/canonical_e2e_walkthrough.md`
+  - `docs/developer_guide/examples_catalog.md`
+  - `docs/developer_guide/api_reference.md`
+- I need operations and release readiness:
+  - `docs/developer_guide/operations_and_release.md`
+  - `docs/developer_guide/release_reproducible_flow.md`
+  - `docs/production_runbook.md`
+
 ## Quickstart: Build A New Agent Flow
 
 This project treats an "agent" as:
@@ -167,71 +244,6 @@ Minimal path:
 Developer-oriented deep quickstart:
 
 - `docs/developer_guide/quickstart.md`
-
-## Choose Your Path
-
-- I need fast orientation in docs and role-based map:
-  - `docs/developer_guide/README.md`
-  - `docs/developer_guide/quickstart.md`
-- I want to extend framework functionality:
-  - `docs/developer_guide/extension_handbook.md`
-  - `docs/developer_guide/extension_recipes.md`
-  - `docs/framework_extension_guide.md`
-- I want to build a new agent flow quickly:
-  - `docs/developer_guide/canonical_e2e_walkthrough.md`
-  - `docs/developer_guide/examples_catalog.md`
-  - `docs/developer_guide/api_reference.md`
-- I need operations and release readiness:
-  - `docs/developer_guide/operations_and_release.md`
-  - `docs/developer_guide/release_reproducible_flow.md`
-  - `docs/production_runbook.md`
-
-## Example Gallery And Patterns
-
-- Product-style Python agent examples (single folder, no framework internals required):
-  - `agent_examples/README.md`
-  - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
-  - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
-  - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
-  - current status: `retrieval_first` is in-process framework pattern, `authoring_first/hitl_gate` are transition API-driven patterns.
-- Design patterns library:
-  - `docs/developer_guide/design_patterns/README.md`
-  - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.
-
-## 30-Second Architecture Story
-
-1. You send documents and tasks through API/MCP boundaries with typed contracts.
-2. LangGraph workflows orchestrate retrieval/indexing/authoring and optional HITL loop.
-3. PostgreSQL + pgvector persist state, evidence, artifacts, and observability traces.
-
-What this gives your team:
-
-- Faster delivery: reusable extension surface for workflows, tools, and MCP services.
-- Lower risk: auditable lifecycle with task events, HITL actions, and release gates.
-- Cleaner ownership: contract-first boundaries between product, platform, and infra teams.
-
-## Architecture At A Glance
-
-```text
-Clients / Integrators
-        |
-        v
-FastAPI + MCP Boundaries
-        |
-        v
-Framework Layer (LangGraph Workflows)
-        |
-        v
-Application Services (retrieval/indexing/authoring/HITL)
-        |
-        v
-Persistence + Adapters (PostgreSQL, pgvector, external gateways)
-```
-
-Full architecture overview:
-
-- `docs/architecture/System_Architecture_Overview.md`
-- `docs/adr/README.md`
 
 ## Core Runtime Components
 
