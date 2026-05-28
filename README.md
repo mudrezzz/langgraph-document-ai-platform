@@ -310,6 +310,7 @@ AI-assisted contribution policy:
 - Code of Conduct: `CODE_OF_CONDUCT.md`
 - Security policy: `SECURITY.md`
 - Support policy: `SUPPORT.md`
+- Feedback loop: `FEEDBACK.md`
 
 ## License
 

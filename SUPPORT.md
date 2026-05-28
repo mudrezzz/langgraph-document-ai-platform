@@ -20,3 +20,10 @@ For vulnerabilities, do not publish sensitive details in a public issue. Use the
 ## 4. SLA and response expectations
 
 This project is maintained on a best-effort basis. For critical production incidents, keep your own operational fallback plan.
+
+## 5. Contributor feedback and updates
+
+For contributor-experience feedback and periodic progress updates, use:
+
+- `FEEDBACK.md`
+- `docs/project_update_template.md`

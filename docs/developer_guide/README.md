@@ -50,6 +50,8 @@ Unified reading path by role:
    - `docs/developer_guide/release_reproducible_flow.md`
    - `docs/developer_guide/oss_contributor_funnel_program.md`
    - `CONTRIBUTING.md`
+   - `FEEDBACK.md`
+   - `docs/project_update_template.md`
    - `CODE_OF_CONDUCT.md`
    - `SUPPORT.md`
    - `SECURITY.md`

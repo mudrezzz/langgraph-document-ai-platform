@@ -102,6 +102,7 @@ For docs/examples/packaging-only PRs (without runtime/API changes), a reduced ch
 
 - Respect review feedback.
 - For disputed architecture decisions, add or update an ADR.
+- For contributor-experience feedback and periodic updates, use `FEEDBACK.md` and `docs/project_update_template.md`.
 
 ## 9. Code of Conduct
 

@@ -36,6 +36,8 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/manual_demo_checks.md",
         "docs/developer_guide/extension_recipes.md",
         "docs/developer_guide/operations_and_release.md",
+        "FEEDBACK.md",
+        "docs/project_update_template.md",
     ]
 
     for page in required_pages:
