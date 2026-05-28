@@ -1,105 +1,105 @@
 # Design Note: Increment 22 (Iterative HITL + Async Continuation)
 
-Дата: 2026-04-21
+Date: 2026-04-21
 
 ## 1. Problem statement
 
-После `Increment 21` HITL был одношаговым:
+After `Increment 21` HITL was one-step:
 
 - `waiting_human -> submit -> completed|failed`;
-- не было итеративного цикла `needs_changes -> rewrite -> re-review -> waiting_human`;
-- `hitl/submit` мог синхронно завершать pipeline в API-контексте;
-- не было явной idempotency-защиты на повторный submit одного и того же решения.
+- there was no iterative loop `needs_changes -> rewrite -> re-review -> waiting_human`;
+- `hitl/submit` could synchronously complete the pipeline in the API context;
+- there was no explicit idempotency protection for repeated submission of the same solution.
 
-Для production-подобного контура нужен управляемый async lifecycle и предсказуемая policy по итерациям.
+For a production-like circuit, you need a managed async lifecycle and a predictable policy for iterations.
 
 ## 2. Scope / Out of scope
 
 Scope:
 
-- добавить итеративный HITL loop с ограничением по количеству итераций;
-- перевести continuation после `hitl/submit` в async dispatcher plane (inline/celery);
-- ввести idempotency и optimistic guard (`expected_iteration`) для `hitl/submit`;
-- расширить read-model HITL статуса (`iteration`, `max_iterations`, `deadline`, `pending_action`);
-- обновить smoke/demo/tests/docs под новый lifecycle.
+- add an iterative HITL loop with a limit on the number of iterations;
+- convert continuation after `hitl/submit` to async dispatcher plane (inline/celery);
+- enter idempotency and optimistic guard (`expected_iteration`) for `hitl/submit`;
+- expand read-model HITL status (`iteration`, `max_iterations`, `deadline`, `pending_action`);
+- update smoke/demo/tests/docs for the new lifecycle.
 
 Out of scope:
 
-- отдельный reviewer UI;
-- сложная роль-модель (RBAC/SSO);
-- внешний брокер событий (Kafka/NATS) и распределенный workflow orchestration beyond Celery.
+- separate reviewer UI;
+- complex role model (RBAC/SSO);
+- external event broker (Kafka/NATS) and distributed workflow orchestration beyond Celery.
 
-## 3. Какие контракты меняются
+## 3. Which contracts are changing
 
 API:
 
 - `POST /api/v1/tasks/{task_id}/hitl/submit`:
-  - добавлены `idempotency_key`, `expected_iteration`;
-  - submit теперь может вернуть не только `completed`, но и `queued/running/waiting_human`.
+- added `idempotency_key`, `expected_iteration`;
+- submit can now return not only `completed`, but also `queued/running/waiting_human`.
 - `GET /api/v1/tasks/{task_id}/hitl`:
-  - добавлены `current_iteration`, `max_iterations`, `deadline_at`, `can_submit`, `pending_action_id`;
-  - действия reviewer теперь содержат `action_id`, `iteration`, `status`, `idempotency_key`.
+- added `current_iteration`, `max_iterations`, `deadline_at`, `can_submit`, `pending_action_id`;
+- reviewer actions now contain `action_id`, `iteration`, `status`, `idempotency_key`.
 
 Internal async contract:
 
-- `AuthoringAsyncDispatcher` расширен методом enqueue HITL-action continuation;
-- Celery worker получил отдельный task для continuation после submit.
+- `AuthoringAsyncDispatcher` extended with enqueue HITL-action continuation method;
+- Celery worker received a separate task for continuation after submit.
 
-Схемы/миграции:
+Schemes/migrations:
 
-- SQL миграции не добавлялись в этом инкременте (MVP хранит историю HITL в checkpoint/task details).
+- SQL migrations were not added in this increment (MVP stores HITL history in checkpoint/task details).
 
-## 4. Риски и совместимость
+## 4. Risks and compatibility
 
-Совместимость:
+Compatibility:
 
-- существующие endpoints сохранены;
-- `idempotency_key` и `expected_iteration` опциональны;
-- `start`/`start_async` контракты не ломаются.
+- existing endpoints are saved;
+- `idempotency_key` and `expected_iteration` are optional;
+- `start`/`start_async` contracts do not break.
 
-Риски:
+Risks:
 
-- повторные submit без idempotency key могут создавать новые action events;
-- при ошибке постановки continuation в очередь нужен rollback в `waiting_human` (реализован);
-- policy по `needs_changes` на финальной итерации может вызывать 409 (ожидаемое поведение, требует явного approve/reject).
+- repeated submits without idempotency key can create new action events;
+- if there is an error queuing a continuation, a rollback is needed in `waiting_human` (implemented);
+- policy on `needs_changes` at the final iteration can cause 409 (expected behavior, requires explicit approve/reject).
 
 ## 5. Test plan
 
 Unit:
 
-- async submit + continuation через inline dispatcher;
+- async submit + continuation via inline dispatcher;
 - `needs_changes -> iteration+1`;
-- idempotency replay на `idempotency_key`;
-- блокировка `needs_changes` при достижении max iterations.
+- idempotency replay on `idempotency_key`;
+- blocking `needs_changes` when max iterations is reached.
 
 Integration:
 
 - API flow `start_async -> waiting_human -> submit -> poll -> completed`;
-- iterative flow с двумя итерациями и replay submit.
+- iterative flow with two iterations and replay submit.
 
 E2E:
 
 - FastAPI e2e (in-process uvicorn);
 - Postgres-backed e2e;
-- Docker e2e для реального `PostgreSQL + Redis + Celery`.
+- Docker e2e for real `PostgreSQL + Redis + Celery`.
 
 Smoke/manual:
 
-- async smoke обновлен для последовательности решений (`--hitl-decision-sequence needs_changes,approve`).
+- async smoke updated for decision sequence (`--hitl-decision-sequence needs_changes,approve`).
 
 ## 6. Rollout plan
 
-1. Расширить схемы API/state и dispatcher контракты.
-2. Добавить worker-task для HITL continuation.
-3. Перевести submit на async continuation с rollback при enqueue-error.
-4. Добавить iterative loop policy и idempotency.
-5. Обновить тесты (unit/integration/e2e/docker-e2e).
-6. Обновить runbook/docs/ADR.
+1. Expand API/state and dispatcher contract schemes.
+2. Add worker-task for HITL continuation.
+3. Change submit to async continuation with rollback when enqueue-error.
+4. Add iterative loop policy and idempotency.
+5. Update tests (unit/integration/e2e/docker-e2e).
+6. Update runbook/docs/ADR.
 
 ## 7. Definition of Done
 
-- итеративный HITL lifecycle работает: минимум 2 итерации (`needs_changes -> waiting_human(iteration+1) -> approve`);
-- continuation после submit исполняется через async dispatcher (inline/celery);
-- submit поддерживает idempotency и expected_iteration guard;
-- тесты зеленые: unit + integration + e2e + docker async e2e;
-- документация обновлена (`README`, `Architecture Overview`, `ADR`, manual smoke/runbook).
+- iterative HITL lifecycle works: at least 2 iterations (`needs_changes -> waiting_human(iteration+1) -> approve`);
+- continuation after submit is executed via async dispatcher (inline/celery);
+- submit supports idempotency and expected_iteration guard;
+- green tests: unit + integration + e2e + docker async e2e;
+- documentation updated (`README`, `Architecture Overview`, `ADR`, manual smoke/runbook).

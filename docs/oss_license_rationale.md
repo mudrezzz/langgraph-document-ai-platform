@@ -1,25 +1,25 @@
 # OSS License Rationale
 
-Дата обновления: 2026-04-30
+Update date: 2026-04-30
 
-## Рекомендованная лицензия
+## Recommended license
 
 `Apache License 2.0`.
 
-## Почему Apache-2.0
+## Why Apache-2.0
 
-1. Разрешительная лицензия, удобная для интеграции в enterprise-контуры.
-2. Явный grant по патентам, что снижает юридическую неопределенность для пользователей framework.
-3. Совместима с моделью "internal-first -> external contributors".
-4. Хорошо подходит для mixed-stack инфраструктурных проектов с API/MCP/contracts.
+1. Permissive license, convenient for integration into enterprise circuits.
+2. Explicit grant for patents, which reduces legal uncertainty for users of the framework.
+3. Compatible with the "internal-first -> external contributors" model.
+4. Well suited for mixed-stack infrastructure projects with API/MCP/contracts.
 
-## Рассмотренные альтернативы
+## Alternatives considered
 
 - MIT:
-  - проще текстом, но нет явного patent grant.
+- simpler text, but there is no explicit patent grant.
 - BSD-3-Clause:
-  - тоже permissive, но чаще менее привычна для enterprise AI/platform tooling, чем Apache-2.0.
+- also permissive, but often less familiar to enterprise AI/platform tooling than Apache-2.0.
 
-## Вывод
+## Conclusion
 
-Для текущего профиля проекта (`framework + integrations + OSS extension path`) Apache-2.0 дает лучший баланс открытости и юридической предсказуемости.
+For the current project profile (`framework + integrations + OSS extension path`), Apache-2.0 provides the best balance of openness and legal predictability.

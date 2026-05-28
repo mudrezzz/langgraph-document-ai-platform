@@ -1,34 +1,34 @@
 # ADR-0047: Domain authoring traceability and HITL feedback helper extraction
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0046 в `AuthoringApplicationService` оставались небольшие, но все еще доменные stateless helpers:
+After ADR-0046, small but still domain stateless helpers remained in `AuthoringApplicationService`:
 
-- преобразование section traceability в `SourceRef` и обратно;
-- обновление `review_status` по секциям;
-- форматирование human feedback для HITL rewrite.
+- conversion of section traceability to `SourceRef` and vice versa;
+- update `review_status` by sections;
+- human feedback formatting for HITL rewrite.
 
-Хотя эти методы не управляли lifecycle use case, они продолжали удерживать domain formatting/mapping logic в application layer.
+Although these methods did not control the lifecycle use case, they continued to keep the domain formatting/mapping logic in the application layer.
 
-## Решение
+## Solution
 
-1. Перенести source-ref/traceability mapping в `OutlinePlanner`.
-2. Использовать `SectionReviewService` как место для массового обновления section review status.
-3. Добавить в `WriterDraftService` метод `apply_human_feedback(...)` для deterministic formatting reviewer feedback.
-4. Сохранить orchestration HITL iteration, task state transitions и artifact persistence в `AuthoringApplicationService`.
+1. Move source-ref/traceability mapping to `OutlinePlanner`.
+2. Use `SectionReviewService` as a place to bulk update section review status.
+3. Add the `apply_human_feedback(...)` method to the `WriterDraftService` for deterministic formatting reviewer feedback.
+4. Save orchestration HITL iteration, task state transitions and artifact persistence in `AuthoringApplicationService`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- application layer еще ближе к чистой orchestration boundary;
-- traceability и rewrite formatting тестируются как domain behavior;
-- следующий slice можно направить на section packets/workflows, не возвращаясь к helper-логике.
+- application layer is even closer to pure orchestration boundary;
+- traceability and rewrite formatting are tested as domain behavior;
+- the next slice can be directed to section packets/workflows without returning to the helper logic.
 
-Минусы:
+Cons:
 
-- `AuthoringApplicationService` все еще управляет большим use-case lifecycle;
-- полноценные section contracts и template compilation пока не выделены.
+- `AuthoringApplicationService` still manages a large use-case lifecycle;
+- full-fledged section contracts and template compilation have not yet been allocated.

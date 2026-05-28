@@ -1,40 +1,40 @@
-# ADR-0017: Выделенный Storage для LangGraph Checkpoint Runtime
+# ADR-0017: Dedicated Storage for LangGraph Checkpoint Runtime
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-В `Increment 11` production checkpointer был подключен к runtime, но его данные хранились в общей таблице `app.checkpoints` вместе с task payload (`run_id=<task_id>`).
+In `Increment 11` production checkpointer was connected to runtime, but its data was stored in the common table `app.checkpoints` along with the task payload (`run_id=<task_id>`).
 
-Такой подход создавал риски:
+This approach created risks:
 
-- конкуренция за одну таблицу между API lifecycle payload и runtime checkpointing;
-- усложнение операционных запросов и диагностики;
-- отсутствие явной схемы для cleanup/retention политики.
+- competition for one table between API lifecycle payload and runtime checkpointing;
+- complication of operational requests and diagnostics;
+- lack of an explicit scheme for the cleanup/retention policy.
 
-## Решение
+## Solution
 
-1. Вынести LangGraph checkpoint storage в отдельные таблицы:
+1. Place LangGraph checkpoint storage in separate tables:
    - `app.langgraph_checkpoints`;
    - `app.langgraph_checkpoint_blobs`;
    - `app.langgraph_checkpoint_writes`.
-2. Добавить миграцию `0004_langgraph_checkpoint_storage.sql`.
-3. Перевести `PostgresLangGraphCheckpointer` на работу с новыми таблицами.
-4. Сохранить существующий `app.checkpoints` для task payload (совместимость API lifecycle не ломается).
-5. Реализовать cleanup hooks в checkpointer:
+2. Add migration `0004_langgraph_checkpoint_storage.sql`.
+3. Convert `PostgresLangGraphCheckpointer` to work with new tables.
+4. Keep the existing `app.checkpoints` for task payload (API lifecycle compatibility does not break).
+5. Implement cleanup hooks in checkpointer:
    - `prune(strategy="keep_latest" | "delete")`;
    - `delete_thread`, `copy_thread`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- runtime checkpointing изолирован от task payload storage;
-- проще операционный аудит состояния checkpointer;
-- есть базовая политика очистки старых checkpoint-версий.
+- runtime checkpointing is isolated from task payload storage;
+- easier operational audit of checkpointer status;
+- there is a basic policy for cleaning up old checkpoint versions.
 
-Минусы:
+Cons:
 
-- добавлены дополнительные таблицы и миграция;
-- `prune` пока вызывается только вручную (нет автоматического scheduler-процесса).
+- added additional tables and migration;
+- `prune` is currently called only manually (there is no automatic scheduler process).

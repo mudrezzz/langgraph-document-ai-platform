@@ -1,16 +1,16 @@
 # Operations And Release
 
-Этот документ фиксирует production-like прогон для внешнего разработчика: smoke matrix -> release decision gate -> full pytest gate.
+This document captures a production-like run for an external developer: smoke matrix -> release decision gate -> full pytest gate.
 
-Для линейного пошагового сценария используйте также:
+For a linear step-by-step scenario, also use:
 
 - `docs/developer_guide/release_reproducible_flow.md`
 
 ## 1. Runtime prerequisites
 
-- `.venv` с зависимостями (`pip install -e ./backend`)
+- `.venv` with dependencies (`pip install -e ./backend`)
 - Docker + docker compose
-- `backend/.env` с `OPENROUTER_*` (для optional external LLM tests)
+- `backend/.env` with `OPENROUTER_*` (for optional external LLM tests)
 
 ## 2. Unified release-gate smoke
 
@@ -22,7 +22,7 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
 ```
 
-Ожидается `gate_status=pass` и пустой `failed_checks`.
+Expect `gate_status=pass` and empty `failed_checks`.
 
 ## 3. Final release decision gate
 
@@ -34,9 +34,9 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/release_decision_gate.sh --host 127.0.0.1 --port 8090 --gate-profile stage
 ```
 
-Результат сохраняется в `backend/.release_gate/release_decision_*.json` и `.md`.
+The result is stored in `backend/.release_gate/release_decision_*.json` and `.md`.
 
-## 4. Полный тестовый gate (обязательный)
+## 4. Full test gate (mandatory)
 
 ```bash
 OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
@@ -46,13 +46,13 @@ RUN_DOCKER_ASYNC_E2E=1 RUN_EXTERNAL_LLM_TESTS=1 \
 .venv/bin/pytest backend/tests -rs
 ```
 
-Примечание: не используйте `source backend/.env` в тестовом gate.
+Note: Do not use `source backend/.env` in the test gate.
 
-## 5. Где смотреть llm_tokens расход
+## 5. Where to look at llm_tokens consumption
 
-`llm_tokens_*` появляются только когда authoring реально проходит через LLM path.
+`llm_tokens_*` appear only when authoring actually goes through the LLM path.
 
-Минимальный smoke для проверки token usage:
+Minimum smoke to check token usage:
 
 ```bash
 OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
@@ -64,9 +64,9 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
 ```
 
-Далее в ответе smoke проверяйте `details.llm_tokens_prompt`, `details.llm_tokens_completion`, `details.llm_tokens_total`.
+Next in the smoke response, check `details.llm_tokens_prompt`, `details.llm_tokens_completion`, `details.llm_tokens_total`.
 
-## 6. Связанные документы
+## 6. Related documents
 
 - `docs/developer_guide/release_reproducible_flow.md`
 - `docs/production_runbook.md`

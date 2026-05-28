@@ -1,29 +1,29 @@
 # ADR-0036: Canonical release go/no-go demo report
 
-Дата: 2026-04-23
+Date: 2026-04-23
 
-Статус: Accepted
+Status: Accepted
 
-## Контекст
+## Context
 
-После ADR-0035 Knowledge Indexing стал полноценной task lifecycle операцией, но человекочитаемый `release_readiness_report.md` в multi-file demo все еще строился вокруг старого `case_dataset_dir` retrieval path. Это оставляло demo artifact слабым acceptance сигналом для Knowledge Factory: в отчете не было видно canonical quality flags, source path mapping и факта, что retrieval использует canonical source.
+After ADR-0035, Knowledge Indexing became a full-fledged task lifecycle operation, but the human-readable `release_readiness_report.md` in the multi-file demo was still built around the old `case_dataset_dir` retrieval path. This left the demo artifact with a weak acceptance signal for Knowledge Factory: the report did not show canonical quality flags, source path mapping and the fact that the retrieval uses a canonical source.
 
-## Решение
+## Solution
 
-1. Перевести `demo_release_go_no_go_multifile_case.sh/.ps1` на canonical route:
+1. Translate `demo_release_go_no_go_multifile_case.sh/.ps1` to canonical route:
    - `POST /api/v1/tasks/knowledge-indexing/start`;
-   - `POST /api/v1/tasks/retrieval/start` с `knowledge_source=canonical`;
-   - `canonical_doc_ids` из indexing task details.
-2. Расширить `build_release_readiness_report.py`:
-   - принимать indexing status payload;
-   - показывать `Canonical Quality Summary`;
-   - строить `Canonical Source Mapping` из evidence block metadata.
-3. Сохранять прежний output artifact path:
+- `POST /api/v1/tasks/retrieval/start` with `knowledge_source=canonical`;
+- `canonical_doc_ids` from indexing task details.
+2. Extend `build_release_readiness_report.py`:
+- accept indexing status payload;
+- show `Canonical Quality Summary`;
+- build `Canonical Source Mapping` from evidence block metadata.
+3. Keep the same output artifact path:
    - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`.
 
-## Последствия
+## Consequences
 
-- Основной multi-file demo теперь проверяет полный путь `documents -> canonical documents -> knowledge_blocks -> embeddings -> retrieval -> report`.
-- Ручная проверка видит, какие `.md/.txt/.json/.docx/.pdf` файлы участвовали в evidence pack.
-- Quality flags стали частью demo artifact, а не только JSON-smoke.
-- Старый `case_dataset_dir` retrieval path остается как быстрый fallback в `smoke_retrieval_api.sh`, но не является основным multi-file demo.
+- The main multi-file demo now checks the full path `documents -> canonical documents -> knowledge_blocks -> embeddings -> retrieval -> report`.
+- Manual check sees which `.md/.txt/.json/.docx/.pdf` files were included in the evidence pack.
+- Quality flags became part of the demo artifact, and not just JSON-smoke.
+- The old `case_dataset_dir` retrieval path remains as a quick fallback in `smoke_retrieval_api.sh`, but is not the main multi-file demo.

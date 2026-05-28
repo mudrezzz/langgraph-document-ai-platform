@@ -1,117 +1,117 @@
 # OSS Contributor Funnel Program (Increment 33)
 
-Дата: 2026-05-26  
-Статус: Planned  
-Scope: community/onboarding/documentation packaging без изменения backend public contracts.
+Date: 2026-05-26
+Status: Planned
+Scope: community/onboarding/documentation packaging without changing backend public contracts.
 
-## 1. Цель
+## 1. Goal
 
-Снизить порог входа для внешних пользователей и контрибьюторов, не ломая production-first позиционирование проекта.
+Reduce the entry threshold for external users and contributors without breaking the production-first positioning of the project.
 
-Программа закрывает путь:
+The program closes the path:
 
 `value -> first demo -> question -> issue -> first PR -> return contributor`.
 
-## 2. Границы и ограничения
+## 2. Boundaries and restrictions
 
-1. Не менять stable API/MCP contracts без maintainer review и синхронизации:
+1. Do not change stable API/MCP contracts without maintainer review and synchronization:
    - `docs/developer_guide/public_contract_surface.md`
    - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/mcp_reference.md`
-2. Все docs-изменения синхронизировать через `docs/DOCS_BACKLOG.md`.
-3. Production smoke/release path не удалять; только перестроить приоритеты onboarding entrypoints.
-4. Коммуникация с контрибьюторами в рамках `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `SUPPORT.md`.
+2. Synchronize all docs changes via `docs/DOCS_BACKLOG.md`.
+3. Do not delete Production smoke/release path; just rearrange the priorities of onboarding entrypoints.
+4. Communication with contributors within the framework of `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `SUPPORT.md`.
 
-## 3. Итерационный план и слайсы
+## 3. Iteration plan and slices
 
 ## Iteration 33.1 (P0): Foundation Fixes
 
-Срок: Day 1-5.
+Duration: Day 1-5.
 
 Slice 33.1.1: License/package consistency
-- Обновить `backend/packages/pyproject.toml`: `license = { text = "Apache-2.0" }`.
-- Проверить consistency claims в root `README.md`.
-- Результат: нет расхождения между root license и package metadata.
+- Update `backend/packages/pyproject.toml`: `license = { text = "Apache-2.0" }`.
+- Check consistency claims in root `README.md`.
+- Result: there is no discrepancy between the root license and package metadata.
 
 Slice 33.1.2: Package README
-- Добавить `backend/packages/README.md`.
-- Включить блоки: `Install`, `Included`, `Not Included`, `Minimal example`.
-- Результат: package metadata `readme = "README.md"` валиден и полезен для внешнего потребителя.
+- Add `backend/packages/README.md`.
+- Enable blocks: `Install`, `Included`, `Not Included`, `Minimal example`.
+- Result: package metadata `readme = "README.md"` is valid and useful for external users.
 
 Slice 33.1.3: No-infra first success path
-- Добавить в root README блок `2-Minute Demo: No Docker, No Postgres`.
-- База: `agent_examples/run_example.py --pattern retrieval_first` (+ `--dry-run`).
-- Результат: первый запуск без FastAPI/PostgreSQL/Celery/Redis/MCP.
+- Add `2-Minute Demo: No Docker, No Postgres` block to root README.
+- Base: `agent_examples/run_example.py --pattern retrieval_first` (+ `--dry-run`).
+- Result: first launch without FastAPI/PostgreSQL/Celery/Redis/MCP.
 
 Slice 33.1.4: Contribution entrypoint cleanup
-- Исправить broken/ambiguous docs links в `CONTRIBUTING.md`.
-- Добавить секцию `First-time contributors` с безопасной зоной задач (docs/examples/packaging).
-- Результат: понятный безопасный путь первого PR без погружения во весь runtime.
+- Fix broken/ambiguous docs links in `CONTRIBUTING.md`.
+- Add section `First-time contributors` with a safe task area (docs/examples/packaging).
+- Result: a clear, safe path for the first PR without diving into the entire runtime.
 
 ## Iteration 33.2 (P1): Contributor Funnel
 
-Срок: Day 6-14.
+Duration: Day 6-14.
 
 Slice 33.2.1: GitHub templates
-- Добавить `.github/ISSUE_TEMPLATE/` (bug/documentation/feature/question).
-- Добавить `.github/pull_request_template.md`.
-- Результат: структурированные входы issue/PR.
+- Add `.github/ISSUE_TEMPLATE/` (bug/documentation/feature/question).
+- Add `.github/pull_request_template.md`.
+- Result: structured inputs issue/PR.
 
 Slice 33.2.2: Labels and triage baseline
-- Дополнить labels до набора из ТЗ (`docs`, `examples`, `ci`, `packaging`, `community`, `needs maintainer review`, `blocked`, `security` и др.).
-- Результат: каждый новый issue получает тип и triage-статус.
+- Add labels to a set of technical specifications (`docs`, `examples`, `ci`, `packaging`, `community`, `needs maintainer review`, `blocked`, `security`, etc.).
+- Result: each new issue receives a type and triage status.
 
 Slice 33.2.3: Initial public backlog
-- Создать 15-20 issues; минимум 8 пометить `good first issue`.
-- Для каждой задачи: `Context`, `Scope`, `Suggested files`, `Acceptance criteria`, `Notes for first-time contributors`.
-- Результат: публичная очередь задач для внешнего вклада.
+- Create 15-20 issues; minimum 8 mark `good first issue`.
+- For each task: `Context`, `Scope`, `Suggested files`, `Acceptance criteria`, `Notes for first-time contributors`.
+- Result: public task queue for external contribution.
 
 ## Iteration 33.3 (P2): Public Front Door
 
-Срок: Day 15-21.
+Duration: Day 15-21.
 
 Slice 33.3.1: README restructure
-- Перестроить README по порядку: who-for, when-not-to-use, 2-minute demo, example output, architecture, production path, docs map, contributing, license.
-- Результат: быстрый успех до глубокой production документации.
+- Rebuild the README in order: who-for, when-not-to-use, 2-minute demo, example output, architecture, production path, docs map, contributing, license.
+- Result: quick success to deep production documentation.
 
 Slice 33.3.2: Positioning clarity
-- Добавить comparison/use-case table (`Need / Use this project? / Why`).
-- Результат: честная квалификация пользователей и меньше нецелевых запросов.
+- Add comparison/use-case table (`Need / Use this project? / Why`).
+- Result: honest user qualification and fewer untargeted requests.
 
 Slice 33.3.3: Repository discoverability
-- Добавить GitHub topics по фактическим возможностям (<=20).
-- Результат: улучшенная discoverability без misrepresentation.
+- Add GitHub topics on actual features (<=20).
+- Result: improved discoverability without misrepresentation.
 
 ## Iteration 33.4 (P2): Community Messaging + Feedback Loop
 
-Срок: Day 22-30.
+Duration: Day 22-30.
 
 Slice 33.4.1: Contributor motivation copy
-- Добавить в README/CONTRIBUTING блок `Why contribute`:
-  - публичный OSS-трек как подтверждаемый инженерный вклад;
-  - возможность заявить о себе через реальные merged changes.
-- Результат: явная мотивация для first-time contributors.
+- Add `Why contribute` block to README/CONTRIBUTING:
+- public OSS track as a verifiable engineering contribution;
+- the opportunity to express yourself through real merged changes.
+- Result: clear motivation for first-time contributors.
 
 Slice 33.4.2: Token support policy
-- Добавить нейтральный блок о добровольной поддержке проекта "токенами" (если maintainer подтверждает канал).
-- Зафиксировать ограничения: no pay-to-prioritize, no feature guarantees, no bypass security/governance.
-- Результат: поддержка проекта без конфликта с roadmap governance.
+- Add a neutral block about voluntary support of the project with “tokens” (if the maintainer confirms the channel).
+- Fix restrictions: no pay-to-prioritize, no feature guarantees, no bypass security/governance.
+- Result: project support without conflict with roadmap governance.
 
 Slice 33.4.3: Updates and feedback tracker
-- Добавить шаблон `Project update` (раз в 2 недели).
-- Добавить `FEEDBACK.md` с полями из ТЗ.
-- Результат: системный сбор onboarding blockers и их перевод в backlog.
+- Add template `Project update` (once every 2 weeks).
+- Add `FEEDBACK.md` with fields from the TK.
+- Result: system collection of onboarding blockers and their transfer to the backlog.
 
 ## 4. Definition of Done (30 days)
 
-1. README показывает no-infra demo раньше production setup.
-2. Package/license metadata согласованы.
-3. Добавлены issue/PR templates.
-4. Сформирован backlog 15+ публичных issues, 8+ `good first issue`.
-5. `CONTRIBUTING.md` содержит first-time contributor path.
-6. Добавлены GitHub topics.
-7. Есть минимум 1 public update и 1 внешний technical post draft.
-8. Запущен feedback tracker.
+1. README shows no-infra demo before production setup.
+2. Package/license metadata are agreed upon.
+3. Added issue/PR templates.
+4. A backlog of 15+ public issues, 8+ `good first issue` has been generated.
+5. `CONTRIBUTING.md` contains the first-time contributor path.
+6. Added GitHub topics.
+7. There is at least 1 public update and 1 external technical post draft.
+8. Feedback tracker launched.
 
 ## 5. Mapping to Backlogs
 

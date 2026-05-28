@@ -1,8 +1,8 @@
 # Release Go/No-Go Multi-File Case
 
-Мини-кейс для проверки retrieval по директории из нескольких файлов.
+Mini-case for checking retrieval in a directory of several files.
 
-## Входные документы
+## Input documents
 
 - `input/01_scope_and_decision.md`
 - `input/02_security_findings.md`
@@ -14,19 +14,19 @@
 - `input/08_release_tracker.xlsx`
 - `input/09_release_briefing.pptx`
 
-## Что демонстрирует
+## What it demonstrates
 
-1. Knowledge Indexing API task для директории `input/`.
-2. Multi-file canonical ingestion (`.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`) без ручной сборки dataset JSON.
-3. Генерацию итогового отчета `output/release_readiness_report.md`.
-4. Canonical document indexing smoke через Knowledge Factory MVP.
-5. Запись derived content blocks в `knowledge_blocks` read-model.
-6. Retrieval поверх canonical `knowledge_blocks`.
-7. Итоговый markdown report с canonical quality summary и source mapping.
-8. PDF table/form extraction path: `06_audit_summary.pdf` содержит table-like и form-like layout (включая multi-line form values и rotated text line) для проверки `table_row` provenance.
-9. PDF form-confidence policy gate: можно включить threshold и проверить `pdf_form_confidence_low` в `quality_summary`.
+1. Knowledge Indexing API task for the `input/` directory.
+2. Multi-file canonical ingestion (`.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`) without manual dataset JSON assembly.
+3. Generating the final report `output/release_readiness_report.md`.
+4. Canonical document indexing smoke via Knowledge Factory MVP.
+5. Write derived content blocks to `knowledge_blocks` read-model.
+6. Retrieval over canonical `knowledge_blocks`.
+7. Final markdown report with canonical quality summary and source mapping.
+8. PDF table/form extraction path: `06_audit_summary.pdf` contains table-like and form-like layout (including multi-line form values ​​and rotated text line) to check `table_row` provenance.
+9. PDF form-confidence policy gate: you can enable threshold and check `pdf_form_confidence_low` in `quality_summary`.
 
-## Скрипты
+## Scripts
 
 - Linux: `backend/scripts/demo_release_go_no_go_multifile_case.sh`
 - Windows: `backend/scripts/demo_release_go_no_go_multifile_case.ps1`
@@ -39,19 +39,19 @@
 - Binary input generator Linux: `backend/scripts/build_binary_demo_documents.sh`
 - Binary input generator Windows: `backend/scripts/build_binary_demo_documents.ps1`
 
-Для пересборки `.docx/.pdf/.xlsx/.pptx` входов:
+To reassemble `.docx/.pdf/.xlsx/.pptx` inputs:
 
 ```bash
 bash backend/scripts/build_binary_demo_documents.sh --overwrite
 ```
 
-Smoke scripts также поддерживают флаг `--build-binary-demo-docs`, чтобы перед прогоном гарантировать наличие binary input files.
+Smoke scripts also support the `--build-binary-demo-docs` flag to ensure that binary input files are present before execution.
 
-Основной demo-скрипт `demo_release_go_no_go_multifile_case.sh/.ps1` запускает canonical indexing API, затем retrieval с `knowledge_source=canonical` и `canonical_doc_ids`, после чего обновляет `output/release_readiness_report.md`.
+The main demo script `demo_release_go_no_go_multifile_case.sh/.ps1` runs the canonical indexing API, then retrievals with `knowledge_source=canonical` and `canonical_doc_ids`, then updates `output/release_readiness_report.md`.
 
-`smoke_knowledge_indexing.sh` и `smoke_knowledge_indexing_api.sh` теперь дополнительно печатают `pdf_demo_proof` для `06_audit_summary.pdf`, чтобы явно подтвердить table/form extraction на реальном PDF fixture.
+`smoke_knowledge_indexing.sh` and `smoke_knowledge_indexing_api.sh` now additionally print `pdf_demo_proof` for `06_audit_summary.pdf` to explicitly confirm table/form extraction on the actual PDF fixture.
 
-Пример ручной проверки form-confidence threshold (warning mode):
+Example of manual check of form-confidence threshold (warning mode):
 
 ```bash
 APP_INDEXING_QUALITY_FORM_CONFIDENCE_MIN_SCORE=90 \
@@ -59,7 +59,7 @@ APP_INDEXING_QUALITY_FORM_CONFIDENCE_LOW_BLOCKING=false \
 bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 ```
 
-Пример ручной проверки OCR-confidence threshold (warning mode):
+Example of manual OCR-confidence threshold (warning mode) check:
 
 ```bash
 APP_INDEXING_QUALITY_OCR_CONFIDENCE_MIN_SCORE=70 \

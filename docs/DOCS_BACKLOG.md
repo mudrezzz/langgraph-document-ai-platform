@@ -1,117 +1,124 @@
 # Documentation Backlog (Framework)
 
-Дата старта: 2026-04-30  
-Last Update: 2026-05-27  
-Статус: Active (living document)
+Start Date: 2026-04-30  
+Last Update: 2026-05-28  
+Status: Active (living document)
 
-## Назначение
+## Purpose
 
-Этот backlog — единый источник правды по задачам на developer-документацию framework-слоя.
+This backlog is the single source of truth for framework-layer developer documentation tasks.
 
-## Правило актуальности (обязательно)
+## Freshness Rule (Required)
 
-1. Любая правка документации должна сопровождаться обновлением этого файла.
-2. Любое изменение документационного scope (новый guide, новый reference, новый policy) должно быть отражено как новая задача.
-3. При закрытии задачи обязательно обновлять:
+1. Every documentation change must update this file.
+2. Any documentation scope change (new guide, new reference, new policy) must be tracked as a new task.
+3. When a task is closed, always update:
    - `Status`
    - `Last Update`
-   - краткий `Notes` (что именно закрыто).
-4. Pull request по docs считается неполным, если `docs/DOCS_BACKLOG.md` не обновлен.
+   - short `Notes` summary (what exactly was completed).
+4. A docs pull request is considered incomplete if `docs/DOCS_BACKLOG.md` is not updated.
 
-## Статусы
+## Statuses
 
 - `Planned`
 - `In Progress`
 - `Blocked`
 - `Done`
 
-## Бэклог
+## Backlog
 
 | ID | Priority | Workstream | Task | Deliverable | Status | Last Update | Notes |
 |---|---|---|---|---|---|---|---|
-| DOC-001 | P0 | Information Architecture | Сделать единый docs entrypoint для ролей Integrator/Contributor/Maintainer | Новый индекс структуры и маршрутов чтения | Done | 2026-04-30 | Обновлен `docs/developer_guide/README.md`: добавлен role-based entrypoint и маршруты чтения для Integrator/Contributor/Maintainer. |
-| DOC-002 | P0 | Public Contracts | Зафиксировать Public Contract Surface v1 (stable/experimental) | Документ с границами стабильности | Done | 2026-04-30 | Добавлен `docs/developer_guide/public_contract_surface.md` с stable/experimental/internal матрицей по API, MCP, схемам и runtime config. |
-| DOC-003 | P0 | Framework Concepts | Описать framework layers и execution model (LangGraph runtime, async plane, HITL, quality gates) | Concept guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/framework_concepts.md` с layer map, runtime model, async plane, HITL и quality gates. |
-| DOC-004 | P0 | Onboarding | Подготовить quickstart-профили: local dev / stage-like / prod-like | Расширенный onboarding guide | Done | 2026-04-30 | `quickstart.md` переработан в HOW TO entrypoint по целям разработчика (расширение, быстрый старт нового agent flow, release path), runtime-профили вынесены в `env_profile_snippets.md`. |
-| DOC-005 | P0 | End-to-End | Добавить canonical walkthrough: documents -> indexing -> retrieval -> authoring -> HITL -> artifact | Сквозной practical guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/canonical_e2e_walkthrough.md`; guide привязан в `developer_guide/README.md` для Integrator path. |
-| DOC-006 | P0 | API Reference | Сформировать человеко-читаемый reference по FastAPI endpoints + payload contracts | API reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/api_reference.md` (endpoint groups, payload contracts, auth headers, error mapping). |
-| DOC-007 | P0 | MCP Reference | Сформировать reference по MCP services/tools/scopes/roles/errors | MCP reference guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/mcp_reference.md` с service/tool matrix, scopes, required roles и error semantics. |
-| DOC-008 | P0 | Env & Config | Сформировать единый каталог env-переменных и runtime effects | Configuration reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_config_reference.md` с runtime env catalog и profile effects. |
-| DOC-009 | P0 | Ops & Release | Упаковать smoke/release gate процесс как один reproducible flow | Operations + release playbook sync | Done | 2026-04-30 | Добавлен `docs/developer_guide/release_reproducible_flow.md`; обновлены `operations_and_release.md` и entrypoint-ссылки. |
-| DOC-010 | P0 | Extension Path | Детализировать extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Done | 2026-04-30 | Добавлен `docs/developer_guide/extension_handbook.md` с playbook-ами по workflow/tool/MCP/persistence/domain extension. |
-| DOC-011 | P1 | Persistence & Data | Описать БД-модель: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Done | 2026-04-30 | Добавлен `docs/developer_guide/persistence_reference.md` с data model map, migration policy, version lookup и rollback expectations. |
-| DOC-012 | P1 | Observability | Описать task events/observability/HITL observability и SLA интерпретацию | Observability handbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/observability_reference.md` с endpoint map, метриками и SLA interpretation rules. |
-| DOC-013 | P1 | Governance | Подготовить OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Done | 2026-04-30 | Добавлены `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`. |
-| DOC-014 | P1 | Security | Подготовить SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Done | 2026-04-30 | Добавлен `SECURITY.md` с disclosure flow, scope и RBAC limitations. |
-| DOC-015 | P1 | Versioning | Зафиксировать документационную/контрактную versioning policy и deprecation policy | Versioning policy doc | Done | 2026-04-30 | Добавлен `docs/developer_guide/versioning_policy.md` с правилами stable/experimental deprecation и contract versioning. |
-| DOC-016 | P1 | QA for Docs | Ввести docs contract checks для новых разделов и обязательных ссылок | Unit tests for docs contracts | Done | 2026-04-30 | Обновлен `backend/tests/unit/test_developer_guide_contracts.py`: проверка новых обязательных guide-страниц и baseline checks для `docs/DOCS_BACKLOG.md`. |
-| DOC-017 | P2 | Examples Catalog | Каталог reusable примеров для integrators (retrieval-first, authoring-first, MCP-first) | Examples cookbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/examples_catalog.md` с retrieval-first/authoring-first/MCP-first/canonical сценариями. |
-| DOC-018 | P2 | Architecture Decision Navigation | Добавить “ADR reading map” для внешних разработчиков | ADR navigation guide | Done | 2026-04-30 | Добавлен `docs/developer_guide/adr_reading_map.md` с role-based fast path и topic map по ADR. |
-| DOC-019 | P2 | Maintainer Playbook | Описать process для релизов docs, triage docs issues, review rules | Maintainer docs playbook | Done | 2026-04-30 | Добавлен `docs/developer_guide/maintainer_playbook.md` с intake/triage/review/release cadence и DoD для docs PR. |
-| DOC-020 | P0 | License | Определить и зафиксировать OSS-лицензию + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Добавлены `LICENSE` (Apache-2.0) и `docs/oss_license_rationale.md`. |
-| DOC-021 | P1 | Onboarding Ergonomics | Добавить profile-ready env snippets/templates (dev/stage/prod) для быстрого старта без ручного поиска переменных | Env snippets guide/template | Done | 2026-04-30 | Добавлен `docs/developer_guide/env_profile_snippets.md` с copy-paste профилями `dev/stage/prod` и рекомендуемыми smoke-командами. |
-| DOC-022 | P0 | Repository Front Door | Переписать главный README как GitHub entrypoint (value proposition + CTA + быстрые маршруты) | Marketing-oriented root README | Done | 2026-04-30 | Полностью переработан `README.md`: короткий product pitch, сценарии использования, 5-minute quickstart и маршруты в `docs/developer_guide/*`; payload contracts перенесены в `api_reference.md`. |
-| DOC-023 | P0 | Agent Builder Onboarding | Добавить в корневой README быстрый HOW TO для сценария “создать нового агента/agent flow” + extension map | README quickstart extension block | Done | 2026-04-30 | В `README.md` добавлены разделы `Quickstart: Build A New Agent Flow` и `Extension Map` с прямыми маршрутами на `framework_concepts`, `extension_handbook`, `extension_recipes`, `api_reference`, `mcp_reference`, `persistence_reference`. |
-| DOC-024 | P0 | README Conversion | Добавить в README copy-paste starters (retrieval-first/authoring-first) и короткий architecture story для non-technical visitors | README starter commands + value framing block | Done | 2026-04-30 | В `README.md` добавлены `Copy-Paste Starters` и `30-Second Architecture Story` с value claims (speed/risk/ownership) и прямыми командами старта. |
-| DOC-025 | P0 | Example Gallery | Добавить runnable библиотеку простых кейсов framework для быстрого вдохновения и старта | `backend/examples` quickstart launcher + examples guide | Done | 2026-04-30 | Добавлены `backend/examples/quickstart_agents.py` и `backend/examples/README.md` с runnable кейсами `retrieval_faq_assistant`, `authoring_policy_brief`, `hitl_review_loop`, поддержкой `--list`, `dry-run` и `--execute`. |
-| DOC-026 | P0 | Pattern Library | Добавить библиотеку design patterns с привязкой к runnable примерам и тестами | `docs/developer_guide/design_patterns/*` + unit/docs contracts | Done | 2026-04-30 | Добавлены `design_patterns/README.md` и pattern-guides (`retrieval-first`, `authoring-first`, `hitl-gate`), обновлены `README.md`/`developer_guide/README.md`, добавлен unit test `test_example_quickstart_agents.py` и расширены docs contracts. |
-| DOC-027 | P0 | Productized Agent Examples | Пересобрать examples как отдельный product-like каталог Python-агентов без необходимости читать framework internals | `agent_examples/*` (single-folder entrypoint, pattern code, tests) | Done | 2026-04-30 | Добавлен новый каталог `agent_examples/` с единым раннером `run_example.py`, общей runtime/client обвязкой, тремя pattern-папками (`retrieval_first`, `authoring_first`, `hitl_gate`) и локальными тестами. |
-| DOC-028 | P0 | Example UX Integration | Встроить новый `agent_examples` в основной onboarding и README-позиционирование проекта | README + developer guide route updates + contracts | Done | 2026-04-30 | Обновлены `README.md`, `docs/developer_guide/README.md`, `quickstart.md`, `examples_catalog.md`, `design_patterns/*`; добавлены contract/unit tests для структуры и dry-run запуска `agent_examples`. |
-| DOC-029 | P0 | Agent Examples Replatform Plan | Зафиксировать детальный план перехода demo-агентов к in-process framework usage (вместо transport-first примеров) | Program roadmap doc + docs route integration | Done | 2026-04-30 | Добавлен `docs/developer_guide/agent_examples_demo_program.md`; обновлены `developer_guide/README.md`, `design_patterns/README.md`, docs contracts. |
-| DOC-030 | P0 | Retrieval Pattern Rebuild | Пересобрать `retrieval_first` как library-style in-process агент (`main.py + workflow.py + tools.py`) | Reworked retrieval pattern folder + tests + expected output | Done | 2026-04-30 | `retrieval_first` переведен на прямой `build_retrieval_workflow(...).invoke(...)`; добавлены `main.py`, `workflow.py`, `tools.py`, `expected_output`, pattern tests и обновлен `run_example.py` на in-process execution model для retrieval. |
-| DOC-031 | P0 | Authoring Pattern Rebuild | Пересобрать `authoring_first` как in-process агент с явной artifact assembly моделью | Reworked authoring pattern folder + tests + expected output | Planned | 2026-04-30 | Фокус на понятный composition code и traceability proof в одном примере. |
-| DOC-032 | P0 | HITL Pattern Rebuild | Пересобрать `hitl_gate` как in-process pattern с reviewer loop contract | Reworked hitl pattern folder + tests + expected output | Planned | 2026-04-30 | Показывать `needs_changes -> approve` без transport-first зависимости как primary path. |
-| DOC-033 | P0 | Examples Test Harness | Добавить unified fast/full test lanes для `agent_examples` (structure/unit/smoke) | Test matrix doc + CI-ready command set | Planned | 2026-04-30 | Требуется для защиты от деградации примеров и рассинхрона с документацией. |
-| DOC-034 | P1 | Async Batch Pattern | Добавить отдельный in-process demo pattern для batch/long-running сценариев | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | После стабилизации трех базовых P0 patterns. |
-| DOC-035 | P1 | MCP Facade Pattern | Добавить отдельный demo pattern `agent as MCP tools` поверх core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Planned | 2026-04-30 | Должен показать разделение core logic и MCP transport adapter. |
-| DOC-036 | P0 | OSS Program Planning | Зафиксировать единую программу доработок contributor funnel с итерациями и слайсами | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Planned | 2026-05-26 | Базовый план для Increment 33; включает ограничения по stable contracts и Definition of Done на 30 дней. |
-| DOC-037 | P0 | Packaging Integrity | Синхронизировать package license/readme metadata с OSS policy репозитория | `backend/packages/pyproject.toml` + `backend/packages/README.md` | Done | 2026-05-26 | Закрыты Slice 33.1.1 и 33.1.2: package license metadata выровнен (`Apache-2.0`), добавлен package-level README под `readme = \"README.md\"`. |
-| DOC-038 | P0 | README No-Infra Entry | Добавить no-infra first-success path и expected output в root README | `README.md` update (2-minute demo + output proof) | Done | 2026-05-26 | Добавлен блок `2-Minute Demo: No Docker, No Postgres` с dry-run/execute командами, явным no-infra scope и expected output; production smoke path оставлен ниже. |
-| DOC-039 | P0 | First-Time Contributor Path | Добавить first-time contributor section и вычистить ссылки в contribution flow | `CONTRIBUTING.md` update | Done | 2026-05-26 | Добавлен `First-time contributors` section, описан безопасный путь первого PR, добавлен docs/examples/packaging-only check profile, исправлена ссылка на `docs/developer_guide/mcp_reference.md`. |
-| DOC-040 | P1 | Community Templates | Ввести issue forms и PR template для структурированного intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Done | 2026-05-26 | Добавлены issue forms (`bug_report`, `documentation`, `feature_request`, `question`) и PR template с type/test/contract/checklist секциями. |
-| DOC-041 | P1 | Public Backlog Funnel | Подготовить стартовый public issue backlog и label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Done | 2026-05-27 | Закрыты Slice 33.2.2 и 33.2.3: label taxonomy применен, triage baseline задокументирован, создано 16 public issues (#1-#16), из них >=8 помечены `good first issue`. |
-| DOC-042 | P2 | README Front Door v2 | Перестроить README под open-source front door и добавить comparison table | `README.md` restructure + use-case matrix | Done | 2026-05-27 | README перестроен в front-door порядок: `Who this is for` -> `When not to use` -> `2-Minute Demo` -> `Example Output` -> `What You Can Build` -> `Architecture` -> `Production Smoke` -> `Documentation Map` -> `Contributing` -> `License`. |
-| DOC-043 | P2 | Discoverability | Синхронизировать GitHub topics и позиционирование capabilities | Repository topics + docs notes | Done | 2026-05-27 | В репозитории применены topics по фактическим capabilities: `langgraph`, `document-ai`, `rag`, `mcp`, `human-in-the-loop`, `pgvector`, `fastapi`, `celery`, `openrouter`, `ai-agents`, `document-processing`, `retrieval-augmented-generation`, `pdf-processing`, `workflow-automation`. |
-| DOC-044 | P2 | Contributor Motivation & Feedback Loop | Добавить мотивационный и feedback контур для внешних контрибьюторов | README/CONTRIBUTING messaging + `FEEDBACK.md` + project update template | In Progress | 2026-05-28 | Закрыт Slice 33.4.1 и 33.4.2: в README/CONTRIBUTING добавлены `Why Contribute` и AI-assisted policy блоки (\"token contribution\" = contribution via AI agents, not donations); pending: Slice 33.4.3 (`FEEDBACK.md` + update template). |
+| DOC-001 | P0 | Information Architecture | Create a single docs entrypoint for the Integrator/Contributor/Maintainer roles | New index of structure and reading routes | Done | 2026-04-30 | Updated `docs/developer_guide/README.md`: added role-based entrypoint and reading routes for Integrator/Contributor/Maintainer. |
+| DOC-002 | P0 | Public Contracts | Commit Public Contract Surface v1 (stable/experimental) | Document with boundaries of stability | Done | 2026-04-30 | Added `docs/developer_guide/public_contract_surface.md` with stable/experimental/internal matrix for API, MCP, schemas and runtime config. |
+| DOC-003 | P0 | Framework Concepts | Describe framework layers and execution model (LangGraph runtime, async plane, HITL, quality gates) | Concept guide | Done | 2026-04-30 | Added `docs/developer_guide/framework_concepts.md` with layer map, runtime model, async plane, HITL and quality gates. |
+| DOC-004 | P0 | Onboarding | Prepare quickstart profiles: local dev / stage-like / prod-like | Advanced onboarding guide | Done | 2026-04-30 | `quickstart.md` has been reworked into a HOW TO entrypoint according to the developer's goals (extension, quick start of a new agent flow, release path), runtime profiles have been moved to `env_profile_snippets.md`. |
+| DOC-005 | P0 | End-to-End | Add canonical walkthrough: documents -> indexing -> retrieval -> authoring -> HITL -> artifact | End-to-end practical guide | Done | 2026-04-30 | Added `docs/developer_guide/canonical_e2e_walkthrough.md`; guide is linked to `developer_guide/README.md` for the Integrator path. |
+| DOC-006 | P0 | API Reference | Generate a human-readable reference using FastAPI endpoints + payload contracts | API reference guide | Done | 2026-04-30 | Added `docs/developer_guide/api_reference.md` (endpoint groups, payload contracts, auth headers, error mapping). |
+| DOC-007 | P0 | MCP Reference | Create a reference for MCP services/tools/scopes/roles/errors | MCP reference guide | Done | 2026-04-30 | Added `docs/developer_guide/mcp_reference.md` with service/tool ​​matrix, scopes, required roles and error semantics. |
+| DOC-008 | P0 | Env & Config | Create a single directory of env variables and runtime effects | Configuration reference | Done | 2026-04-30 | Added `docs/developer_guide/env_config_reference.md` with runtime env catalog and profile effects. |
+| DOC-009 | P0 | Ops & Release | Package the smoke/release gate process as one reproducible flow | Operations + release playbook sync | Done | 2026-04-30 | Added `docs/developer_guide/release_reproducible_flow.md`; updated `operations_and_release.md` and entrypoint links. |
+| DOC-010 | P0 | Extension Path | Detail extension handbooks: workflow/tool/MCP/persistence/domain | Extension documentation set | Done | 2026-04-30 | Added `docs/developer_guide/extension_handbook.md` with playbooks for workflow/tool/MCP/persistence/domain extension. |
+| DOC-011 | P1 | Persistence & Data | Describe the database model: migrations, latest/history policy, version lookup, rollback expectations | Persistence reference | Done | 2026-04-30 | Added `docs/developer_guide/persistence_reference.md` with data model map, migration policy, version lookup and rollback expectations. |
+| DOC-012 | P1 | Observability | Describe task events/observability/HITL observability and SLA interpretation | Observability handbook | Done | 2026-04-30 | Added `docs/developer_guide/observability_reference.md` with endpoint map, metrics and SLA interpretation rules. |
+| DOC-013 | P1 | Governance | Prepare OSS governance docs: CONTRIBUTING, CODE_OF_CONDUCT, SUPPORT | Governance package | Done | 2026-04-30 | Added `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`. |
+| DOC-014 | P1 | Security | Prepare SECURITY policy (vuln reporting, disclosure flow, RBAC limitations) | SECURITY.md | Done | 2026-04-30 | Added `SECURITY.md` with disclosure flow, scope and RBAC limitations. |
+| DOC-015 | P1 | Versioning | Fix the documentation/contractual versioning policy and deprecation policy | Versioning policy doc | Done | 2026-04-30 | Added `docs/developer_guide/versioning_policy.md` with stable/experimental deprecation and contract versioning rules. |
+| DOC-016 | P1 | QA for Docs | Enter docs contract checks for new sections and required links | Unit tests for docs contracts | Done | 2026-04-30 | Updated `backend/tests/unit/test_developer_guide_contracts.py`: checking new mandatory guide pages and baseline checks for `docs/DOCS_BACKLOG.md`. |
+| DOC-017 | P2 | Examples Catalog | Directory of reusable examples for integrators (retrieval-first, authoring-first, MCP-first) | Examples cookbook | Done | 2026-04-30 | Added `docs/developer_guide/examples_catalog.md` with retrieval-first/authoring-first/MCP-first/canonical scripts. |
+| DOC-018 | P2 | Architecture Decision Navigation | Add “ADR reading map” for external developers | ADR navigation guide | Done | 2026-04-30 | Added `docs/developer_guide/adr_reading_map.md` with role-based fast path and topic map for ADR. |
+| DOC-019 | P2 | Maintainer Playbook | Describe the process for docs releases, triage docs issues, review rules | Maintainer docs playbook | Done | 2026-04-30 | Added `docs/developer_guide/maintainer_playbook.md` with intake/triage/review/release cadence and DoD for docs PR. |
+| DOC-020 | P0 | License | Define and commit OSS license + rationale | LICENSE + short rationale doc | Done | 2026-04-30 | Added `LICENSE` (Apache-2.0) and `docs/oss_license_rationale.md`. |
+| DOC-021 | P1 | Onboarding Ergonomics | Add profile-ready env snippets/templates (dev/stage/prod) for a quick start without manually searching for variables | Env snippets guide/template | Done | 2026-04-30 | Added `docs/developer_guide/env_profile_snippets.md` with copy-paste `dev/stage/prod` profiles and recommended smoke commands. |
+| DOC-022 | P0 | Repository Front Door | Rewrite main README as GitHub entrypoint (value proposition + CTA + shortcuts) | Marketing-oriented root README | Done | 2026-04-30 | `README.md` has been completely redesigned: short product pitch, usage scenarios, 5-minute quickstart and routes in `docs/developer_guide/*`; payload contracts have been moved to `api_reference.md`. |
+| DOC-023 | P0 | Agent Builder Onboarding | Add a quick HOW TO to the root README for the “create a new agent/agent flow” scenario + extension map | README quickstart extension block | Done | 2026-04-30 | Sections `Quickstart: Build A New Agent Flow` and `Extension Map` with direct routes to `framework_concepts`, `extension_handbook`, `extension_recipes`, `api_reference`, `mcp_reference`, `persistence_reference` have been added to `README.md`. |
+| DOC-024 | P0 | README Conversion | Add to README copy-paste starters (retrieval-first/authoring-first) and a short architecture story for non-technical visitors | README starter commands + value framing block | Done | 2026-04-30 | Added `Copy-Paste Starters` and `30-Second Architecture Story` with value claims (speed/risk/ownership) and direct start commands to `README.md`. |
+| DOC-025 | P0 | Example Gallery | Add a runnable library of simple framework cases for quick inspiration and start | `backend/examples` quickstart launcher + examples guide | Done | 2026-04-30 | Added `backend/examples/quickstart_agents.py` and `backend/examples/README.md` with runnable cases `retrieval_faq_assistant`, `authoring_policy_brief`, `hitl_review_loop`, support for `--list`, `dry-run` and `--execute`. |
+| DOC-026 | P0 | Pattern Library | Add the design patterns library with links to runnable examples and tests | `docs/developer_guide/design_patterns/*` + unit/docs contracts | Done | 2026-04-30 | Added `design_patterns/README.md` and pattern-guides (`retrieval-first`, `authoring-first`, `hitl-gate`), updated `README.md`/`developer_guide/README.md`, added unit test `test_example_quickstart_agents.py` and extended docs contracts. |
+| DOC-027 | P0 | Productized Agent Examples | Rebuild examples as a separate product-like directory of Python agents without having to read framework internals | `agent_examples/*` (single-folder entrypoint, pattern code, tests) | Done | 2026-04-30 | Added a new directory `agent_examples/` with a single runner `run_example.py`, a common runtime/client binding, three pattern folders (`retrieval_first`, `authoring_first`, `hitl_gate`) and local tests. |
+| DOC-028 | P0 | Example UX Integration | Embed new `agent_examples` into the main onboarding and README positioning of the project | README + developer guide route updates + contracts | Done | 2026-04-30 | Updated `README.md`, `docs/developer_guide/README.md`, `quickstart.md`, `examples_catalog.md`, `design_patterns/*`; added contract/unit tests for structure and dry-run launch of `agent_examples`. |
+| DOC-029 | P0 | Agent Examples Replatform Plan | Record a detailed plan for the transition of demo agents to in-process framework usage (instead of transport-first examples) | Program roadmap doc + docs route integration | Done | 2026-04-30 | Added `docs/developer_guide/agent_examples_demo_program.md`; updated `developer_guide/README.md`, `design_patterns/README.md`, docs contracts. |
+| DOC-030 | P0 | Retrieval Pattern Rebuild | Rebuild `retrieval_first` as library-style in-process agent (`main.py + workflow.py + tools.py`) | Reworked retrieval pattern folder + tests + expected output | Done | 2026-04-30 | `retrieval_first` moved to direct `build_retrieval_workflow(...).invoke(...)`; added `main.py`, `workflow.py`, `tools.py`, `expected_output`, pattern tests and updated `run_example.py` to in-process execution model for retrieval. |
+| DOC-031 | P0 | Authoring Pattern Rebuild | Rebuild `authoring_first` as an in-process agent with an explicit artifact assembly model | Reworked authoring pattern folder + tests + expected output | Planned | 2026-04-30 | Focus on clear composition code and traceability proof in one example. |
+| DOC-032 | P0 | HITL Pattern Rebuild | Rebuild `hitl_gate` as an in-process pattern with reviewer loop contract | Reworked hitl pattern folder + tests + expected output | Planned | 2026-04-30 | Show `needs_changes -> approve` without transport-first dependency as primary path. |
+| DOC-033 | P0 | Examples Test Harness | Add unified fast/full test lanes for `agent_examples` (structure/unit/smoke) | Test matrix doc + CI-ready command set | Planned | 2026-04-30 | Required to protect against degradation of examples and out of sync with documentation. |
+| DOC-034 | P1 | Async Batch Pattern | Add a separate in-process demo pattern for batch/long-running scenarios | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | After stabilization of the three basic P0 patterns. |
+| DOC-035 | P1 | MCP Facade Pattern | Add a separate demo pattern `agent as MCP tools` on top of the core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Planned | 2026-04-30 | Should show the separation of core logic and MCP transport adapter. |
+| DOC-036 | P0 | OSS Program Planning | Fix a single improvement program contributor funnel with iterations and slices | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Planned | 2026-05-26 | Baseline for Increment 33; includes restrictions on stable contracts and Definition of Done for 30 days. |
+| DOC-037 | P0 | Packaging Integrity | Synchronize package license/readme metadata with OSS policy repository | `backend/packages/pyproject.toml` + `backend/packages/README.md` | Done | 2026-05-26 | Closed Slice 33.1.1 and 33.1.2: package license metadata aligned (`Apache-2.0`), added package-level README under `readme = \"README.md\"`. |
+| DOC-038 | P0 | README No-Infra Entry | Add no-infra first-success path and expected output to root README | `README.md` update (2-minute demo + output proof) | Done | 2026-05-26 | Added `2-Minute Demo: No Docker, No Postgres` block with dry-run/execute commands, explicit no-infra scope and expected output; The production smoke path is left below. |
+| DOC-039 | P0 | First-Time Contributor Path | Add a first-time contributor section and clear out links in the contribution flow | `CONTRIBUTING.md` update | Done | 2026-05-26 | Added `First-time contributors` section, described the safe path of the first PR, added docs/examples/packaging-only check profile, fixed the link to `docs/developer_guide/mcp_reference.md`. |
+| DOC-040 | P1 | Community Templates | Introduce issue forms and PR template for structured intake | `.github/ISSUE_TEMPLATE/*` + `.github/pull_request_template.md` | Done | 2026-05-26 | Added issue forms (`bug_report`, `documentation`, `feature_request`, `question`) and PR template with type/test/contract/checklist sections. |
+| DOC-041 | P1 | Public Backlog Funnel | Prepare the starting public issue backlog and label taxonomy | 15-20 issue drafts + label matrix + triage policy note | Done | 2026-05-27 | Slice 33.2.2 and 33.2.3 are closed: label taxonomy is applied, triage baseline is documented, 16 public issues (#1-#16) have been created, >=8 of them are marked `good first issue`. |
+| DOC-042 | P2 | README Front Door v2 | Rebuild README for open-source front door and add comparison table | `README.md` restructure + use-case matrix | Done | 2026-05-27 | README rebuilt in front-door order: `Who is this for` -> `When not to use` -> `2-Minute Demo` -> `Example Output` -> `What You Can Build` -> `Architecture` -> `Production Smoke` -> `Documentation Map` -> `Contributing` -> `License`. |
+| DOC-043 | P2 | Discoverability | Synchronize GitHub topics and positioning capabilities | Repository topics + docs notes | Done | 2026-05-27 | The repository uses topics on actual capabilities: `langgraph`, `document-ai`, `rag`, `mcp`, `human-in-the-loop`, `pgvector`, `fastapi`, `celery`, `openrouter`, `ai-agents`, `document-processing`, `retrieval-augmented-generation`, `pdf-processing`, `workflow-automation`. |
+| DOC-044 | P2 | Contributor Motivation & Feedback Loop | Add a motivational and feedback circuit for external contributors | README/CONTRIBUTING messaging + `FEEDBACK.md` + project update template | In Progress | 2026-05-28 | Closed Slice 33.4.1 and 33.4.2: `Why Contribute` and AI-assisted policy blocks were added to README/CONTRIBUTING (\"token contribution\" = contribution via AI agents, not donations); pending: Slice 33.4.3 (`FEEDBACK.md` + update template). |
+| DOC-045 | P0 | Documentation Language Baseline | Translate primary contributor-facing docs to English and remove mojibake in governance/front-door files | English-first `README/CONTRIBUTING/CODE_OF_CONDUCT/SUPPORT` + synced `docs/DOCS_BACKLOG.md` notes | Done | 2026-05-28 | Completed full translation slices for contributor-facing documentation surface (root governance/front-door docs, `docs/developer_guide/*`, `agent_examples/*`, `backend/examples/*`, `backend/scripts/README.md`) with mojibake cleanup and docs-contract test pass. |
 
-## Журнал изменений backlog
+## Backlog Change Log
 
-- 2026-05-28: Закрыт Slice 33.4.2 в рамках DOC-044; зафиксирована AI-assisted contribution policy (без финансовых \"токенов\", без pay-to-prioritize semantics).
-- 2026-05-27: Уточнен scope DOC-044: в README/CONTRIBUTING добавлен явный motivation/progression path для vibe-coders в рамках existing governance/checks.
-- 2026-05-27: DOC-044 переведен в `In Progress`; закрыт Slice 33.4.1 (motivation copy в README/CONTRIBUTING), remaining scope оставлен на Slice 33.4.2/33.4.3.
-- 2026-05-27: Закрыт DOC-043; в GitHub репозитории добавлены capability-aligned topics (14 штук, <=20).
-- 2026-05-27: Дополнен scope DOC-042: в root README добавлена comparison/use-case таблица для ранней квалификации сценариев.
-- 2026-05-27: Закрыт DOC-042; root README перестроен под front-door onboarding flow (no-infra success path до production smoke path, явный docs map и contributor navigation).
-- 2026-05-27: Закрыт DOC-041; сформирован initial public backlog из 16 issues (`#1..#16`) с новой label taxonomy, включая `good first issue` для newcomer-friendly задач.
-- 2026-05-27: DOC-041 переведен в `In Progress`; закрыт Slice 33.2.2 (labels + triage baseline), pending scope перенесен на Slice 33.2.3 (initial public issue backlog).
-- 2026-05-26: Закрыт DOC-040; добавлены `.github/ISSUE_TEMPLATE/*` и `.github/pull_request_template.md` для структурированного issue/PR intake.
-- 2026-05-26: Закрыт DOC-039; обновлен `CONTRIBUTING.md` (first-time contributor path, link consistency, docs/examples/packaging-only checks).
-- 2026-05-26: Закрыт DOC-038; в root README добавлен no-infra demo entrypoint и expected output, production smoke path сохранен как отдельный блок ниже.
-- 2026-05-26: Закрыт DOC-037; завершены Slice 33.1.1 (license alignment) и Slice 33.1.2 (`backend/packages/README.md`).
-- 2026-05-26: DOC-037 переведен в `In Progress`; закрыт Slice 33.1.1 (package license metadata -> Apache-2.0), открыт remaining scope по package README.
-- 2026-05-26: Добавлены planned задачи DOC-036..DOC-044 для Increment 33 (OSS contributor funnel); создан программный документ `docs/developer_guide/oss_contributor_funnel_program.md`; `Last Update` обновлен.
-- 2026-04-30: Закрыт DOC-030; `retrieval_first` переведен в in-process framework pattern с отдельным `main.py`, workflow/tools и локальными тестами.
-- 2026-04-30: Добавлен и закрыт DOC-029 (детальный roadmap replatform demo-агентов в in-process стиль); добавлены planned задачи DOC-030..DOC-035.
-- 2026-04-30: Закрыты DOC-027 и DOC-028; внедрен новый product-style каталог `agent_examples/` и интегрирован как основной entrypoint для python-примеров агентов.
-- 2026-04-30: Закрыты DOC-025 и DOC-026; добавлены runnable examples gallery, design patterns library и тесты/контракты для новых entrypoints.
-- 2026-04-30: Закрыт DOC-024; в README добавлены copy-paste starters и 30-second architecture story с value framing.
-- 2026-04-30: Закрыт DOC-023; в корневой README добавлены быстрый путь для нового agent flow и карта типов расширений.
-- 2026-04-30: Закрыт DOC-022; корневой `README.md` переписан в формат GitHub-витрины и синхронизирован с developer guide.
-- 2026-04-30: Обновлен DOC-004 notes; `quickstart.md` переработан в навигационный HOW TO для разработчика.
-- 2026-04-30: Закрыты DOC-017, DOC-018 и DOC-019; добавлены examples catalog, ADR reading map и maintainer docs playbook.
-- 2026-04-30: Закрыт DOC-021; добавлен env snippets guide для `dev/stage/prod`.
-- 2026-04-30: Закрыты DOC-015 и DOC-016; добавлены versioning policy и docs contract checks.
-- 2026-04-30: Закрыт DOC-020; зафиксирована лицензия Apache-2.0 и rationale.
-- 2026-04-30: Закрыты DOC-013 и DOC-014; добавлены governance и security policy документы.
-- 2026-04-30: Закрыт DOC-012; добавлен observability handbook.
-- 2026-04-30: Закрыт DOC-011; добавлен persistence/data reference.
-- 2026-04-30: Закрыт DOC-010; добавлен extension handbook по ключевым типам расширений.
-- 2026-04-30: Закрыт DOC-009; добавлен reproducible release flow guide.
-- 2026-04-30: Закрыты DOC-007 и DOC-008; добавлены `mcp_reference.md` и `env_config_reference.md`.
-- 2026-04-30: Добавлен DOC-021 (profile-ready env snippets/templates) как новый onboarding scope.
-- 2026-04-30: Закрыт DOC-006; добавлен API reference по FastAPI boundary.
-- 2026-04-30: Закрыт DOC-005; добавлен сквозной practical walkthrough `documents -> indexing -> retrieval -> authoring -> HITL -> artifact`.
-- 2026-04-30: Закрыт DOC-004; quickstart расширен профилями local dev / stage-like / prod-like.
-- 2026-04-30: Закрыт DOC-003; добавлен `framework_concepts.md` и обновлен learning path в `developer_guide/README.md`.
-- 2026-04-30: Закрыты DOC-001 и DOC-002; добавлен role-based docs entrypoint и `public_contract_surface.md` (v1).
-- 2026-04-30: Инициализирован baseline backlog для полного цикла framework documentation и OSS readiness.
+- 2026-05-28: Slice 33.6.1 completed (editorial QA pass): manually polished front-door docs (`README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`, `docs/developer_guide/README.md`, `docs/developer_guide/quickstart.md`) and aligned terminology.
+- 2026-05-28: Closed DOC-045 (all planned translation slices). Contributor-facing documentation surface is now English-first and mojibake-clean.
+- 2026-05-28: Started DOC-045 / Slice 33.5.1 (English language baseline for contributor-facing docs); focus files: `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SUPPORT.md`, and backlog sync.
+- 2026-05-28: Slice 33.5.1 continued - translated `docs/developer_guide/README.md` to English and normalized quote/dash encoding in `README.md`.
+
+- 2026-05-28: Closed Slice 33.4.2 under DOC-044; AI-assisted contribution policy was fixed (without financial \"tokens\", without pay-to-prioritize semantics).
+- 2026-05-27: The scope of DOC-044 has been clarified: an explicit motivation/progression path for vibe-coders has been added to README/CONTRIBUTING within the framework of existing governance/checks.
+- 2026-05-27: DOC-044 moved to `In Progress`; Slice 33.4.1 is closed (motivation copy in README/CONTRIBUTING), the remaining scope is left at Slice 33.4.2/33.4.3.
+- 2026-05-27: Closed DOC-043; capability-aligned topics (14 pieces, <=20) have been added to the GitHub repository.
+- 2026-05-27: Added scope DOC-042: a comparison/use-case table for early qualification of scripts was added to the root README.
+- 2026-05-27: Closed DOC-042; root README rebuilt for front-door onboarding flow (no-infra success path to production smoke path, explicit docs map and contributor navigation).
+- 2026-05-27: Closed DOC-041; an initial public backlog of 16 issues (`#1..#16`) was created with a new label taxonomy, including `good first issue` for newcomer-friendly issues.
+- 2026-05-27: DOC-041 moved to `In Progress`; Slice 33.2.2 is closed (labels + triage baseline), pending scope has been moved to Slice 33.2.3 (initial public issue backlog).
+- 2026-05-26: Closed DOC-040; added `.github/ISSUE_TEMPLATE/*` and `.github/pull_request_template.md` for structured issue/PR intake.
+- 2026-05-26: Closed DOC-039; updated `CONTRIBUTING.md` (first-time contributor path, link consistency, docs/examples/packaging-only checks).
+- 2026-05-26: Closed DOC-038; no-infra demo entrypoint and expected output are added to the root README, production smoke path is saved as a separate block below.
+- 2026-05-26: Closed DOC-037; Slice 33.1.1 (license alignment) and Slice 33.1.2 (`backend/packages/README.md`) have been completed.
+- 2026-05-26: DOC-037 moved to `In Progress`; Slice 33.1.1 is closed (package license metadata -> Apache-2.0), the remaining scope is opened according to the package README.
+- 2026-05-26: Added planned tasks DOC-036..DOC-044 for Increment 33 (OSS contributor funnel); a program document `docs/developer_guide/oss_contributor_funnel_program.md` has been created; `Last Update` has been updated.
+- 2026-04-30: Closed DOC-030; `retrieval_first` has been moved to an in-process framework pattern with separate `main.py`, workflow/tools and local tests.
+- 2026-04-30: Added and closed DOC-029 (detailed roadmap of replatform demo agents in in-process style); added planned tasks DOC-030..DOC-035.
+- 2026-04-30: DOC-027 and DOC-028 closed; a new product-style directory `agent_examples/` has been introduced and integrated as the main entrypoint for python agent examples.
+- 2026-04-30: DOC-025 and DOC-026 closed; added runnable examples gallery, design patterns library and tests/contracts for new entrypoints.
+- 2026-04-30: Closed DOC-024; copy-paste starters and 30-second architecture story with value framing have been added to the README.
+- 2026-04-30: Closed DOC-023; A quick path for the new agent flow and a map of extension types have been added to the root README.
+- 2026-04-30: Closed DOC-022; The root `README.md` has been rewritten into the GitHub showcase format and synchronized with the developer guide.
+- 2026-04-30: Updated DOC-004 notes; `quickstart.md` has been redesigned into a navigation HOW TO for the developer.
+- 2026-04-30: DOC-017, DOC-018 and DOC-019 are closed; added examples catalog, ADR reading map and maintainer docs playbook.
+- 2026-04-30: Closed DOC-021; added env snippets guide for `dev/stage/prod`.
+- 2026-04-30: DOC-015 and DOC-016 closed; added versioning policy and docs contract checks.
+- 2026-04-30: Closed DOC-020; Apache-2.0 and rationale license is fixed.
+- 2026-04-30: Closed DOC-013 and DOC-014; governance and security policy documents have been added.
+- 2026-04-30: Closed DOC-012; observability handbook added.
+- 2026-04-30: Closed DOC-011; added persistence/data reference.
+- 2026-04-30: Closed DOC-010; added extension handbook on key types of extensions.
+- 2026-04-30: Closed DOC-009; added reproducible release flow guide.
+- 2026-04-30: Closed DOC-007 and DOC-008; added `mcp_reference.md` and `env_config_reference.md`.
+- 2026-04-30: Added DOC-021 (profile-ready env snippets/templates) as a new onboarding scope.
+- 2026-04-30: Closed DOC-006; added API reference according to FastAPI boundary.
+- 2026-04-30: Closed DOC-005; added end-to-end practical walkthrough `documents -> indexing -> retrieval -> authoring -> HITL -> artifact`.
+- 2026-04-30: Closed DOC-004; quickstart extended with local dev/stage-like/prod-like profiles.
+- 2026-04-30: Closed DOC-003; added `framework_concepts.md` and updated learning path in `developer_guide/README.md`.
+- 2026-04-30: Closed DOC-001 and DOC-002; added role-based docs entrypoint and `public_contract_surface.md` (v1).
+- 2026-04-30: Initialized baseline backlog for full cycle framework documentation and OSS readiness.
+

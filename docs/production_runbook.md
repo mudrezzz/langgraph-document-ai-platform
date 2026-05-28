@@ -1,17 +1,17 @@
 # Production Runbook
 
-Дата обновления: 2026-04-29
-Статус: Increment 32 release-gate matrix baseline
+Update date: 2026-04-29
+Status: Increment 32 release-gate matrix baseline
 
-Этот runbook описывает минимальный stage/prod rehearsal для backend/framework контура: PostgreSQL, pgvector, FastAPI, Celery/Redis, MCP services, auth/RBAC smoke, backup/restore и rollback.
+This runbook describes the minimum stage/prod rehearsal for the backend/framework circuit: PostgreSQL, pgvector, FastAPI, Celery/Redis, MCP services, auth/RBAC smoke, backup/restore and rollback.
 
 ## 1. Runtime Topology
 
-Минимальный production-like контур:
+Minimum production-like outline:
 
-- PostgreSQL + pgvector для tasks, events, checkpoints, artifacts, templates, canonical documents, configuration library и vector index.
+- PostgreSQL + pgvector for tasks, events, checkpoints, artifacts, templates, canonical documents, configuration library and vector index.
 - FastAPI app: `apps.api.main:app`.
-- Redis + Celery worker для async execution plane: authoring, retrieval, knowledge indexing и HITL continuation.
+- Redis + Celery worker for async execution plane: authoring, retrieval, knowledge indexing and HITL continuation.
 - Optional FastMCP services:
   - Retrieval MCP;
   - Repository MCP;
@@ -20,12 +20,12 @@
   - Review/Approval MCP;
   - Configuration Library MCP.
 - Optional external gateways:
-  - OpenRouter для LLM authoring smoke;
-  - TEI `/embed` и `/rerank` для real retrieval fabric.
+- OpenRouter for LLM authoring smoke;
+- TEI `/embed` and `/rerank` for real retrieval fabric.
 
 ## 2. Required Environment
 
-Базовый `backend/.env` для stage/prod rehearsal:
+Basic `backend/.env` for stage/prod rehearsal:
 
 ```bash
 APP_RUNTIME_PROFILE=prod
@@ -316,7 +316,7 @@ Required result for this baseline:
 - Docker async e2e runs;
 - OpenRouter external LLM test runs when credentials are present.
 
-Дополнительно прогоните unified release-gate smoke verdict:
+Additionally, run the unified release-gate smoke verdict:
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -332,11 +332,11 @@ Optional strict policy knobs:
 - `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
 - `APP_RELEASE_GATE_MAX_DURATION_SLA_BREACHES`;
 - `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
-- `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (+ `--draft-strategy llm` и рабочий OpenRouter key).
+- `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1` (+ `--draft-strategy llm` and working OpenRouter key).
 
 Smoke output includes `checks[]` with short triage codes `RG001..RG012`; failed checks are duplicated in `failed_checks[]`.
 
-Финальный шаг release decision (официальный verdict для handoff):
+The final step of release decision (official verdict for handoff):
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -349,8 +349,8 @@ bash backend/scripts/release_decision_gate.sh --gate-profile stage
 Expected result:
 
 - script exits `0`;
-- файл `backend/.release_gate/release_decision_*.json` содержит `status=pass`;
-- `decision_reason` отражает source of truth по smoke + pytest gates.
+- the file `backend/.release_gate/release_decision_*.json` contains `status=pass`;
+- `decision_reason` reflects the source of truth by smoke + pytest gates.
 
 ## 11. Shutdown
 

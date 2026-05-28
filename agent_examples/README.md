@@ -1,97 +1,97 @@
 # Agent Examples
 
-Каталог Python-агентов, демонстрирующих разные способы работы с фреймворком.
-Каждый пример — самодостаточный паттерн: своя папка, свой `agent.py`, свой README.
+A catalog of Python agents demonstrating different ways of working with the framework.
+Each example is a self-contained pattern: its own folder, its own `agent.py`, its own README.
 
 ---
 
-## Каталог паттернов
+## Pattern catalog
 
-| Паттерн | Что показывает | Модель исполнения | Инфраструктура |
+| Pattern | What shows | Execution model | Infrastructure |
 |---|---|---|---|
-| [`retrieval_first`](#retrieval_first) | Поиск по документам + EvidencePack | In-process (прямой вызов workflow) | Не нужна |
-| [`authoring_first`](#authoring_first) | Создание артефакта через API | API-driven (HTTP → фреймворк) | PostgreSQL |
-| [`hitl_gate`](#hitl_gate) | Асинхронный цикл ревью с HITL | API-driven async + polling | PostgreSQL + async worker |
-| [`device_search`](#device_search) | Поиск товаров по запросу на разговорном языке | In-process, три фазы, два HITL | Не нужна |
+| [`retrieval_first`](#retrieval_first) | Document Search + EvidencePack | In-process (direct workflow call) | Not needed |
+| [`authoring_first`](#authoring_first) | Creating an artifact via API | API-driven (HTTP → framework) | PostgreSQL |
+| [`hitl_gate`](#hitl_gate) | Asynchronous review cycle with HITL | API-driven async + polling | PostgreSQL + async worker |
+| [`device_search`](#device_search) | Product search by request in spoken language | In-process, three phases, two HITL | Not needed |
 
 ---
 
-## Архитектурный контекст
+## Architectural context
 
-Паттерны разделены на два класса по модели исполнения:
+Patterns are divided into two classes according to their execution model:
 
-**In-process** — агент импортирует фреймворк как библиотеку и вызывает
-`workflow.invoke()` напрямую внутри одного Python-процесса. Не нужен HTTP,
-нет сетевых задержек, трасса выполнения полностью видна в памяти.
-Это целевая модель для новых агентов.
+**In-process** - the agent imports the framework as a library and calls
+`workflow.invoke()` directly inside one Python process. No HTTP needed
+there are no network delays, the execution trace is completely visible in memory.
+This is the target model for new agents.
 
-**API-driven** — агент общается с развёрнутым бэкендом через HTTP (`/start`,
-`/task/{id}`, `/hitl/submit`). Нужна PostgreSQL и, для async-пути, воркер.
-`authoring_first` и `hitl_gate` пока в этом режиме, запланирован replatform.
+**API-driven** - the agent communicates with the deployed backend via HTTP (`/start`,
+`/task/{id}`, `/hitl/submit`). You need PostgreSQL and, for the async path, a worker.
+`authoring_first` and `hitl_gate` are still in this mode, a replatform is planned.
 
 ---
 
-## Паттерны
+## Patterns
 
 ### retrieval_first
 
-Минимальный агент поиска по документарному корпусу. Принимает текстовый
-запрос, прогоняет его через `RetrievalWorkflow` (in-process), возвращает
-`EvidencePack` — найденные блоки документов с источниками и confidence.
+A minimal search agent for a documentary corpus. Accepts text
+request, runs it through `RetrievalWorkflow` (in-process), returns
+`EvidencePack` - ​​found blocks of documents with sources and confidence.
 
-Показывает: как собрать агента как Python-композицию поверх framework
-contracts без единого HTTP-вызова.
+Shows: how to build an agent as a Python composition on top of the framework
+contracts without a single HTTP call.
 
 ```
-Запрос → RetrievalWorkflow.invoke() → EvidencePack (блоки, источники, gaps)
+Request → RetrievalWorkflow.invoke() → EvidencePack (blocks, sources, gaps)
 ```
 
-**Запуск:**
+**Launch:**
 ```bash
 .venv/bin/python agent_examples/patterns/retrieval_first/main.py
 ```
 
-[Подробный README →](patterns/retrieval_first/README.md)
+[Detailed README →](patterns/retrieval_first/README.md)
 
 ---
 
 ### authoring_first
 
-Агент создания артефакта: задаёт вопрос API фреймворка, дожидается
-синхронного ответа, возвращает готовый артефакт с traceability-секциями.
+Artifact creation agent: asks a question to the framework API, waits
+synchronous response, returns a finished artifact with traceability sections.
 
-Показывает: как работает `/authoring/start` → `/task/{id}` → `/artifact/{id}`
-цикл; как получить итоговый документ с полной трассируемостью.
+Shows: how `/authoring/start` → `/task/{id}` → `/artifact/{id}` works
+cycle; how to get a final document with full traceability.
 
 ```
-Запрос → POST /authoring/start → GET /task/{id} → GET /artifact/{id} → Артефакт
+Request → POST /authoring/start → GET /task/{id} → GET /artifact/{id} → Artifact
 ```
 
-**Запуск:**
+**Launch:**
 ```bash
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
-[Подробный README →](patterns/authoring_first/README.md)
+[Detailed README →](patterns/authoring_first/README.md)
 
 ---
 
 ### hitl_gate
 
-Агент с асинхронным циклом ревью. Запускает задачу через `start_async`,
-поллит статус, при `waiting_human` подаёт решение ревьюера (`needs_changes`
-или `approve`), повторяет до завершения.
+Agent with an asynchronous review cycle. Starts a task via `start_async`,
+pollit status, with `waiting_human` submits the reviewer's decision (`needs_changes`
+or `approve`), repeats until completion.
 
-Показывает: как встроить reviewer-in-the-loop в агент; как управлять
-идемпотентными HITL-решениями через API.
+Shows: how to integrate reviewer-in-the-loop into an agent; how to manage
+idempotent HITL solutions via API.
 
 ```
 start_async → poll(waiting_human) → submit_hitl_review → poll → … → completed
 ```
 
-**Запуск:**
+**Launch:**
 ```bash
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
@@ -99,81 +99,81 @@ bash backend/scripts/async_up.sh
 .venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
 ```
 
-[Подробный README →](patterns/hitl_gate/README.md)
+[Detailed README →](patterns/hitl_gate/README.md)
 
 ---
 
 ### device_search
 
-Агент поиска и подбора техники по запросу на разговорном языке. Берёт запрос
-вида "нужен планшет для чтения до 25 000 руб." и возвращает Markdown-отчёт
-с ранжированием устройств, оценками по критериям и ссылками на источники.
+Agent for searching and selecting equipment upon request in spoken language. Takes the request
+like “you need a tablet for reading up to 25,000 rubles.” and returns a Markdown report
+with ranking of devices, ratings based on criteria and links to sources.
 
-Показывает: трёхфазную оркестрацию на `BaseWorkflow`; два интерактивных
-HITL-порога; доказательную базу (каждая оценка подкреплена реальными URL);
-`WorkflowNodeEventSink` для потайминга узлов.
+Shows: three-phase orchestration on `BaseWorkflow`; two interactive
+HITL threshold; evidence base (each assessment is supported by real URLs);
+`WorkflowNodeEventSink` for node timing.
 
 ```
 parse_intent → map_criteria
-    ↓ HITL-1: согласование критериев
+↓ HITL-1: harmonization of criteria
 search_listings → gather_evidence → enrich_reviews → score_and_compare
-    ↓ HITL-2: согласование результатов
+↓ HITL-2: harmonization of results
 generate_report
 ```
 
-**Запуск (интерактивный):**
+**Launch (interactive):**
 ```bash
 export OPENROUTER_API_KEY="sk-or-..."
 .venv/bin/python agent_examples/patterns/device_search/main.py \
-  --query "Нужен планшет для чтения книг, бюджет до 25000 рублей"
+--query "Need a tablet for reading books, budget up to 25,000 rubles"
 ```
 
-**Запуск (автоматический, без пауз):**
+**Start (automatic, without pauses):**
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern device_search
 ```
 
-[Подробный README →](patterns/device_search/README.md)
+[Detailed README →](patterns/device_search/README.md)
 
 ---
 
-## Общий раннер
+## General runner
 
-Все паттерны можно запустить через единый раннер:
+All patterns can be launched through a single runner:
 
 ```bash
-.venv/bin/python agent_examples/run_example.py --pattern <имя>
+.venv/bin/python agent_examples/run_example.py --pattern <name>
 ```
 
-Доступные имена: `retrieval_first`, `authoring_first`, `hitl_gate`, `device_search`.
+Available names: `retrieval_first`, `authoring_first`, `hitl_gate`, `device_search`.
 
-Dry-run (без реальных вызовов LLM/API):
+Dry-run (no real LLM/API calls):
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first --dry-run
 ```
 
 ---
 
-## Тесты
+## Tests
 
 ```bash
 # Unit + smoke — retrieval_first
 .venv/bin/pytest -q agent_examples/patterns/retrieval_first/tests/test_agent.py
 
-# Контракт структуры всех паттернов
+# Contract structure of all patterns
 .venv/bin/pytest -q backend/tests/unit/test_agent_examples_contracts.py
 
-# Общий раннер
+# General runner
 .venv/bin/pytest -q agent_examples/tests/test_run_example.py
 ```
 
 ---
 
-## Структура
+## Structure
 
 ```
 agent_examples/
-├── run_example.py           # общий раннер
+├── run_example.py # general runner
 ├── common/                  # FrameworkClient, shared utilities
 └── patterns/
     ├── retrieval_first/     # in-process document retrieval

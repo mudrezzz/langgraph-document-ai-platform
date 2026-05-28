@@ -1,32 +1,32 @@
-# ADR-0007: LangGraph runtime execution в BaseWorkflow
+# ADR-0007: LangGraph runtime execution in BaseWorkflow
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-Базовый workflow ранее был placeholder-реализацией без фактического graph runtime. Для соответствия архитектурному принципу "LangGraph как единый orchestration runtime" нужно перевести invoke/resume в runtime-модель графа.
+The basic workflow was previously a placeholder implementation without an actual graph runtime. To comply with the architectural principle "LangGraph as a single orchestration runtime" you need to translate invoke/resume into the graph runtime model.
 
-## Решение
+## Solution
 
-1. Расширить `BaseWorkflow`:
-   - `compile()` строит LangGraph для invoke/resume путей;
-   - `invoke()` и `resume()` выполняют compiled graph;
-   - в fallback-режиме (если runtime недоступен) сохраняется совместимость.
-2. Ввести явные extension points:
-   - `execute(state)` — бизнес-логика invoke;
-   - `execute_resume(state)` — бизнес-логика resume.
-3. Перевести `RetrievalPackWorkflow` на `execute/execute_resume` вместо переопределения invoke/resume.
+1. Extend `BaseWorkflow`:
+- `compile()` builds LangGraph for invoke/resume paths;
+- `invoke()` and `resume()` execute the compiled graph;
+- in fallback mode (if runtime is not available) compatibility is maintained.
+2. Enter explicit extension points:
+- `execute(state)` — invoke business logic;
+- `execute_resume(state)` - resume business logic.
+3. Translate `RetrievalPackWorkflow` to `execute/execute_resume` instead of overriding invoke/resume.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- lifecycle workflow стал соответствовать LangGraph-first подходу;
-- единая модель исполнения для новых workflow;
-- проще расширять interrupt/resume и graph branches.
+- lifecycle workflow began to comply with the LangGraph-first approach;
+- a unified execution model for new workflows;
+- it’s easier to expand interrupt/resume and graph branches.
 
-Минусы:
+Cons:
 
-- требуется дополнительная интеграция checkpointer/persistence для production;
-- увеличилась сложность базового слоя workflow по сравнению с placeholder.
+- additional checkpointer/persistence integration for production is required;
+- the complexity of the base workflow layer has increased compared to placeholder.

@@ -1,27 +1,27 @@
-﻿# ADR-0003: Typed contracts и политика state
+﻿# ADR-0003: Typed contracts and state policy
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-Система использует большое количество межслойных контрактов: API, workflow state, RAG, MCP, approvals.
+The system uses a large number of cross-layer contracts: API, workflow state, RAG, MCP, approvals.
 
-## Решение
+## Solution
 
-- Pydantic v2 используется как базовый формат описания payload/state contracts.
-- Framework interfaces задаются через `Protocol`/`ABC` с типизацией.
-- Workflow state хранит только orchestration-значимые поля.
-- Крупные payloads выносятся в stores и передаются через ссылки/идентификаторы.
+- Pydantic v2 is used as the base format for describing payload/state contracts.
+- Framework interfaces are specified via `Protocol`/`ABC` with typing.
+- Workflow state stores only orchestration-significant fields.
+- Large payloads are placed in stores and transmitted through links/identifiers.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- стабильные контракты между командами;
-- ранняя валидация ошибок данных;
-- предсказуемая миграция и версионирование схем.
+- stable contracts between teams;
+- early validation of data errors;
+- predictable migration and versioning of schemas.
 
-Минусы:
+Cons:
 
-- требуется поддерживать совместимость схем при эволюции.
+- it is required to maintain compatibility of schemes during evolution.

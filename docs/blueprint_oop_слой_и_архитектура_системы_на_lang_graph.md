@@ -1,42 +1,42 @@
-# Архитектурный blueprint
+# Architectural blueprint
 
-## OOP-слой, LangGraph workflows, MCP contracts и структура реализации
+## OOP layer, LangGraph workflows, MCP contracts and implementation structure
 
-## 1. Назначение документа
+## 1. Purpose of the document
 
-Настоящий документ является следующим уровнем детализации после ТЗ на систему документных AI-агентов на базе LangGraph.
+This document is the next level of detail after the technical specifications for a system of document AI agents based on LangGraph.
 
-Документ фиксирует:
+The document records:
 
-- архитектурную декомпозицию системы по сервисам и модулям;
-- структуру репозиториев и пакетов;
-- целевой OOP-слой абстракции над типовыми компонентами;
-- состав LangGraph workflows и subgraphs;
-- основные contracts между слоями системы;
-- состав MCP-серверов и их interfaces;
-- принципы реализации reusable framework layer внутри проекта.
+- architectural decomposition of the system into services and modules;
+- structure of repositories and packages;
+- target OOP abstraction layer over standard components;
+- composition of LangGraph workflows and subgraphs;
+- basic contracts between layers of the system;
+- composition of MCP servers and their interfaces;
+- principles for implementing a reusable framework layer within a project.
 
-Основная цель документа — определить небольшое, строго стандартизированное, объектно-ориентированное внутреннее framework-ядро, которое позволит ускорять разработку новых агентов, retrieval-пайплайнов и document workflows без накопления хаоса.
+The main goal of the document is to define a small, strictly standardized, object-oriented internal framework core that will speed up the development of new agents, retrieval pipelines and document workflows without accumulating chaos.
 
 ---
 
-## 2. Главная идея детализации
+## 2. The main idea of ​​detailing
 
-Система должна состоять из двух уровней:
+The system should consist of two levels:
 
 ### 2.1. Product layer
 
-Это прикладная логика конкретной бизнес-системы:
+This is the applied logic of a specific business system:
 
-- SAA / BA-агенты;
-- retrieval-пайплайны;
+- SAA/BA agents;
+- retrieval pipelines;
 - document authoring;
-- review и approval flows;
-- работа с шаблонами, ТЗ, СТО и проектными артефактами.
+- review and approval flows;
+- work with templates, technical specifications, technical specifications and design artifacts.
 
 ### 2.2. Internal framework layer
 
-Это небольшой OOP-слой над типовыми техническими примитивами:
+This is a small OOP layer on top of typical technical primitives:
 
 - Agent;
 - Tool;
@@ -53,58 +53,58 @@
 - HITL Gateway;
 - MCP Service.
 
-Идея состоит в том, чтобы бизнес-команда не собирала каждый новый agent flow вручную из разрозненных библиотек, а работала через устойчивые доменные и инфраструктурные абстракции.
+The idea is that the business team does not manually assemble each new agent flow from disparate libraries, but works through stable domain and infrastructure abstractions.
 
 ---
 
-## 3. Ключевые архитектурные принципы OOP-слоя
+## 3. Key architectural principles of the OOP layer
 
 ## 3.1. Strict OOP
 
-Framework layer должен строго опираться на объектно-ориентированные принципы.
+The Framework layer must strictly rely on object-oriented principles.
 
-Обязательные требования:
+Mandatory requirements:
 
-- SRP — каждый класс отвечает за одну роль;
-- OCP — расширение через наследование и композицию, а не через переписывание базовых классов;
-- LSP — замена конкретных реализаций не должна ломать поведение системы;
-- ISP — маленькие интерфейсы вместо больших “бог-объектов”;
-- DIP — бизнес-слой зависит от абстракций, а не от конкретных библиотек.
+- SRP - each class is responsible for one role;
+- OCP - extension through inheritance and composition, rather than through rewriting base classes;
+- LSP - replacing specific implementations should not break the behavior of the system;
+- ISP - small interfaces instead of large “god-objects”;
+- DIP - the business layer depends on abstractions rather than specific libraries.
 
 ## 3.2. Composition over inheritance
 
-Наследование используется только для устойчивых базовых ролей. Поведение системы строится преимущественно через композицию.
+Inheritance is used only for stable base roles. The behavior of the system is built primarily through composition.
 
 ## 3.3. No hidden magic
 
-Внутренний framework не должен становиться “магическим фреймворком”, который скрывает поведение.
+The internal framework should not become a “magic framework” that hides behavior.
 
-Каждая абстракция должна:
+Each abstraction must:
 
-- иметь понятный интерфейс;
-- иметь прозрачный lifecycle;
-- иметь явные зависимости;
-- быть дебажимой.
+- have a clear interface;
+- have a transparent lifecycle;
+- have obvious dependencies;
+- to be a fool.
 
 ## 3.4. Typed contracts everywhere
 
-Все интерфейсы должны быть типизированы. Внутренние и внешние данные должны описываться через Pydantic-схемы и/или Protocol/ABC контракты.
+All interfaces must be typed. Internal and external data must be described through Pydantic schemas and/or Protocol/ABC contracts.
 
-## 3.5. LangGraph остается runtime-ядром
+## 3.5. LangGraph remains the runtime core
 
-OOP-слой не заменяет LangGraph, а организует и стандартизирует работу с ним. LangGraph остается системным runtime для orchestration.
+The OOP layer does not replace LangGraph, but organizes and standardizes work with it. LangGraph remains the system runtime for orchestration.
 
 ---
 
-## 4. Архитектура репозиториев
+## 4. Repository architecture
 
-## 4.1. Рекомендуемая структура репозиториев
+## 4.1. Recommended repository structure
 
-### Вариант A — Monorepo
+### Option A - Monorepo
 
-Предпочтительный вариант для первой production-версии.
+The preferred option for the first production version.
 
-Состав:
+Compound:
 
 - `apps/api`
 - `apps/frontend`
@@ -119,24 +119,24 @@ OOP-слой не заменяет LangGraph, а организует и ста�
 - `packages/domain-authoring`
 - `packages/tests`
 
-### Вариант B — Multi-repo
+### Option B - Multi-repo
 
-Допускается только на более позднем этапе, если монорепозиторий начинает тормозить процессы.
+Allowed only at a later stage if the monorepository begins to slow down processes.
 
-## 4.2. Предпочтение monorepo
+## 4.2. Preference monorepo
 
-На старте предпочтителен monorepo, потому что он:
+At the start, monorepo is preferable because it:
 
-- упрощает согласование contracts;
-- упрощает refactoring framework layer;
-- уменьшает транзакционные издержки между сервисами;
-- ускоряет развитие reusable abstractions.
+- simplifies the negotiation of contracts;
+- simplifies refactoring framework layer;
+- reduces transaction costs between services;
+- accelerates the development of reusable abstractions.
 
 ---
 
-## 5. Структура Python backend-кода
+## 5. Python backend code structure
 
-## 5.1. Верхнеуровневая структура
+## 5.1. Top-level structure
 
 ```text
 backend/
@@ -201,41 +201,41 @@ backend/
 
 ## 6. OOP framework layer
 
-## 6.1. Назначение framework layer
+## 6.1. Purpose of the framework layer
 
-Framework layer должен предоставить ограниченный набор стабильных абстракций, на которых строятся все прикладные flows.
+The Framework layer must provide a limited set of stable abstractions on which all application flows are built.
 
-### 6.1.1. Framework layer НЕ должен
+### 6.1.1. Framework layer should NOT
 
-- превращаться в второй LangChain;
-- скрывать LangGraph слишком глубоко;
-- усложнять доступ к низкоуровневым возможностям;
-- вводить собственный DSL без необходимости.
+- turn into a second LangChain;
+- hide LangGraph too deeply;
+- complicate access to low-level capabilities;
+- enter your own DSL without the need.
 
-### 6.1.2. Framework layer ДОЛЖЕН
+### 6.1.2. Framework layer MUST
 
-- стандартизировать объектные модели;
-- стандартизировать lifecycle узлов и агентов;
-- унифицировать RAG-паттерны;
-- унифицировать tool contracts;
-- унифицировать state contracts;
-- уменьшать boilerplate.
+- standardize object models;
+- standardize the lifecycle of nodes and agents;
+- unify RAG patterns;
+- unify tool contracts;
+- unify state contracts;
+- reduce boilerplate.
 
 ---
 
-## 7. Базовые абстракции framework layer
+## 7. Basic abstractions of the framework layer
 
 ## 7.1. Agent layer
 
 ### 7.1.1. IAgent
 
-Базовый интерфейс агента.
+Basic agent interface.
 
-Назначение:
+Purpose:
 
-- определить единый контракт для всех агентных ролей.
+- define a single contract for all agent roles.
 
-Минимальный интерфейс:
+Minimal interface:
 
 - `name`;
 - `description`;
@@ -247,39 +247,39 @@ Framework layer должен предоставить ограниченный �
 
 ### 7.1.2. BaseAgent
 
-Абстрактная базовая реализация.
+Abstract base implementation.
 
-Ответственность:
+Responsibility:
 
-- общее поведение lifecycle;
-- интеграция с model gateway;
-- логирование;
-- обработка structured output;
-- стандартная обработка ошибок.
+- general lifecycle behavior;
+- integration with model gateway;
+- logging;
+- processing structured output;
+- standard error handling.
 
 ### 7.1.3. ToolAgent
 
-Агент, умеющий работать с toolset.
+An agent who can work with toolset.
 
 ### 7.1.4. ReviewAgent
 
-Специализация агента для reviewer-паттернов.
+Agent specialization for reviewer patterns.
 
 ### 7.1.5. SupervisorAgent
 
-Специализация агента, которая возвращает routing/decision artifact.
+Agent specialization, which returns a routing/decision artifact.
 
 ### 7.1.6. HumanGateAgent
 
-Специализация для human-interrupt boundary.
+Specialization for human-interrupt boundary.
 
 ## 7.2. Tool layer
 
 ### 7.2.1. ITool
 
-Базовый интерфейс tool.
+Basic tool interface.
 
-Методы:
+Methods:
 
 - `name()`;
 - `description()`;
@@ -289,9 +289,9 @@ Framework layer должен предоставить ограниченный �
 
 ### 7.2.2. BaseTool
 
-Абстрактная реализация tool.
+Abstract implementation of tool.
 
-Общие обязанности:
+General responsibilities:
 
 - validation;
 - tracing;
@@ -300,22 +300,22 @@ Framework layer должен предоставить ограниченный �
 
 ### 7.2.3. ToolRegistry
 
-Реестр tool-объектов.
+Registry of tool objects.
 
-Задачи:
+Tasks:
 
-- регистрация;
+- registration;
 - lookup;
 - policy filtering;
 - capability discovery.
 
 ### 7.2.4. ToolExecutor
 
-Сервис выполнения tool-команд.
+Service for executing tool commands.
 
-Нужен для:
+Needed for:
 
-- унифицированного вызова tools;
+- unified call to tools;
 - retries;
 - timeouts;
 - idempotency handling;
@@ -325,70 +325,70 @@ Framework layer должен предоставить ограниченный �
 
 ### 7.3.1. IWorkflow
 
-Базовый интерфейс workflow.
+Basic workflow interface.
 
 ### 7.3.2. BaseWorkflow
 
-Абстракция для LangGraph-backed workflow.
+Abstraction for LangGraph-backed workflow.
 
-Обязанности:
+Responsibilities:
 
-- объявление state schema;
-- регистрация nodes;
-- регистрация edges;
+- state schema declaration;
+- nodes registration;
+- edges registration;
 - compile();
 - invoke();
 - resume();
 
 ### 7.3.3. SubgraphWorkflow
 
-Абстракция для reusable subgraph.
+Abstraction for reusable subgraph.
 
 ### 7.3.4. WorkflowFactory
 
-Фабрика создания workflow-объектов по типу задачи.
+Factory for creating workflow objects by task type.
 
 ## 7.4. State layer
 
 ### 7.4.1. IStateModel
 
-Контракт для workflow state.
+Contract for workflow state.
 
 ### 7.4.2. BaseStateModel
 
-Базовая обертка над Pydantic state contract.
+Basic wrapper for Pydantic state contract.
 
 ### 7.4.3. StateSerializer
 
-Сериализация/десериализация state.
+Serialization/deserialization of state.
 
 ### 7.4.4. StatePatch
 
-Контракт частичных обновлений state.
+Contract for partial state updates.
 
 ## 7.5. RAG layer
 
 ### 7.5.1. IRetriever
 
-Контракт retriever’а.
+Retriever's contract.
 
-Методы:
+Methods:
 
 - `retrieve(query, filters, context)`.
 
 ### 7.5.2. IReranker
 
-Контракт reranker’а.
+Reranker's contract.
 
 ### 7.5.3. IEvidenceBuilder
 
-Контракт сборщика evidence pack.
+Evidence pack collector contract.
 
 ### 7.5.4. BaseRetrievalPipeline
 
-Базовый класс иерархического retrieval pipeline.
+The base class of the hierarchical retrieval pipeline.
 
-Шаги:
+Steps:
 
 - prefilter;
 - summary retrieve;
@@ -398,105 +398,105 @@ Framework layer должен предоставить ограниченный �
 
 ### 7.5.5. HierarchicalRAGPipeline
 
-Конкретная реализация базового pipeline.
+A specific implementation of the basic pipeline.
 
 ## 7.6. Storage layer
 
 ### 7.6.1. IDocumentStore
 
-Контракт доступа к документам.
+Document access contract.
 
 ### 7.6.2. IKnowledgeStore
 
-Контракт работы с canonical documents и knowledge blocks.
+Contract for working with canonical documents and knowledge blocks.
 
 ### 7.6.3. IVectorStore
 
-Контракт работы с vector storage.
+Contract for work with vector storage.
 
 ### 7.6.4. ICheckpointStore
 
-Контракт checkpoint storage.
+Checkpoint storage contract.
 
 ### 7.6.5. IArtifactStore
 
-Контракт хранения generated artifacts.
+Storage contract for generated artifacts.
 
 ## 7.7. DB layer
 
 ### 7.7.1. IRepository
 
-Базовый repository contract.
+Basic repository contract.
 
 ### 7.7.2. BaseRepository
 
-Абстрактная база для PostgreSQL-backed repository.
+Abstract base for PostgreSQL-backed repository.
 
 ### 7.7.3. UnitOfWork
 
-Абстракция транзакционной границы.
+Transactional boundary abstraction.
 
 ### 7.7.4. RepositoryFactory
 
-Фабрика репозиториев.
+Repository Factory.
 
 ## 7.8. Model layer
 
 ### 7.8.1. IChatModelGateway
 
-Контракт доступа к генеративной модели.
+Generative model access contract.
 
 ### 7.8.2. IEmbeddingGateway
 
-Контракт embeddings.
+Contract embeddings.
 
 ### 7.8.3. IRerankGateway
 
-Контракт rerank.
+Contract rerank.
 
 ### 7.8.4. ModelGatewayFactory
 
-Фабрика model gateways.
+Factory model gateways.
 
 ## 7.9. HITL layer
 
 ### 7.9.1. IHumanReviewPort
 
-Контракт связи с human review boundary.
+Communication contract with the human review boundary.
 
 ### 7.9.2. HumanInterruptService
 
-Сервис создания interrupt payloads.
+Service for creating interrupt payloads.
 
 ### 7.9.3. HumanResumeService
 
-Сервис обработки resume payloads.
+Resume payloads processing service.
 
 ### 7.9.4. ApprovalPolicy
 
-Политика обязательных approval points.
+Policy of mandatory approval points.
 
 ## 7.10. MCP layer
 
 ### 7.10.1. IMcpService
 
-Контракт MCP-сервиса.
+MCP service contract.
 
 ### 7.10.2. BaseFastMcpService
 
-Базовая реализация MCP-сервиса на FastMCP.
+Basic implementation of MCP service on FastMCP.
 
 ### 7.10.3. McpToolAdapter
 
-Адаптер между framework tools и MCP tools.
+Adapter between framework tools and MCP tools.
 
 ---
 
-## 8. Рекомендуемая объектная модель
+## 8. Recommended object model
 
-## 8.1. Композиция уровня agent
+## 8.1. Agent level composition
 
-Каждый агент должен собираться из следующих зависимостей:
+Each agent must be built from the following dependencies:
 
 - model gateway;
 - prompt builder;
@@ -506,25 +506,25 @@ Framework layer должен предоставить ограниченный �
 - policies;
 - optional memory/state accessor.
 
-### Пример композиции
+### Composition example
 
 `SupervisorAgent = BaseAgent + DecisionPromptBuilder + StructuredOutputParser + RoutingPolicy`
 
-## 8.2. Композиция retrieval pipeline
+## 8.2. Composition retrieval pipeline
 
 `HierarchicalRAGPipeline = Prefilter + SummaryRetriever + DetailRetriever + Reranker + EvidenceBuilder`
 
-## 8.3. Композиция workflow
+## 8.3. Workflow composition
 
 `SectionAuthoringWorkflow = SupervisorAgent + ResearchAgent + WriterAgent + ReviewerAgent + HITL Service + Artifact Builder`
 
 ---
 
-## 9. Обязательные abstract contracts
+## 9. Mandatory abstract contracts
 
-## 9.1. Базовые ABC / Protocol contracts
+## 9.1. Basic ABC/Protocol contracts
 
-Проект должен содержать следующие обязательные абстракции:
+The project must contain the following required abstractions:
 
 - `IAgent`
 - `ITool`
@@ -545,9 +545,9 @@ Framework layer должен предоставить ограниченный �
 - `IHumanReviewPort`
 - `IMcpService`
 
-## 9.2. Правило зависимости
+## 9.2. Dependency Rule
 
-Все прикладные domain-классы должны зависеть только от этих абстракций, а не от concrete adapters.
+All applied domain classes should depend only on these abstractions, and not on concrete adapters.
 
 ---
 
@@ -555,9 +555,9 @@ Framework layer должен предоставить ограниченный �
 
 ## 10.1. Infrastructure adapters
 
-Concrete-адаптеры должны быть вынесены в `infra/` и не должны протекать в domain logic.
+Concrete adapters should be placed in `infra/` and should not flow into domain logic.
 
-Минимальный набор concrete adapters:
+Minimum set of concrete adapters:
 
 - `VllmChatModelGateway`
 - `TeiEmbeddingGateway`
@@ -572,9 +572,9 @@ Concrete-адаптеры должны быть вынесены в `infra/` и 
 
 ## 10.2. Adapter rule
 
-Concrete adapter всегда реализует интерфейс framework layer.
+Concrete adapter always implements the framework layer interface.
 
-Пример:
+Example:
 
 - `PgVectorStoreAdapter implements IVectorStore`
 - `VllmChatModelGateway implements IChatModelGateway`
@@ -582,15 +582,15 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ---
 
-## 11. LangGraph workflows и subgraphs
+## 11. LangGraph workflows and subgraphs
 
-## 11.1. Каталог workflows
+## 11.1. Workflows directory
 
 ### 11.1.1. KnowledgeIndexingWorkflow
 
-Назначение:
+Purpose:
 
-- обход источников;
+- bypassing sources;
 - parsing;
 - canonicalization;
 - metadata extraction;
@@ -601,7 +601,7 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 11.1.2. RetrievalPackWorkflow
 
-Назначение:
+Purpose:
 
 - task understanding;
 - filter building;
@@ -611,16 +611,16 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 11.1.3. TemplateCompileWorkflow
 
-Назначение:
+Purpose:
 
-- parsing шаблона;
+- template parsing;
 - template spec;
 - section contracts;
 - validation rules.
 
 ### 11.1.4. SectionAuthoringWorkflow
 
-Назначение:
+Purpose:
 
 - supervisor routing;
 - research;
@@ -631,7 +631,7 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 11.1.5. DocumentAssemblyWorkflow
 
-Назначение:
+Purpose:
 
 - section collection;
 - chapter summaries;
@@ -641,7 +641,7 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 11.1.6. ExistingDocumentUpdateWorkflow
 
-Назначение:
+Purpose:
 
 - diff detection;
 - impacted sections;
@@ -651,14 +651,14 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 11.1.7. QualityEvaluationWorkflow
 
-Назначение:
+Purpose:
 
 - retrieval evaluation;
 - parsing evaluation;
 - output evaluation;
 - drift reporting.
 
-## 11.2. Каталог subgraphs
+## 11.2. Subgraphs directory
 
 ### 11.2.1. MetadataExtractionSubgraph
 
@@ -678,15 +678,15 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ## 12. Workflow state contracts
 
-## 12.1. Общий принцип
+## 12.1. General principle
 
-Каждый workflow должен иметь собственный typed state contract.
+Each workflow must have its own typed state contract.
 
-## 12.2. Базовые state contracts
+## 12.2. Basic state contracts
 
 ### 12.2.1. RetrievalWorkflowState
 
-Поля:
+Fields:
 
 - task\_context
 - query
@@ -700,7 +700,7 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 12.2.2. SectionAuthoringState
 
-Поля:
+Fields:
 
 - task\_context
 - section\_contract
@@ -715,7 +715,7 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ### 12.2.3. AssemblyWorkflowState
 
-Поля:
+Fields:
 
 - template\_spec
 - section\_artifacts
@@ -726,17 +726,17 @@ Concrete adapter всегда реализует интерфейс framework la
 
 ## 12.3. State policy
 
-State не должен хранить все подряд. В state сохраняются только артефакты, нужные для orchestration. Большие payloads выносятся в stores и передаются по refs.
+State should not store everything. Only artifacts needed for orchestration are stored in state. Large payloads are sent to stores and transferred via refs.
 
 ---
 
 ## 13. Schemas package
 
-## 13.1. Назначение
+## 13.1. Purpose
 
-`packages/schemas` — единая точка истины для типизированных контрактов системы.
+`packages/schemas` is a single point of truth for the system's typed contracts.
 
-## 13.2. Категории схем
+## 13.2. Scheme categories
 
 ### 13.2.1. API Schemas
 
@@ -775,14 +775,14 @@ State не должен хранить все подряд. В state сохра�
 
 ## 14.1. domain\_docs
 
-Зона ответственности:
+Area of ​​responsibility:
 
 - parsing logic;
 - canonicalization;
 - metadata extraction;
 - template interpretation.
 
-### Классы:
+### Classes:
 
 - `DocumentParser`
 - `DocumentCanonicalizer`
@@ -792,14 +792,14 @@ State не должен хранить все подряд. В state сохра�
 
 ## 14.2. domain\_rag
 
-Зона ответственности:
+Area of ​​responsibility:
 
 - indexing;
 - retrieval;
 - evidence construction;
 - rerank orchestration.
 
-### Классы:
+### Classes:
 
 - `IndexingCoordinator`
 - `SummaryRetriever`
@@ -810,7 +810,7 @@ State не должен хранить все подряд. В state сохра�
 
 ## 14.3. domain\_authoring
 
-Зона ответственности:
+Area of ​​responsibility:
 
 - outline;
 - section drafting;
@@ -818,7 +818,7 @@ State не должен хранить все подряд. В state сохра�
 - consistency;
 - assembly.
 
-### Классы:
+### Classes:
 
 - `OutlinePlanner`
 - `SectionAuthoringService`
@@ -831,14 +831,14 @@ State не должен хранить все подряд. В state сохра�
 
 ## 15. MCP contracts
 
-## 15.1. Общие правила
+## 15.1. General rules
 
-Каждый MCP-сервер должен иметь:
+Each MCP server must have:
 
-- отдельный service package;
-- отдельный contract module;
-- собственные Pydantic input/output schemas;
-- адаптер к framework layer.
+- separate service package;
+- separate contract module;
+- own Pydantic input/output schemas;
+- adapter to framework layer.
 
 ## 15.2. Retrieval MCP contract
 
@@ -876,16 +876,16 @@ State не должен хранить все подряд. В state сохра�
 
 ## 16.1. API Service responsibilities
 
-API сервис не содержит бизнес-логики workflow. Он:
+The API service does not contain workflow business logic. He:
 
-- принимает команды;
-- валидирует payloads;
-- инициирует workflow execution;
-- выдает status;
-- принимает resume payload;
-- публикует результат.
+- accepts commands;
+- validates payloads;
+- initiates workflow execution;
+- displays status;
+- accepts resume payload;
+- publishes the result.
 
-## 16.2. Основные API application services
+## 16.2. Basic API application services
 
 - `TaskApplicationService`
 - `AuthoringApplicationService`
@@ -909,11 +909,11 @@ API сервис не содержит бизнес-логики workflow. Он:
 
 ### 17.1.1. UI Components Layer
 
-На базе shadcn/ui.
+Based on shadcn/ui.
 
 ### 17.1.2. Feature Layer
 
-Фичи:
+Features:
 
 - tasks;
 - evidence review;
@@ -924,11 +924,11 @@ API сервис не содержит бизнес-логики workflow. Он:
 
 ### 17.1.3. Data Layer
 
-На базе TanStack Query.
+Based on TanStack Query.
 
 ### 17.1.4. Form Layer
 
-На базе React Hook Form + Zod.
+Based on React Hook Form + Zod.
 
 ## 17.2. Frontend file structure
 
@@ -959,18 +959,18 @@ frontend/
 - feature-first organization;
 - typed API client;
 - no business logic in components;
-- review actions only через typed mutations;
+- review actions only through typed mutations;
 - reusable review widgets.
 
 ---
 
-## 18. Тестирование
+## 18. Testing
 
-## 18.1. Обязательные уровни тестирования
+## 18.1. Mandatory testing levels
 
 ### 18.1.1. Unit tests
 
-Покрывают:
+Cover:
 
 - framework layer;
 - adapters;
@@ -980,7 +980,7 @@ frontend/
 
 ### 18.1.2. Integration tests
 
-Покрывают:
+Cover:
 
 - FastAPI + workflow integration;
 - PostgreSQL repositories;
@@ -990,7 +990,7 @@ frontend/
 
 ### 18.1.3. Workflow tests
 
-Покрывают:
+Cover:
 
 - graph paths;
 - interrupt/resume;
@@ -1000,67 +1000,67 @@ frontend/
 
 ### 18.1.4. Acceptance tests
 
-Покрывают:
+Cover:
 
-- сценарии из ТЗ;
+- scenarios from technical specifications;
 - end-to-end use cases.
 
 ## 18.2. Framework testing rule
 
-Каждая абстракция framework layer должна иметь contract tests.
+Each framework layer abstraction must have contract tests.
 
 ---
 
-## 19. Принципы расширения framework layer
+## 19. Principles of expanding the framework layer
 
-## 19.1. Как добавляются новые агенты
+## 19.1. How new agents are added
 
-Новый агент добавляется путем:
+A new agent is added by:
 
-1. реализации интерфейса `IAgent` или наследования от `BaseAgent`;
-2. регистрации через factory/registry;
-3. объявления Pydantic input/output schemas;
-4. подключения в workflow.
+1. implementation of the `IAgent` interface or inheritance from `BaseAgent`;
+2. registration via factory/registry;
+3. Pydantic input/output schemas declarations;
+4. connections in workflow.
 
-## 19.2. Как добавляются новые tools
+## 19.2. How new tools are added
 
-Новый tool добавляется через:
+A new tool is added via:
 
-1. реализацию `ITool`;
-2. регистрацию в `ToolRegistry`;
+1. implementation of `ITool`;
+2. registration in `ToolRegistry`;
 3. contract tests;
-4. optional MCP exposure через adapter.
+4. optional MCP exposure via adapter.
 
-## 19.3. Как добавляются новые workflows
+## 19.3. How new workflows are added
 
-Новый workflow добавляется через:
+A new workflow is added via:
 
-1. новый typed state;
-2. новый `BaseWorkflow` descendant;
+1. new typed state;
+2. new `BaseWorkflow` descendant;
 3. node registration;
 4. workflow tests.
 
-## 19.4. Как меняется storage
+## 19.4. How storage is changing
 
-Storage layer должен позволять менять concrete реализации без изменения domain logic.
-
----
-
-## 20. Ограничения framework layer
-
-Framework layer не должен:
-
-- абстрагировать LangGraph до неузнаваемости;
-- навязывать одну форму prompts;
-- скрывать диагностику LLM-вызовов;
-- создавать собственный orchestration DSL;
-- заменять собой все библиотеки экосистемы.
-
-Framework layer должен оставаться небольшим и прагматичным.
+The storage layer should allow changing concrete implementations without changing the domain logic.
 
 ---
 
-## 21. Минимальный набор concrete классов для первой версии
+## 20. Limitations of the framework layer
+
+Framework layer should not:
+
+- abstract LangGraph beyond recognition;
+- impose one form of prompts;
+- hide diagnostics of LLM calls;
+- create your own orchestration DSL;
+- replace all ecosystem libraries.
+
+The Framework layer must remain small and pragmatic.
+
+---
+
+## 21. Minimum set of concrete classes for the first version
 
 ### framework/agents
 
@@ -1119,9 +1119,9 @@ Framework layer должен оставаться небольшим и праг
 
 ---
 
-## 22. Пошаговый план реализации OOP-слоя
+## 22. Step-by-step plan for implementing the OOP layer
 
-## Фаза 1
+## Phase 1
 
 - schemas package;
 - base interfaces;
@@ -1129,21 +1129,21 @@ Framework layer должен оставаться небольшим и праг
 - model gateways;
 - checkpoint store adapter.
 
-## Фаза 2
+## Phase 2
 
 - base workflow abstraction;
 - tool abstraction;
 - retrieval pipeline abstraction;
 - human review abstraction.
 
-## Фаза 3
+## Phase 3
 
 - section authoring workflow;
 - retrieval workflow;
 - template compiler workflow;
 - MCP adapters.
 
-## Фаза 4
+## Phase 4
 
 - quality evaluation workflows;
 - reusable review widgets;
@@ -1151,30 +1151,30 @@ Framework layer должен оставаться небольшим и праг
 
 ---
 
-## 23. Definition of Done для framework layer
+## 23. Definition of Done for framework layer
 
-Framework layer считается пригодным, если:
+Framework layer is considered suitable if:
 
-- новый workflow можно собрать без прямого доступа к concrete infra-компонентам;
-- новый agent создается через стандартный base class;
-- новый tool подключается через registry без хрупкого glue-code;
-- retrieval pipeline используется как готовая абстракция;
-- state schemas единообразны;
-- interrupt/resume не пишется вручную каждый раз;
-- MCP service строится через единый base class;
-- contract tests покрывают базовые абстракции.
+- a new workflow can be assembled without direct access to concrete infra components;
+- a new agent is created through the standard base class;
+- the new tool is connected via the registry without fragile glue-code;
+- retrieval pipeline is used as a ready-made abstraction;
+- state schemas are uniform;
+- interrupt/resume is not written manually every time;
+- MCP service is built through a single base class;
+- contract tests cover basic abstractions.
 
 ---
 
-## 24. Следующий шаг детализации
+## 24. Next step of detailing
 
-После данного blueprint должны быть подготовлены следующие проектные артефакты:
+After this blueprint, the following design artifacts should be prepared:
 
-1. ADR по архитектурным решениям.
-2. Полный каталог Pydantic schemas.
-3. Скелет `packages/framework` с пустыми интерфейсами и базовыми реализациями.
-4. Скелет `SectionAuthoringWorkflow` на LangGraph.
-5. Скелет `HierarchicalRAGPipeline`.
-6. Скелет `FastMcpRetrievalService`.
-7. Скелет frontend feature map.
+1. ADR on architectural solutions.
+2. Full catalog of Pydantic schemas.
+3. Skeleton `packages/framework` with empty interfaces and basic implementations.
+4. Skeleton `SectionAuthoringWorkflow` on LangGraph.
+5. Skeleton `HierarchicalRAGPipeline`.
+6. Skeleton `FastMcpRetrievalService`.
+7. Skeleton frontend feature map.
 

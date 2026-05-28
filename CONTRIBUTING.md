@@ -1,107 +1,107 @@
 # Contributing Guide
 
-Спасибо за вклад в `langgraph-document-ai-platform`.
+Thank you for contributing to `langgraph-document-ai-platform`.
 
 ## 1. Scope
 
-Репозиторий развивается как framework-first платформа:
+This repository evolves as a framework-first platform:
 
 - typed contracts (`schemas`)
 - workflow/runtime (`framework`, `application`)
 - adapters (`infra`)
 - service boundaries (`apps/api`, `apps/mcp_*`)
 
-Приоритет изменений: reproducibility, backward-compatible contracts, observability.
+Change priority: reproducibility, backward-compatible contracts, and observability.
 
 ## 2. Why your contribution matters
 
-Вклад в этот проект — это публично проверяемый engineering track:
+Contributions to this project create a publicly verifiable engineering track:
 
-- задачи и обсуждения прозрачны в issues/PR history;
-- изменения проверяются через тесты/smoke и review;
-- вклад виден по impact в onboarding/docs/examples/packaging/CI.
+- work is visible in issue and PR history;
+- changes are validated through tests/smoke checks and review;
+- impact is visible in onboarding/docs/examples/packaging/CI quality.
 
-Где лучше начать:
+Good places to start:
 
-- `good first issue` — узкие newcomer-friendly задачи;
-- `help wanted` — задачи, где поддержка контрибьюторов особенно важна;
-- `community` — улучшение contributor experience и процесса.
+- `good first issue` for narrow newcomer-friendly tasks;
+- `help wanted` for tasks where external help is especially useful;
+- `community` for contributor-experience and process improvements.
 
-Для вайбкодеров:
+For vibe-coders:
 
-- Это открытый OSS-проект, где можно начать с маленьких задач и быстро получить проверяемый результат.
-- Рекомендуем progression path: `docs -> examples -> packaging -> CI -> deeper framework tasks`.
-- Ключевое правило: быстрые итерации приветствуются, но качество фиксируется через checks + review.
-- Под “вкладом токенами” в рамках этого проекта понимается вклад через AI-агентов (vibe-coding), а не финансовая поддержка.
+- this is an open OSS project where you can start with small tasks and produce verifiable results quickly;
+- recommended progression path: `docs -> examples -> packaging -> CI -> deeper framework tasks`;
+- fast iterations are welcome, but quality is enforced through checks and review;
+- in this project, "token contribution" means contribution via AI agents (vibe-coding), not financial donations.
 
 AI-assisted contribution policy:
 
-- AI-assisted PR принимается по тем же правилам, что и любой другой: ясный scope, проверяемые проверки, review-ready diff.
-- Contribution style (manual vs AI-assisted) не дает приоритета в roadmap и не ускоряет merge автоматически.
-- Security/governance требования обязательны для всех (`SECURITY.md`, contract safety rules).
+- AI-assisted PRs are accepted by the same bar as any PR: clear scope, reproducible checks, review-ready diff;
+- contribution style (manual vs AI-assisted) does not change roadmap priority and does not auto-accelerate merges;
+- security and governance requirements are mandatory for all contributors (`SECURITY.md`, contract safety rules).
 
 ## 3. Contribution flow
 
-1. Откройте issue с кратким proposal (problem -> scope -> expected behavior).
-2. Подготовьте изменение в отдельной ветке.
-3. Обновите документацию и `docs/DOCS_BACKLOG.md` вместе с кодом.
-4. Прогоните минимальные проверки (см. ниже).
-5. Откройте PR с кратким changelog и рисками.
+1. Open an issue with a short proposal (problem -> scope -> expected behavior).
+2. Prepare changes in a dedicated branch.
+3. Update documentation and `docs/DOCS_BACKLOG.md` together with code changes.
+4. Run minimal required checks (see below).
+5. Open a PR with a short changelog and known risks.
 
 ## 4. First-time contributors
 
-Если это ваш первый вклад, начните с задач в безопасной зоне:
+If this is your first contribution, start in the safe zone:
 
 - docs (`README`, `developer_guide`, `DOCS_BACKLOG`);
 - examples (`agent_examples` docs/tests);
 - packaging metadata (`backend/packages/*`).
 
-Рекомендуемый минимальный путь первого PR:
+Recommended first-PR path:
 
-1. Возьмите issue с меткой `good first issue` или `docs`.
-2. Уточните scope в issue-комментарии перед началом работы.
-3. Держите изменения узкими: один PR = одна задача.
-4. Если правите public contracts, заранее отметьте это в PR (`needs maintainer review`).
-5. После 1-2 docs/examples PR переходите к `packaging` или `ci` задачам, где impact также легко проверить.
+1. Pick an issue labeled `good first issue` or `docs`.
+2. Confirm scope in an issue comment before implementation.
+3. Keep changes narrow: one PR equals one task.
+4. If you touch public contracts, mark the PR with `needs maintainer review`.
+5. After 1-2 docs/examples PRs, move to `packaging` or `ci` tasks with verifiable impact.
 
 ## 5. Required checks
 
-Минимально перед PR:
+Minimum before PR:
 
 1. `bash backend/scripts/postgres_migrate.sh`
 2. `bash backend/scripts/smoke_retrieval_api.sh`
 3. `bash backend/scripts/smoke_release_gate.sh --gate-profile stage`
-4. `pytest backend/tests -q` (или targeted subset + объяснение в PR)
+4. `pytest backend/tests -q` (or targeted subset + explicit explanation in PR)
 
-Если изменения касаются MCP/authoring/indexing, добавьте соответствующие smoke.
+If changes affect MCP/authoring/indexing paths, include corresponding smoke checks.
 
-Для docs/examples/packaging-only PR (без runtime/API изменений) допустим облегченный набор:
+For docs/examples/packaging-only PRs (without runtime/API changes), a reduced check set is acceptable:
 
 1. `python -m pytest -q backend/tests/unit/test_developer_guide_contracts.py`
-2. targeted tests только для затронутого примера/модуля (если применимо)
-3. в PR явно указать, что full smoke не запускался, потому что contract/runtime не менялись
+2. targeted tests only for the affected example/module (if applicable)
+3. explicit PR note that full smoke was not run because contracts/runtime were not changed
 
 ## 6. Contract safety rules
 
-- Не меняйте public contracts без обновления:
+- Do not change public contracts without updating:
   - `docs/developer_guide/public_contract_surface.md`
-  - `docs/developer_guide/api_reference.md` и/или `docs/developer_guide/mcp_reference.md`
-- Для schema changes используйте additive migrations.
-- Не ломайте latest/history semantics для canonical/versioned stores.
+  - `docs/developer_guide/api_reference.md` and/or `docs/developer_guide/mcp_reference.md`
+- For schema changes, use additive migrations.
+- Do not break latest/history semantics for canonical/versioned stores.
 
 ## 7. Commit and PR style
 
-- Commit message: коротко и предметно (`docs: ...`, `feat: ...`, `fix: ...`).
-- В PR обязательно:
-  - что изменилось;
-  - как проверяли;
-  - какие риски/ограничения остались.
+- Commit messages should be short and specific (`docs: ...`, `feat: ...`, `fix: ...`).
+- Every PR must include:
+  - what changed;
+  - how it was validated;
+  - what risks/limitations remain.
 
 ## 8. Communication
 
-- Уважайте review feedback.
-- Для спорных архитектурных решений добавляйте/обновляйте ADR.
+- Respect review feedback.
+- For disputed architecture decisions, add or update an ADR.
 
 ## 9. Code of Conduct
 
-Этот проект придерживается правил из `CODE_OF_CONDUCT.md`.
+This project follows `CODE_OF_CONDUCT.md`.

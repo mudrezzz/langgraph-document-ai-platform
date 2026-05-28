@@ -1,38 +1,38 @@
-# ADR-0011: Персистентный TaskRegistry и API истории задач
+# ADR-0011: Persistent TaskRegistry and Task History API
 
-- Статус: Accepted
-- Дата: 2026-04-18
+- Status: Accepted
+- Date: 2026-04-18
 
-## Контекст
+## Context
 
-После `Increment 6` lifecycle задач хранился только в `InMemoryTaskRegistry`. Это не переживало рестарт API процесса и не позволяло получить историю задач через публичный API.
+After `Increment 6` the lifecycle of tasks was stored only in `InMemoryTaskRegistry`. This did not survive the restart of the process API and did not allow getting the task history through the public API.
 
-Для наблюдаемости и диагностики нужен минимальный устойчивый контур:
+For observability and diagnostics, a minimum stable circuit is needed:
 
-- хранить lifecycle задач в PostgreSQL;
-- иметь endpoint для чтения истории задач.
+- store the lifecycle of tasks in PostgreSQL;
+- have an endpoint for reading task history.
 
-## Решение
+## Solution
 
-1. Ввести `PostgresTaskRegistry` в infra persistence слое.
-2. Добавить SQL миграцию `0002_task_registry.sql` с таблицей `app.tasks`.
-3. Переключить DI-контейнер API с `InMemoryTaskRegistry` на `PostgresTaskRegistry`.
-4. Расширить `TaskApplicationService` методом `list_tasks`.
-5. Добавить endpoint `GET /api/v1/tasks` и typed response `TaskHistoryResponse`.
-6. Добавить test coverage:
-   - unit тесты registry;
-   - integration тесты endpoint истории;
-   - e2e тесты истории (включая PostgreSQL-контур).
+1. Enter `PostgresTaskRegistry` in the infra persistence layer.
+2. Add SQL migration `0002_task_registry.sql` with the `app.tasks` table.
+3. Switch the API DI container from `InMemoryTaskRegistry` to `PostgresTaskRegistry`.
+4. Extend `TaskApplicationService` with the `list_tasks` method.
+5. Add endpoint `GET /api/v1/tasks` and typed response `TaskHistoryResponse`.
+6. Add test coverage:
+- unit tests registry;
+- integration tests endpoint history;
+- e2e history tests (including PostgreSQL loop).
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- lifecycle задач сохраняется в PostgreSQL и переживает рестарт API процесса;
-- появился стандартный API-контракт для истории задач;
-- smoke/e2e сценарии теперь проверяют не только task flow, но и историчность.
+- the lifecycle of tasks is saved in PostgreSQL and survives the restart of the API process;
+- a standard API contract for task history has appeared;
+- smoke/e2e scripts now check not only task flow, but also historicity.
 
-Минусы:
+Cons:
 
-- пока нет фильтров/курсорной пагинации и отдельного журнала переходов статусов;
-- в dev/test сохраняется fallback-режим, который должен быть отключен в `prod` профиле.
+- there are no filters/cursor pagination or a separate log of status transitions yet;
+- fallback mode is saved in dev/test, which should be disabled in the `prod` profile.

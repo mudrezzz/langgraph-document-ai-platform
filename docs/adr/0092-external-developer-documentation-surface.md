@@ -1,35 +1,35 @@
 # ADR-0092: External developer documentation surface
 
-- Статус: Accepted
-- Дата: 2026-04-29
+- Status: Accepted
+- Date: 2026-04-29
 
-## Контекст
+## Context
 
-Backend/framework foundation достиг production-ready стадии (Increment 32), но вход для внешнего разработчика был размазан между `README.md`, runbook-ами и ADR.
+The backend/framework foundation reached the production-ready stage (Increment 32), but the input for an external developer was spread out between `README.md`, runbooks and ADR.
 
-Для интеграции reusable библиотеки и ручной проверки demo (включая binary parsers PDF/PPTX) нужен единый, короткий и операционно-практичный documentation surface.
+To integrate the reusable library and manual demo verification (including binary parsers PDF/PPTX), you need a single, short and operationally practical documentation surface.
 
-## Решение
+## Solution
 
-1. Добавлен единый внешний docs entrypoint:
+1. Added a single external docs entrypoint:
    - `docs/developer_guide/README.md`.
-2. Документация разделена на 4 практических слоя:
-   - `quickstart.md` (bootstrap + первый smoke);
-   - `manual_demo_checks.md` (ручной proof PDF/PPTX + multifile demo report);
+2. The documentation is divided into 4 practical layers:
+- `quickstart.md` (bootstrap + first smoke);
+- `manual_demo_checks.md` (manual proof PDF/PPTX + multifile demo report);
    - `extension_recipes.md` (workflow/tool/MCP/persistence extension path);
-   - `operations_and_release.md` (release-gate и full pytest gate).
-3. В `README.md` добавлен явный раздел навигации на новый developer guide.
-4. Добавлен docs-contract test, который проверяет наличие ключевых секций и критичных ссылок.
+- `operations_and_release.md` (release-gate and full pytest gate).
+3. An explicit navigation section for the new developer guide has been added to `README.md`.
+4. Added docs-contract test, which checks for the presence of key sections and critical links.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- внешний разработчик получает предсказуемый onboarding path без чтения всего архива ADR;
-- ручная валидация binary parsing path (PDF/PPTX) становится воспроизводимой;
-- снижается риск рассинхронизации между scripts, runbook и внешней документацией.
+- an external developer receives a predictable onboarding path without reading the entire ADR archive;
+- manual validation of binary parsing path (PDF/PPTX) becomes reproducible;
+- the risk of desynchronization between scripts, runbooks and external documentation is reduced.
 
-Минусы:
+Cons:
 
-- добавляется новый documentation surface, который нужно поддерживать синхронно с runtime контрактами;
-- часть информации дублируется с `README.md` и runbook-ами, что требует contract-тестов на актуальность.
+- a new documentation surface is added, which needs to be supported synchronously with runtime contracts;
+- some of the information is duplicated with `README.md` and runbooks, which requires contract tests for relevance.

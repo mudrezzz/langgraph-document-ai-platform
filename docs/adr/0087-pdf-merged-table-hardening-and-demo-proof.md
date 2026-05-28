@@ -1,38 +1,38 @@
 # ADR-0087: PDF merged-table hardening and demo proof contract
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0085 parser уже извлекал form-like и rotated PDF структуры, но сложные pipe-like таблицы с wrapped/merged rows оставались частично потерянными. Также для ручного acceptance в demo не хватало явного машинно-проверяемого proof, что extraction сработал именно на реальном `06_audit_summary.pdf`.
+After ADR-0085, the parser already extracted form-like and rotated PDF structures, but complex pipe-like tables with wrapped/merged rows remained partially lost. Also, for manual acceptance, the demo lacked an explicit machine-verified proof that the extraction worked on the real `06_audit_summary.pdf`.
 
-## Решение
+## Solution
 
-1. Усилить pipe-table extraction:
-   - сохранять пустые ячейки (не схлопывать их раньше времени);
-   - распознавать markdown separator rows (`| --- | --- |`);
-   - склеивать continuation rows в предыдущую строку (merged/wrapped cell values).
-2. Добавить demo proof payload в smoke path:
-   - direct smoke (`smoke_knowledge_indexing.py`) отдает `pdf_demo_proof` для `06_audit_summary.pdf`;
-   - API smoke (`smoke_knowledge_indexing_api.py`) также отдает `pdf_demo_proof` через task details.
-3. В `pdf_demo_proof` фиксировать базовые acceptance признаки:
+1. Strengthen pipe-table extraction:
+- save empty cells (do not collapse them prematurely);
+- recognize markdown separator rows (`| --- | --- |`);
+- merge continuation rows into the previous row (merged/wrapped cell values).
+2. Add demo proof payload to smoke path:
+- direct smoke (`smoke_knowledge_indexing.py`) returns `pdf_demo_proof` for `06_audit_summary.pdf`;
+- API smoke (`smoke_knowledge_indexing_api.py`) also returns `pdf_demo_proof` via task details.
+3. In `pdf_demo_proof` record the basic acceptance signs:
    - `found`;
    - `doc_id`;
-   - `tables_total` / `table_rows_total` (или `blocks_total` в API path);
+- `tables_total` / `table_rows_total` (or `blocks_total` in API path);
    - `has_pdf_tables_extracted`;
    - `has_pdf_form_like_blocks_detected`;
    - `has_pdf_rotated_layout_detected`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- повышается устойчивость extraction для реальных PDF таблиц с wrapped rows;
-- ручной demo smoke получает явное доказательство работоспособности по конкретному PDF fixture;
-- решение аддитивно и не ломает API/MCP contracts.
+- increased stability of extraction for real PDF tables with wrapped rows;
+- manual demo smoke receives explicit proof of functionality for a specific PDF fixture;
+- the solution is additive and does not break API/MCP contracts.
 
-Минусы:
+Cons:
 
-- merged-table эвристики по-прежнему baseline и требуют дальнейшего тюнинга на реальном корпусе;
-- `pdf_demo_proof` ориентирован на demo fixture и не заменяет полноценный production quality dashboard.
+- merged-table heuristics are still baseline and require further tuning on a real body;
+- `pdf_demo_proof` is aimed at a demo fixture and does not replace a full-fledged production quality dashboard.

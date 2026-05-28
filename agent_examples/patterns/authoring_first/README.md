@@ -1,51 +1,51 @@
-# authoring_first — создание артефакта через API
+# authoring_first - creating an artifact via API
 
-Агент, демонстрирующий API-driven путь: запускает задачу через HTTP-эндпоинт,
-дожидается результата и возвращает готовый артефакт с traceability-секциями.
+An agent demonstrating the API-driven path: launches a task via an HTTP endpoint,
+waits for the result and returns the finished artifact with traceability sections.
 
 ---
 
-## Что делает
+## What does it do
 
-Отправляет запрос на создание документа через `POST /authoring/start`,
-синхронно дожидается завершения задачи и возвращает артефакт — структурированный
-документ с разделами traceability (откуда взяты данные).
+Sends a request to create a document via `POST /authoring/start`,
+synchronously waits for the task to complete and returns an artifact - structured
+document with traceability sections (where the data is taken from).
 
 ```
-Запрос
+Request
   → POST /authoring/start  → task_id
-  → GET  /task/{task_id}   → статус (polling до completed)
-  → GET  /artifact/{id}    → артефакт + traceability
+→ GET /task/{task_id} → status (polling until completed)
+→ GET /artifact/{id} → artifact + traceability
 ```
 
 ---
 
-## Архитектурный смысл
+## Architectural meaning
 
-Это паттерн **API-driven**: агент общается с развёрнутым бэкендом через HTTP.
-Полезно, когда агент работает в отдельном процессе или на другой машине,
-и не может напрямую импортировать фреймворк.
+This is an **API-driven** pattern: the agent communicates with the deployed backend via HTTP.
+Useful when the agent runs in a separate process or on a different machine,
+and cannot directly import the framework.
 
-Обратная сторона — нужна инфраструктура (PostgreSQL), есть сетевые задержки,
-трасса видна только через API. Для новых агентов рекомендуется in-process
-паттерн (`retrieval_first`, `device_search`).
+The downside is that you need infrastructure (PostgreSQL), there are network delays,
+the route is visible only through the API. For new agents, in-process is recommended
+pattern (`retrieval_first`, `device_search`).
 
 ---
 
-## Структура файлов
+## File structure
 
 ```
 authoring_first/
 ├── agent.py    # AuthoringFirstAgent — start → poll → get artifact
 ├── config.py   # AuthoringFirstConfig — workflow_mode, draft_strategy, dataset
-└── prompts.py  # DEFAULT_QUERY — дефолтный вопрос
+└── prompts.py # DEFAULT_QUERY - default question
 ```
 
 ---
 
-## Запуск
+## Launch
 
-Требуется запущенный PostgreSQL с применёнными миграциями:
+Requires PostgreSQL running with migrations applied:
 
 ```bash
 bash backend/scripts/postgres_up.sh
@@ -55,8 +55,8 @@ bash backend/scripts/postgres_migrate.sh
 
 ---
 
-## Что менять в первую очередь
+## What to change first
 
-1. `prompts.py` — изменить запрос (`DEFAULT_QUERY`).
-2. `config.py` — переключить `workflow_mode` (`standard` / `deep`) или `draft_strategy`.
-3. `agent.py` — добавить post-processing артефакта под свои нужды.
+1. `prompts.py` — change the request (`DEFAULT_QUERY`).
+2. `config.py` - ​​switch `workflow_mode` (`standard` / `deep`) or `draft_strategy`.
+3. `agent.py` — add post-processing of the artifact to suit your needs.

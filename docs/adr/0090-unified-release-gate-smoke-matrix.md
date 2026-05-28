@@ -1,32 +1,32 @@
 # ADR-0090: Unified release-gate smoke matrix
 
-- Статус: Accepted
-- Дата: 2026-04-29
+- Status: Accepted
+- Date: 2026-04-29
 
-## Контекст
+## Context
 
-После ADR-0088/0089 у платформы уже есть execution, quality, token и SLA метрики, но до этого они проверялись разрозненно через отдельные smoke scripts и ручные curl.
+After ADR-0088/0089, the platform already has execution, quality, token and SLA metrics, but before that they were checked separately through separate smoke scripts and manual curl.
 
-Для Increment 32 нужен единый gate-proof контракт:
+Increment 32 requires a single gate-proof contract:
 
 - machine-readable pass/fail verdict;
-- единая точка проверки retrieval/authoring/HITL/observability;
-- configurable thresholds без изменения кода.
+- single point of verification retrieval/authoring/HITL/observability;
+- configurable thresholds without changing the code.
 
-## Решение
+## Solution
 
-1. Добавлен unified script `backend/scripts/smoke_release_gate.py` (+ `.sh/.ps1` wrappers).
-2. Smoke поднимает API и выполняет последовательность:
+1. Added unified script `backend/scripts/smoke_release_gate.py` (+ `.sh/.ps1` wrappers).
+2. Smoke picks up the API and executes the sequence:
    - optional knowledge indexing;
    - retrieval task + `events/summary`;
-   - authoring task с HITL loop;
-   - `tasks/observability/summary` и `hitl/observability/summary`.
-3. Script строит checks matrix и печатает JSON:
+- authoring task with HITL loop;
+- `tasks/observability/summary` and `hitl/observability/summary`.
+3. The Script builds the checks matrix and prints JSON:
    - `gate_status=pass|fail`;
-   - `checks[]` со структурой `code/name/passed/expected/actual/message`;
-   - `failed_checks[]` для быстрого triage;
-   - `artifacts` со входными payloads для диагностики.
-4. Пороговые проверки параметризуются через env/CLI и profile presets:
+- `checks[]` with the structure `code/name/passed/expected/actual/message`;
+- `failed_checks[]` for quick triage;
+- `artifacts` with input payloads for diagnostics.
+4. Threshold checks are parameterized via env/CLI and profile presets:
    - `--gate-profile dev|stage|prod`;
    - `APP_RELEASE_GATE_MIN_EVENTS_TOTAL`;
    - `APP_RELEASE_GATE_MIN_OBSERVABILITY_TOTAL_TASKS`;
@@ -34,15 +34,15 @@
    - `APP_RELEASE_GATE_MAX_QUEUE_WAIT_SLA_BREACHES`;
    - `APP_RELEASE_GATE_REQUIRE_LLM_TOKENS`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- release gate становится repeatable и CI-friendly;
-- ручной stage/prod rehearsal получает детерминированный verdict;
-- диагностика проблем упрощается за счет единого JSON proof payload.
+- release gate becomes repeatable and CI-friendly;
+- manual stage/prod rehearsal receives a deterministic verdict;
+- diagnosing problems is simplified due to a single JSON proof payload.
 
-Минусы:
+Cons:
 
-- smoke по-прежнему интеграционный и зависит от runtime окружения (DB/env/gateways);
-- при дальнейшем росте matrix может потребоваться разбиение на несколько профилей gate (fast/full/llm).
+- smoke is still integration and depends on the runtime environment (DB/env/gateways);
+- with further growth of the matrix, it may be necessary to split it into several gate profiles (fast/full/llm).

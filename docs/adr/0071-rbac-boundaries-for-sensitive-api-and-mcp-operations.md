@@ -1,52 +1,52 @@
 # ADR 0071: RBAC Boundaries For Sensitive API And MCP Operations
 
-Дата: 2026-04-27
-Статус: Accepted
+Date: 2026-04-27
+Status: Accepted
 
-## Контекст
+## Context
 
-К началу Increment 30 платформа уже имела production-like service boundaries:
+By the beginning of Increment 30, the platform already had production-like service boundaries:
 
-- FastAPI endpoints для template governance и authoring HITL;
-- FastMCP services для repository, artifact writer, template library, review approval и configuration library;
-- unified MCP metadata/policy baseline через `BaseFastMcpService`.
+- FastAPI endpoints for template governance and authoring HITL;
+- FastMCP services for repository, artifact writer, template library, review approval and configuration library;
+- unified MCP metadata/policy baseline via `BaseFastMcpService`.
 
-Но эти boundaries были operationally открыты: `operation_scope` уже классифицировал tool как `read|write|action`, однако runtime enforcement отсутствовал. Это означало, что sensitive операции (`publish_template`, `set_template_status`, `submit_hitl_review`, `upsert_config`, `write_artifact`, `upsert_document`) не имели общей минимальной authorization boundary.
+But these boundaries were operationally open: `operation_scope` had already classified the tool as `read|write|action`, but there was no runtime enforcement. This meant that sensitive operations (`publish_template`, `set_template_status`, `submit_hitl_review`, `upsert_config`, `write_artifact`, `upsert_document`) did not have a common minimum authorization boundary.
 
-Для текущей стадии не нужен полноценный IAM/SSO слой, но нужен production-compatible baseline, который:
+For the current stage, a full-fledged IAM/SSO layer is not needed, but a production-compatible baseline is needed, which:
 
-- отделяет read paths от write/approval-sensitive paths;
-- работает одинаково для API и MCP;
-- не ломает текущие контракты и smoke paths при выключенном auth;
-- дает понятный upgrade path к будущему auth/audit envelope.
+- separates read paths from write/approval-sensitive paths;
+- works the same for API and MCP;
+- does not break current contracts and smoke paths when auth is disabled;
+- gives a clear upgrade path to the future auth/audit envelope.
 
-## Решение
+## Solution
 
-Вводится минимальный shared RBAC baseline:
+Enter the minimum shared RBAC baseline:
 
-1. Добавлен framework-level security helper `framework.security.rbac`.
-2. Введены:
+1. Added framework-level security helper `framework.security.rbac`.
+2. Introduced:
    - `ActorContext`;
    - `RoleBasedAccessPolicy`;
-   - ошибки `AuthenticationRequiredError` и `AuthorizationError`;
+- errors `AuthenticationRequiredError` and `AuthorizationError`;
    - helper `parse_roles(...)`.
-3. RBAC enforcement включается env-флагом `APP_AUTH_ENABLED=true|false`.
-4. При `APP_AUTH_ENABLED=false` policy не блокирует текущие flows и сохраняет backward compatibility.
-5. API boundary использует стандартные headers:
+3. RBAC enforcement is enabled by the env flag `APP_AUTH_ENABLED=true|false`.
+4. When `APP_AUTH_ENABLED=false` policy does not block current flows and maintains backward compatibility.
+5. API boundary uses standard headers:
    - `X-Actor-Id`;
    - `X-Actor-Roles`.
-6. MCP boundary использует actor context в typed payload fields:
+6. MCP boundary uses actor context in typed payload fields:
    - `actor`;
    - `roles`.
-7. `BaseFastMcpService` расширен auth-aware metadata и enforcement helper:
+7. `BaseFastMcpService` expanded auth-aware metadata and enforcement helper:
    - `auth_policy`;
    - `tool_required_roles`;
    - `_authorize_tool(...)`.
-8. Enforcement добавлен только на sensitive operations, read operations остаются открытыми.
+8. Enforcement is added only to sensitive operations, read operations remain open.
 
-## Матрица ролей
+## Role Matrix
 
-Минимальный baseline в этом срезе:
+Minimum baseline in this slice:
 
 - `template_admin`:
   - API: `PUT /api/v1/templates/{template_id}`;
@@ -63,39 +63,39 @@
 - `repository_writer`:
   - MCP: `upsert_document`.
 - admin override:
-  - `admin` или `platform_admin` bypass-ят role-specific checks.
+- `admin` or `platform_admin` bypass role-specific checks.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- sensitive operations теперь имеют минимальную, но реальную protection boundary;
-- API и MCP используют один и тот же framework-level policy primitive;
-- metadata FastMCP теперь отражает не только scope, но и required roles;
-- future auth/audit hardening можно строить поверх уже нормализованного actor context.
+- sensitive operations now have a minimal but real protection boundary;
+- API and MCP use the same framework-level policy primitive;
+- FastMCP metadata now reflects not only scope, but also required roles;
+- future auth/audit hardening can be built on top of an already normalized actor context.
 
-Минусы:
+Cons:
 
-- это не полноценный identity layer: нет tokens, SSO, tenant boundaries и signed claims;
-- actor context в MCP payload остается trust-based до появления внешнего auth proxy;
-- часть write endpoints API пока еще intentionally не закрыта этим срезом, если они не относятся к template governance/HITL boundary.
+- this is not a full-fledged identity layer: there are no tokens, SSO, tenant boundaries and signed claims;
+- actor context in MCP payload remains trust-based until the appearance of an external auth proxy;
+- the write endpoints part of the API is not yet intentionally closed by this slice, if they do not belong to the template governance/HITL boundary.
 
-## Почему не полноценный IAM сейчас
+## Why not a full-fledged IAM now
 
-Полноценная auth platform добавила бы много инфраструктурной сложности и отвлекла бы от цели Increment 30: довести reusable service boundary до production-like baseline. Для текущего этапа важнее зафиксировать:
+A full-fledged auth platform would add a lot of infrastructure complexity and would distract from the goal of Increment 30: to bring the reusable service boundary to a production-like baseline. For the current stage it is more important to record:
 
-- где enforcement должен жить;
-- как нормализуется actor context;
-- какие операции считаются sensitive.
+- where enforcement should live;
+- how the actor context is normalized;
+- which operations are considered sensitive.
 
-Это дает безопасный минимальный operational envelope без premature enterprise integration.
+This gives a secure minimal operational envelope without premature enterprise integration.
 
-## Что дальше
+## What's next
 
-Следующие security slices могут расширить baseline до:
+The following security slices can extend baseline to:
 
 - signed auth headers / API gateway integration;
-- audit records с actor identity и authorization decision;
+- audit records with actor identity and authorization decision;
 - per-endpoint rate limits;
-- service-to-service auth для worker/MCP runtime;
-- richer role sets и tenant/project-scoped permissions.
+- service-to-service auth for worker/MCP runtime;
+- richer role sets and tenant/project-scoped permissions.

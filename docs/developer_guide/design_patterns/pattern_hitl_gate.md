@@ -1,16 +1,16 @@
 # Pattern: HITL Gate Pattern
 
-Когда применять:
+When to use:
 
-- решение нельзя полностью автоматизировать без reviewer sign-off;
-- нужен повторяемый path `needs_changes -> rewrite -> approve`;
-- нужно хранить timeline reviewer actions для аудита.
+- the solution cannot be fully automated without reviewer sign-off;
+- need a repeatable path `needs_changes -> rewrite -> approve`;
+- you need to store timeline reviewer actions for auditing.
 
-## Скелет
+## Skeleton
 
 `authoring/start_async -> waiting_human -> hitl/submit -> resume -> completed`
 
-## Runnable пример
+## Runnable example
 
 ```bash
 bash backend/scripts/async_up.sh
@@ -19,12 +19,12 @@ bash backend/scripts/async_up.sh
 
 ## Extension points
 
-1. Настроить max iterations и timeout через `APP_HITL_*`.
-2. Добавить reviewer roles/RBAC policy для sensitive decisions.
-3. Добавить свои observability checks в release gate.
+1. Set up max iterations and timeout via `APP_HITL_*`.
+2. Add reviewer roles/RBAC policy for sensitive decisions.
+3. Add your observability checks to the release gate.
 
-## Анти-паттерны
+## Anti-patterns
 
-1. Не проверять `expected_iteration`/idempotency при submit.
-2. Продолжать pipeline при `reject` как при `approve`.
-3. Не закрывать async resources после smoke/rehearsal.
+1. Don't check `expected_iteration`/idempotency when submitting.
+2. Continue the pipeline at `reject` as at `approve`.
+3. Do not close async resources after smoke/rehearsal.

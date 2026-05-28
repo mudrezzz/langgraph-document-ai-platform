@@ -37,7 +37,7 @@ Build retrieval, indexing, authoring, and human-in-the-loop review flows with au
 ## Install as a Library
 
 The framework core (`framework`, `schemas`, `infra.openrouter`) is available as
-a pip-installable package directly from this repository — no PyPI account needed.
+a pip-installable package directly from this repository - no PyPI account needed.
 
 **Install latest from `main`:**
 
@@ -67,7 +67,7 @@ from infra.openrouter.chat_gateway import OpenRouterChatModelGateway
 ```
 
 What is included: `framework`, `schemas`, `infra.openrouter`.
-What is excluded: PostgreSQL, Celery, pgvector, FastAPI — these are part of the
+What is excluded: PostgreSQL, Celery, pgvector, FastAPI - these are part of the
 full backend install and not needed for in-process agent development.
 
 ---
@@ -298,7 +298,7 @@ For vibe-coders:
 
 AI-assisted contribution policy:
 
-- “Token contribution” here means contribution made with AI agents (vibe-coding), not financial/token donations.
+- "Token contribution" here means contribution made with AI agents (vibe-coding), not financial/token donations.
 - AI-assisted PRs are welcome if they meet the same quality bar: clear scope, reproducible checks, and review-ready diffs.
 - No fast-track merge or roadmap priority is granted based on contribution style alone.
 

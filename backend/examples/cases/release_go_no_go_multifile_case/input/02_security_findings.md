@@ -1,9 +1,9 @@
 # Security Gate
 
 ## Findings
-- Не закрыт high finding SEC-5901: отсутствует лимит попыток подтверждения платежа.
-- Не завершен повторный pentest webhook-подписи после hotfix.
-- Временные ключи ротации mTLS не проверены на аварийный rollback.
+- High finding SEC-5901 is not closed: there is no limit on payment confirmation attempts.
+- Repeated pentest of webhook signature after hotfix was not completed.
+- Temporary mTLS rotation keys are not checked for emergency rollback.
 
 ## Positive
-- SAST и dependency scan без критических уязвимостей.
+- SAST and dependency scan without critical vulnerabilities.

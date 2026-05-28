@@ -1,14 +1,14 @@
 # ADR Index
 
-## Правило ведения
+## Rule of conduct
 
-При каждом инкременте:
+With each increment:
 
-1. Обновляется статус существующих ADR при изменении решения.
-2. Добавляется новый ADR, если принято новое архитектурное решение.
-3. В `System_Architecture_Overview.md` указывается связь с новыми ADR.
+1. The status of existing ADRs is updated when the decision changes.
+2. A new ADR is added if a new architectural decision is made.
+3. In `System_Architecture_Overview.md` the connection with the new ADRs is indicated.
 
-## Список ADR
+## ADR List
 
 - `0001-layer-boundaries.md`
 - `0002-langgraph-runtime-boundary.md`

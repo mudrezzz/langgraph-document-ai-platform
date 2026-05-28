@@ -1,41 +1,41 @@
 # ADR-0060: Template library governance status baseline
 
-- Статус: Accepted
-- Дата: 2026-04-25
+- Status: Accepted
+- Date: 2026-04-25
 
-## Контекст
+## Context
 
-После ADR-0057..0059 template library уже стала persisted service boundary с HTTP API и MCP tools. Но все версии шаблонов оставались равноправными: authoring по умолчанию мог взять последнюю сохраненную version, даже если это был черновик. Для production authoring этого недостаточно.
+After ADR-0057..0059, the template library has already become a persisted service boundary with HTTP API and MCP tools. But all versions of templates remained equal: authoring could take the last saved version by default, even if it was a draft. This is not enough for production authoring.
 
-Нужен минимальный governance layer, не превращающийся в большой template management subsystem: distinction между draft и published versions, плюс понятное правило резолвинга шаблона по умолчанию.
+We need a minimal governance layer that does not turn into a large template management subsystem: a distinction between draft and published versions, plus a clear default template resolution rule.
 
-## Решение
+## Solution
 
-1. Ввести минимальный lifecycle статусов reusable template version:
+1. Enter the minimum lifecycle status of the reusable template version:
    - `draft`;
    - `published`.
-2. Добавить `status` в persisted template record, API response и MCP response.
-3. Добавить отдельную операцию публикации версии:
+2. Add `status` to the persisted template record, API response and MCP response.
+3. Add a separate version publishing operation:
    - HTTP: `POST /api/v1/templates/{template_id}/publish`;
    - MCP tool: `publish_template`.
-4. Оставить `upsert` совместимым:
-   - по умолчанию version создается как `draft`;
-   - при явном `status=published` upsert завершаетcя publish шагом.
-5. Изменить default authoring-resolution:
-   - если `task_context.template_version` не передан, authoring берет только `published` template;
-   - если version передана явно, разрешено читать конкретную version независимо от статуса;
-   - inline `template_payload` по-прежнему имеет наивысший приоритет.
+4. Leave `upsert` compatible:
+- by default version is created as `draft`;
+- with an explicit `status=published` upsert ends with the publish step.
+5. Change default authoring-resolution:
+- if `task_context.template_version` is not passed, authoring takes only `published` template;
+- if version is passed explicitly, it is allowed to read a specific version regardless of the status;
+- inline `template_payload` still has the highest priority.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- authoring по умолчанию перестает случайно использовать незапубликованные drafts;
-- шаблоны получают минимальный production-compatible governance layer без тяжелого approval workflow;
-- HTTP API, MCP и authoring path используют один и тот же status-aware persistence boundary.
+- authoring by default stops accidentally using unpublished drafts;
+- templates receive a minimal production-compatible governance layer without heavy approval workflow;
+- HTTP API, MCP and authoring path use the same status-aware persistence boundary.
 
-Минусы:
+Cons:
 
-- baseline lifecycle затем расширен до `draft|published|deprecated|archived` и explicit status transitions в ADR-0063;
-- detail publish policy для active published-version уточнен в ADR-0062;
-- approval workflow и RBAC по-прежнему остаются вне текущего scope.
+- baseline lifecycle then expanded to `draft|published|deprecated|archived` and explicit status transitions in ADR-0063;
+- detail publish policy for active published-version clarified in ADR-0062;
+- approval workflow and RBAC still remain outside the current scope.

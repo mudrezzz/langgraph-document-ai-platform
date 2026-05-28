@@ -1,28 +1,28 @@
-# ADR-0004: Adapter wiring и первый vertical slice Retrieval
+# ADR-0004: Adapter wiring and first vertical slice Retrieval
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-После базового framework skeleton нужно было подтвердить, что архитектура действительно позволяет собирать рабочий workflow через интерфейсы, без прямой зависимости domain-логики от concrete интеграций.
+After the basic framework skeleton, it was necessary to confirm that the architecture really allows you to assemble a working workflow through interfaces, without direct dependence of domain logic on concrete integrations.
 
-## Решение
+## Solution
 
-1. Ввести слой `infra/*` с concrete adapter skeleton.
-2. Собирать workflow через явное dependency injection в bootstrap-модуле.
-3. Реализовать первый рабочий vertical slice: `RetrievalPackWorkflow`.
-4. В workflow сохранять промежуточные retrieval-артефакты (`summary`, `detail`, `rerank`) через `RetrievalTrace`.
+1. Enter a layer `infra/*` with concrete adapter skeleton.
+2. Collect workflow through explicit dependency injection in the bootstrap module.
+3. Implement the first working vertical slice: `RetrievalPackWorkflow`.
+4. In workflow, save intermediate retrieval artifacts (`summary`, `detail`, `rerank`) via `RetrievalTrace`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- проверена жизнеспособность контрактной архитектуры;
-- сформирован шаблон сборки прикладного workflow;
-- проще наращивать production adapters без изменения domain API.
+- the viability of the contract architecture was tested;
+- an application workflow assembly template has been generated;
+- it’s easier to expand production adapters without changing the domain API.
 
-Минусы:
+Cons:
 
-- текущие concrete adapters пока не подключены к реальной инфраструктуре;
-- требуется следующий инкремент для API boundary и runtime-интеграции.
+- current concrete adapters are not yet connected to the real infrastructure;
+- the next increment is required for API boundary and runtime integration.

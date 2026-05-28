@@ -1,11 +1,11 @@
 # ADR-0070: Unified FastMCP Service Policies
 
-- Статус: Accepted
-- Дата: 2026-04-27
+- Status: Accepted
+- Date: 2026-04-27
 
-## Контекст
+## Context
 
-К середине Increment 30 в платформе уже есть несколько FastMCP boundaries:
+By the middle of Increment 30, the platform already has several FastMCP boundaries:
 
 - retrieval;
 - repository;
@@ -14,14 +14,14 @@
 - review/approval;
 - configuration library.
 
-Все они построены по одному общему паттерну, но фактически metadata и error mapping оставались частично ad-hoc: каждый сервис сам собирал `tool_names`, не было общего поля `service_scope`, не был зафиксирован единый `operation_scope`, а error mapping в MCP-friendly `ValueError` повторялся вручную в каждом сервисе.
+All of them were built according to one general pattern, but in fact metadata and error mapping remained partially ad-hoc: each service itself collected `tool_names`, there was no common `service_scope` field, a single `operation_scope` was not fixed, and error mapping in MCP-friendly `ValueError` was repeated manually in each service.
 
-Для production-like MCP surface такой уровень расхождений уже нежелателен: новые boundary будут копировать разные локальные паттерны, а внешний интегратор не сможет рассчитывать на единообразный service contract.
+For a production-like MCP surface, this level of discrepancy is no longer desirable: new boundaries will copy different local patterns, and the external integrator will not be able to count on a uniform service contract.
 
-## Решение
+## Solution
 
-1. Расширить `BaseFastMcpService` как единый policy carrier для FastMCP boundaries.
-2. Зафиксировать единый metadata contract для всех MCP сервисов:
+1. Extend `BaseFastMcpService` as a single policy carrier for FastMCP boundaries.
+2. Fix a single metadata contract for all MCP services:
    - `service_name`;
    - `version`;
    - `transport=fastmcp`;
@@ -32,28 +32,28 @@
    - `input_validation` / `output_validation`;
    - `error_mapping`;
    - `audit_payload_fields`.
-3. Добавить helper `_register_toolset(...)`, который:
-   - валидирует tool naming (`snake_case`);
-   - регистрирует единый `tool_names` list;
-   - вычисляет или принимает explicit `operation_scope` для каждого tool.
-4. Использовать простую operation-scope модель:
-   - `read` для `get/list/lookup/search/find/compare`;
-   - `write` для `upsert/write/publish/set/submit`;
-   - `action` для execution-style tools вроде `build_evidence_pack`.
-5. Добавить helper `_operation_error(...)` и перевести MCP services на единый error mapping вместо ручного `raise ValueError(str(exc))` в каждой реализации.
-6. Не ломать существующие tool names и runtime entrypoints; policy change должен быть additive и backward-compatible для текущих callers.
+3. Add helper `_register_toolset(...)`, which:
+- validates tool naming (`snake_case`);
+- registers a single `tool_names` list;
+- calculates or accepts explicit `operation_scope` for each tool.
+4. Use a simple operation-scope model:
+- `read` for `get/list/lookup/search/find/compare`;
+- `write` for `upsert/write/publish/set/submit`;
+- `action` for execution-style tools like `build_evidence_pack`.
+5. Add helper `_operation_error(...)` and switch MCP services to a single error mapping instead of manual `raise ValueError(str(exc))` in each implementation.
+6. Do not break existing tool names and runtime entrypoints; policy change should be additive and backward-compatible for current callers.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- все FastMCP boundaries теперь отдают единообразный metadata payload;
-- новые MCP services проще добавлять по одному шаблону;
-- auth/RBAC, audit и operational runbook проще строить поверх уже унифицированного metadata surface;
-- тесты могут проверять MCP policy contract централизованно, а не только per-service behavior.
+- all FastMCP boundaries now provide a uniform metadata payload;
+- it’s easier to add new MCP services using one template;
+- auth/RBAC, audit and operational runbook are easier to build on top of an already unified metadata surface;
+- tests can check the MCP policy contract centrally, and not just per-service behavior.
 
-Минусы:
+Cons:
 
-- metadata payload стал шире, чем в ранних MVP slices;
-- `operation_scope` пока heuristic-based и может потребовать refinement при появлении более сложных tool semantics;
-- unified error mapping пока по-прежнему основан на `ValueError`, а не на отдельной richer MCP error taxonomy.
+- metadata payload has become wider than in earlier MVP slices;
+- `operation_scope` is still heuristic-based and may require refinement when more complex tool semantics appear;
+- unified error mapping is still based on `ValueError`, and not on a separate richer MCP error taxonomy.

@@ -1,32 +1,32 @@
-# ADR-0015: Smoke Keep-Server Mode для post-smoke API валидации
+# ADR-0015: Smoke Keep-Server Mode for post-smoke API validation
 
-- Статус: Accepted
-- Дата: 2026-04-19
+- Status: Accepted
+- Date: 2026-04-19
 
-## Контекст
+## Context
 
-Операционный сценарий ручной проверки требовал выполнять дополнительные `curl`-запросы к API сразу после smoke (например, проверка `GET /api/v1/tasks/events` по `task_id`).
+The manual test operational scenario required performing additional `curl` requests to the API immediately after smoke (for example, checking `GET /api/v1/tasks/events` against `task_id`).
 
-Ранее `smoke_retrieval_api.sh` всегда останавливал `uvicorn` в `cleanup`, поэтому ручная проверка после скрипта падала с `connection refused`.
+Previously, `smoke_retrieval_api.sh` always stopped `uvicorn` in `cleanup`, so manual check after the script failed with `connection refused`.
 
-## Решение
+## Solution
 
-1. Добавить в `smoke_retrieval_api.sh` флаг `--keep-server`.
-2. В режиме `--keep-server`:
-   - оставлять API процесс поднятым после smoke;
-   - писать PID в файл (по умолчанию `backend/.smoke_uvicorn_<port>.pid`);
-   - выводить в stderr команду остановки.
-3. Добавить `--server-pid-file <path>` для явного контроля PID файла.
-4. Добавить pre-check занятого порта перед стартом smoke, чтобы исключить ложный успех на уже запущенном API.
+1. Add the `--keep-server` flag to `smoke_retrieval_api.sh`.
+2. In `--keep-server` mode:
+- leave the API process raised after smoke;
+- write PID to a file (by default `backend/.smoke_uvicorn_<port>.pid`);
+- output the stop command to stderr.
+3. Add `--server-pid-file <path>` to explicitly control the PID of the file.
+4. Add a pre-check for a busy port before starting smoke to eliminate false success on an already running API.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- можно сразу после smoke выполнять ручные API-проверки по `task_id`;
-- процедура остановки сервера после ручной проверки стандартизована;
-- уменьшен риск ложного smoke-pass на чужом процессе.
+- you can immediately perform manual API checks against `task_id` immediately after smoke;
+- the procedure for stopping the server after a manual check has been standardized;
+- the risk of a false smoke-pass on someone else's process has been reduced.
 
-Минусы:
+Cons:
 
-- появился дополнительный операционный режим, который нужно явно останавливать после проверки.
+- an additional operating mode has appeared, which must be explicitly stopped after checking.

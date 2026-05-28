@@ -1,17 +1,17 @@
 # SAA Release Readiness Case
 
-Этот пример имитирует близкий к реальности сценарий подготовки evidence pack для раздела ТЗ по readiness к релизу.
+This example simulates a scenario close to reality for preparing an evidence pack for the release readiness section of the statement of work.
 
-## Входные данные
+## Input data
 
 - `input/knowledge_layers.json`
 
-Файл содержит summary/detail knowledge layers и метаданные источников.
+The file contains summary/detail knowledge layers and source metadata.
 
-## Как запускать
+## How to launch
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\backend\scripts\demo_saa_release_readiness_case.ps1
 ```
 
-Скрипт поднимет API, выполнит retrieval задачу по кейсу и выведет краткий отчет по evidence.
+The script will raise the API, perform a retrieval task on the case and display a short report on the evidence.

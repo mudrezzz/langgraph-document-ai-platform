@@ -1,38 +1,38 @@
-# ADR-0014: Task Events API и стабилизация demo/smoke runbook
+# ADR-0014: Task Events API and stabilization demo/smoke runbook
 
-- Статус: Accepted
-- Дата: 2026-04-19
+- Status: Accepted
+- Date: 2026-04-19
 
-## Контекст
+## Context
 
-После внедрения `task_events` в БД (`app.task_events`) аудит переходов статусов был доступен только на уровне SQL. Для операционной диагностики нужен стандартный API-контур с пагинацией и фильтрами.
+After implementing `task_events` into the database (`app.task_events`), auditing of status transitions was available only at the SQL level. For operational diagnostics, you need a standard API circuit with pagination and filters.
 
-Дополнительно Linux demo-скрипт имел нестабильный парсинг JSON результата smoke-прогона, что мешало ручной валидации reference-case на сервере.
+Additionally, the Linux demo script had unstable JSON parsing of the smoke run result, which prevented manual validation of the reference-case on the server.
 
-## Решение
+## Solution
 
-1. Добавить endpoint `GET /api/v1/tasks/events`:
-   - фильтры: `task_id`, `task_type`, `from`, `to`;
-   - курсорная пагинация: `cursor`, `next_cursor`, `has_more`;
-   - сортировка: `created_at DESC, event_id DESC`.
-2. Расширить application/registry контракт:
-   - отдельная page-модель для task events;
-   - cursor encode/decode для audit-событий.
-3. Обновить smoke/demo:
-   - smoke возвращает `events_returned` и `events_has_running_to_completed`;
-   - Linux demo использует безопасный парсинг JSON через переменную окружения.
-4. Обновить тесты:
-   - unit/integration/e2e на новый endpoint и курсоры task events.
+1. Add endpoint `GET /api/v1/tasks/events`:
+- filters: `task_id`, `task_type`, `from`, `to`;
+- cursor pagination: `cursor`, `next_cursor`, `has_more`;
+- sorting: `created_at DESC, event_id DESC`.
+2. Extend the application/registry contract:
+- separate page model for task events;
+- cursor encode/decode for audit events.
+3. Update smoke/demo:
+- smoke returns `events_returned` and `events_has_running_to_completed`;
+- Linux demo uses secure JSON parsing via environment variable.
+4. Update tests:
+- unit/integration/e2e to the new endpoint and task event cursors.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- аудит lifecycle теперь доступен через публичный API;
-- оператор может диагностировать transition flow без прямого доступа к SQL;
-- ручной demo/smoke цикл на Linux стал стабильнее и информативнее.
+- lifecycle audit is now available via public API;
+- the operator can diagnose transition flow without direct access to SQL;
+- the manual demo/smoke cycle on Linux has become more stable and more informative.
 
-Минусы:
+Cons:
 
-- увеличился объем контрактов API и тестов поддержки;
-- для полного observability все еще нужны агрегированные метрики поверх raw task events.
+- the volume of API contracts and support tests has increased;
+- for complete observability, aggregated metrics on top of raw task events are still needed.

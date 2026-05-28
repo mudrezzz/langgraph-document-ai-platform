@@ -1,11 +1,11 @@
 # ADR-0037: Framework tool execution policy
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После `Increment 25` framework layer имел базовые contracts для agents/tools/workflows, но `ToolExecutor` оставался минимальным lookup-wrapper поверх `ToolRegistry`. Целевая архитектура требует, чтобы tools можно было безопасно использовать внутри agents/workflows/MCP с единым lifecycle:
+After `Increment 25` the framework layer had basic contracts for agents/tools/workflows, but `ToolExecutor` remained a minimal lookup-wrapper on top of `ToolRegistry`. The target architecture requires that tools can be safely used inside agents/workflows/MCP with a single lifecycle:
 
 - retry;
 - timeout accounting;
@@ -13,37 +13,37 @@
 - audit;
 - propagation task/node/correlation metadata.
 
-Если оставить эти concerns в application/domain services, разные workflows начнут реализовывать retry/idempotency/audit по-разному.
+If you leave these concerns in application/domain services, different workflows will begin to implement retry/idempotency/audit differently.
 
-## Решение
+## Solution
 
-1. Расширить `ToolContext` полями:
+1. Expand `ToolContext` with fields:
    - `node_name`;
    - `correlation_id`;
    - `idempotency_key`.
-2. Добавить `ToolExecutionPolicy`:
+2. Add `ToolExecutionPolicy`:
    - `max_attempts`;
    - `timeout_sec`;
    - `idempotency_enabled`;
    - `audit_enabled`.
-3. Добавить audit contract:
+3. Add audit contract:
    - `ToolExecutionRecord`;
    - `ToolExecutionAuditSink`;
-   - `InMemoryToolExecutionAuditSink` для unit/dev сценариев.
-4. Сохранить обратную совместимость:
-   - `ToolExecutor(registry).execute(tool_name, command, context)` остается основным вызовом;
-   - без explicit policy поведение остается одноразовым execution без обязательного audit sink.
-5. Зафиксировать contract tests на retry/idempotency/audit behavior.
+- `InMemoryToolExecutionAuditSink` for unit/dev scripts.
+4. Maintain backward compatibility:
+- `ToolExecutor(registry).execute(tool_name, command, context)` remains the main call;
+- without explicit policy, the behavior remains one-time execution without the mandatory audit sink.
+5. Fix contract tests for retry/idempotency/audit behavior.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- framework tools получили единый runtime behavior без изменения application services;
-- будущие agents/workflows/MCP services смогут использовать один policy surface;
-- idempotency и audit metadata теперь стандартизированы на уровне framework context.
+- framework tools received a single runtime behavior without changing application services;
+- future agents/workflows/MCP services will be able to use one policy surface;
+- idempotency and audit metadata are now standardized at the framework context level.
 
-Минусы:
+Cons:
 
-- timeout пока является accounting/detection после sync tool call, а не preemptive cancellation;
-- idempotency cache локален для экземпляра `ToolExecutor`; production persistence policy будет добавляться отдельным slice при unified execution plane.
+- timeout is still an accounting/detection after a sync tool call, and not a preemptive cancellation;
+- idempotency cache is local to the `ToolExecutor` instance; production persistence policy will be added as a separate slice for a unified execution plane.

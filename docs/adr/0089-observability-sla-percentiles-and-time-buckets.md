@@ -1,48 +1,48 @@
 # ADR-0089: Observability SLA percentiles and time buckets
 
-- Статус: Accepted
-- Дата: 2026-04-29
+- Status: Accepted
+- Date: 2026-04-29
 
-## Контекст
+## Context
 
-После ADR-0088 у нас появились quality/token execution metrics и day/week агрегаты `task_events`, но для SLA-контроля не хватало:
+After ADR-0088, we had quality/token execution metrics and day/week `task_events` aggregates, but there was not enough for SLA control:
 
-- percentiles (`p50/p95`) по длительности и queue wait;
-- breach counters относительно SLA порогов;
-- периодных day/week срезов для SLA состояния execution plane.
+- percentiles (`p50/p95`) by duration and queue wait;
+- breach counters relative to SLA thresholds;
+- periodic day/week slices for the SLA state of the execution plane.
 
-Нужно закрыть этот пробел без новой telemetry БД и без breaking API contracts.
+We need to close this gap without a new telemetry database and without breaking API contracts.
 
-## Решение
+## Solution
 
-1. Расширить `TaskObservabilitySummary` и API `GET /api/v1/tasks/observability/summary`:
+1. Expand `TaskObservabilitySummary` and API `GET /api/v1/tasks/observability/summary`:
    - overall:
      - `p50_duration_ms`, `p95_duration_ms`;
      - `p50_queue_wait_ms`, `p95_queue_wait_ms`;
      - `duration_sla_threshold_ms`, `queue_wait_sla_threshold_ms`;
      - `duration_sla_breaches_total`, `queue_wait_sla_breaches_total`;
    - per task type:
-     - те же percentile/breach поля.
-2. Добавить периодные срезы observability:
-   - `daily[]` и `weekly[]`:
+- the same percentile/breach fields.
+2. Add periodic observability slices:
+- `daily[]` and `weekly[]`:
      - `bucket_start`;
      - `total_tasks`, `completed_tasks`, `failed_tasks`, `waiting_human_tasks`;
      - `duration_sla_breaches_total`, `queue_wait_sla_breaches_total`.
-3. SLA thresholds брать из env:
+3. SLA thresholds taken from env:
    - `APP_SLA_TASK_DURATION_MS`;
    - `APP_SLA_QUEUE_WAIT_MS`;
-   - значения `<=0` или невалидные значения трактуются как `disabled`.
-4. Оставить вычисления на текущем task read-model уровне (`app.tasks`/fallback), без нового хранилища.
+- values ​​`<=0` or invalid values ​​are treated as `disabled`.
+4. Leave the calculations at the current task read-model level (`app.tasks`/fallback), without new storage.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появляется базовая SLA-видимость execution plane для ops/release gate;
-- day/week динамика и percentile метрики доступны через уже существующий API;
-- решение аддитивное, обратная совместимость сохранена.
+- basic SLA visibility of the execution plane for ops/release gate appears;
+- day/week dynamics and percentile metrics are available through an existing API;
+- the solution is additive, backward compatibility is preserved.
 
-Минусы:
+Cons:
 
-- метрики считаются по текущему task read-model, а не по raw queue/runtime telemetry;
-- для большого объема задач в будущем может понадобиться pre-aggregated materialized слой.
+- metrics are calculated according to the current task read-model, and not according to raw queue/runtime telemetry;
+- for a large volume of tasks in the future, a pre-aggregated materialized layer may be needed.

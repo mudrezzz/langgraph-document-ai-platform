@@ -1,13 +1,13 @@
 # Examples Catalog
 
-Дата обновления: 2026-04-30  
-Статус: Active (P2 cookbook)
+Update date: 2026-04-30
+Status: Active (P2 cookbook)
 
-Каталог reusable сценариев для integrators.
+Directory of reusable scripts for integrators.
 
 ## 1. Retrieval-first
 
-Use case: быстро собрать evidence pack по вопросу без полного authoring flow.
+Use case: quickly collect an evidence pack on an issue without a full authoring flow.
 
 Primary assets:
 
@@ -23,12 +23,12 @@ Primary assets:
 Expected proof:
 
 - task lifecycle `start -> completed`;
-- evidence pack с `selected_blocks` и `source_refs`;
-- task events/summary доступны через API.
+- evidence pack with `selected_blocks` and `source_refs`;
+- task events/summary are available via API.
 
 ## 2. Authoring-first
 
-Use case: сгенерировать итоговый артефакт с traceability и пройти HITL loop.
+Use case: generate the final artifact with traceability and go through the HITL loop.
 
 Primary assets:
 
@@ -43,13 +43,13 @@ Primary assets:
 
 Expected proof:
 
-- artifact доступен через `GET /api/v1/tasks/{task_id}/artifact`;
-- `traceability.retrieval_task_id` и `source_refs` заполнены;
-- для async/HITL сценария виден переход `waiting_human -> completed`.
+- artifact is available via `GET /api/v1/tasks/{task_id}/artifact`;
+- `traceability.retrieval_task_id` and `source_refs` are filled;
+- for async/HITL script the `waiting_human -> completed` transition is visible.
 
 ## 3. MCP-first
 
-Use case: интеграция агента через MCP tools вместо прямого HTTP API.
+Use case: agent integration via MCP tools instead of direct HTTP API.
 
 Primary assets:
 
@@ -74,12 +74,12 @@ Primary assets:
 
 Expected proof:
 
-- tool contracts работают с typed payloads;
-- RBAC-sensitive tools корректно обрабатывают `actor`/`roles` при `APP_AUTH_ENABLED=true`.
+- tool contracts work with typed payloads;
+- RBAC-sensitive tools correctly handle `actor`/`roles` when `APP_AUTH_ENABLED=true`.
 
 ## 4. Canonical ingestion + retrieval
 
-Use case: multi-format corpus (`.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`) и retrieval по canonical store.
+Use case: multi-format corpus (`.md/.txt/.json/.docx/.pdf/.xlsx/.pptx`) and retrieval by canonical store.
 
 Primary assets:
 
@@ -93,16 +93,16 @@ Primary assets:
 
 Expected proof:
 
-- `quality_gate_status` присутствует;
+- `quality_gate_status` present;
 - `retrieval_backend=pgvector`;
-- report содержит `Canonical Quality Summary` и `Canonical Source Mapping`.
+- report contains `Canonical Quality Summary` and `Canonical Source Mapping`.
 
 ## 5. Scenario selection guide
 
-- Нужен только поиск доказательств -> `Retrieval-first`.
-- Нужен финальный документ -> `Authoring-first`.
-- Нужна tool-интеграция для агента -> `MCP-first`.
-- Нужен multi-format ingestion pipeline -> `Canonical ingestion + retrieval`.
+- All you need is a search for evidence -> `Retrieval-first`.
+- We need the final document -> `Authoring-first`.
+- Need tool integration for agent -> `MCP-first`.
+- We need a multi-format ingestion pipeline -> `Canonical ingestion + retrieval`.
 
 ## 6. Related docs
 

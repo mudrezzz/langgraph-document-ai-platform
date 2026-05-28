@@ -1,32 +1,32 @@
 # ADR-0048: Domain authoring section contracts and packets baseline
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0047 domain layer уже покрывал outline/review/assembly/research/writer composition, но authoring pipeline по-прежнему оперировал только общим draft и traceability секциями. В `Increment 28` следующий логичный шаг — ввести typed section-oriented contracts, не переводя весь pipeline на section-by-section execution за один раз.
+After ADR-0047, the domain layer already covered the outline/review/assembly/research/writer composition, but the authoring pipeline still operated only with the general draft and traceability sections. In `Increment 28`, the next logical step is to introduce typed section-oriented contracts, without switching the entire pipeline to section-by-section execution at once.
 
-## Решение
+## Solution
 
-1. Добавить новые typed schemas:
+1. Add new typed schemas:
    - `SectionContract`;
    - `SectionPacket`.
-2. Добавить `SectionContractBuilder` в `domain_authoring`.
-3. На текущем slice строить release-readiness section contracts из evidence/review context и сохранять их в:
+2. Add `SectionContractBuilder` to `domain_authoring`.
+3. On the current slice, build release-readiness section contracts from evidence/review context and save them in:
    - `AuthoringTaskState.section_contracts`;
    - artifact metadata.
-4. Не менять публичные API и не вводить отдельный section workflow пока что.
+4. Do not change public APIs and do not introduce a separate workflow section for now.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появляется typed boundary для следующего шага к section-by-section authoring;
-- section intent и preferred source refs становятся наблюдаемыми в state и artifact metadata;
-- переход к outline approval/section workflows можно делать постепенно, без сноса текущего pipeline.
+- a typed boundary appears for the next step to section-by-section authoring;
+- section intent and preferred source refs become observable in state and artifact metadata;
+- the transition to outline approval/section workflows can be done gradually, without demolishing the current pipeline.
 
-Минусы:
+Cons:
 
-- pipeline пока все еще пишет единый draft, а не отдельные section drafts;
-- `SectionPacket` пока зафиксирован как baseline contract и еще не используется отдельным workflow runner.
+- the pipeline still writes a single draft, and not separate section drafts;
+- `SectionPacket` is currently fixed as a baseline contract and is not yet used by a separate workflow runner.

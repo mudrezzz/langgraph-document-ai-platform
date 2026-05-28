@@ -1,50 +1,50 @@
 # Design Patterns Library
 
-Дата обновления: 2026-04-30  
-Статус: Active
+Update date: 2026-04-30
+Status: Active
 
-Эта библиотека нужна, когда разработчик спрашивает:
+This library is needed when a developer asks:
 
-- "какой шаблон выбрать под мой сценарий?"
-- "какой минимальный рабочий скелет взять?"
-- "как не сломать контракты framework при расширении?"
+- “Which template should I choose for my script?”
+- “What is the minimum working skeleton to take?”
+- "how not to break framework contracts when expanding?"
 
-План replatform демо-агентов в in-process стиль:
+Plan for replatform demo agents in in-process style:
 
 - `docs/developer_guide/agent_examples_demo_program.md`
 
-## Как пользоваться
+## How to use
 
-1. Выбери pattern по задаче.
-2. Запусти связанный runnable пример из `agent_examples/run_example.py`.
-3. Повтори структуру extension points для своего кейса.
-4. Проверь изменения через smoke/tests и обнови docs backlog.
+1. Select a pattern for the task.
+2. Run the linked runnable example from `agent_examples/run_example.py`.
+3. Repeat the extension points structure for your case.
+4. Test the changes via smoke/tests and update the docs backlog.
 
-## Каталог patterns
+## Patterns catalog
 
 1. Retrieval-First Agent  
-   Когда: нужен быстрый Q&A/evidence path по документам.  
-   Док: `docs/developer_guide/design_patterns/pattern_retrieval_first.md`  
-   Пример: `agent_examples/patterns/retrieval_first/main.py` (in-process).
+When: you need a quick Q&A/evidence path based on documents.
+Doc: `docs/developer_guide/design_patterns/pattern_retrieval_first.md`
+Example: `agent_examples/patterns/retrieval_first/main.py` (in-process).
 
 2. Authoring-First Agent  
-   Когда: нужен управляемый процесс генерации итогового артефакта.  
-   Док: `docs/developer_guide/design_patterns/pattern_authoring_first.md`  
-   Пример: `agent_examples/run_example.py --pattern authoring_first`
+When: you need a controlled process for generating the final artifact.
+Doc: `docs/developer_guide/design_patterns/pattern_authoring_first.md`
+Example: `agent_examples/run_example.py --pattern authoring_first`
 
 3. HITL Gate Pattern  
-   Когда: нужен reviewer loop и безопасный approve/rework path.  
-   Док: `docs/developer_guide/design_patterns/pattern_hitl_gate.md`  
-   Пример: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+When: you need a reviewer loop and a secure approve/rework path.
+Doc: `docs/developer_guide/design_patterns/pattern_hitl_gate.md`
+Example: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
 
-Примечание по текущему статусу:
+Note on current status:
 
-- `retrieval_first` уже переведен в in-process pattern.
-- `authoring_first` и `hitl_gate` пока остаются API-driven в рамках переходного этапа.
+- `retrieval_first` has already been converted to in-process pattern.
+- `authoring_first` and `hitl_gate` remain API-driven for now as part of the transition phase.
 
-## Проверка
+## Checking
 
-Быстрый test path:
+Quick test path:
 
 ```bash
 .venv/bin/pytest -q agent_examples/tests/test_run_example.py

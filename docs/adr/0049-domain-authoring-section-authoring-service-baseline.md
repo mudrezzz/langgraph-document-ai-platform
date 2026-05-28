@@ -1,31 +1,31 @@
 # ADR-0049: Domain authoring section authoring service baseline
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0048 система уже имела typed `SectionContract` и `SectionPacket`, но они оставались в основном схемами и metadata boundary. Для продолжения `Increment 28` нужен был минимальный исполнимый domain service, который реально потребляет section packet и возвращает section-level результат, не ломая текущий single-draft pipeline.
+After ADR-0048, the system already had the typed `SectionContract` and `SectionPacket`, but they remained mainly schemas and metadata boundaries. To continue `Increment 28` we needed a minimal executable domain service that actually consumes the section packet and returns a section-level result without breaking the current single-draft pipeline.
 
-## Решение
+## Solution
 
-1. Добавить `SectionArtifact` как typed section output.
-2. Добавить `SectionAuthoringService` в `domain_authoring`.
-3. На текущем slice строить deterministic `section_artifacts` и `SectionDigest` из `SectionPacket`:
-   - без отдельного LangGraph workflow;
-   - без смены публичных API;
-   - без замены текущего финального assembled document.
-4. Сохранять `section_artifacts` в `AuthoringTaskState` и artifact metadata.
+1. Add `SectionArtifact` as typed section output.
+2. Add `SectionAuthoringService` to `domain_authoring`.
+3. On the current slice, build deterministic `section_artifacts` and `SectionDigest` from `SectionPacket`:
+- without separate LangGraph workflow;
+- without changing public APIs;
+- without replacing the current final assembled document.
+4. Save `section_artifacts` in `AuthoringTaskState` and artifact metadata.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- section packet boundary теперь не только типизирован, но и исполняем;
-- section digests становятся наблюдаемым артефактом в authoring state и metadata;
-- следующий шаг к полноценному `SectionAuthoringWorkflow` становится заметно меньше.
+- section packet boundary is now not only typed, but also executable;
+- section digests become an observable artifact in the authoring state and metadata;
+- the next step to a full-fledged `SectionAuthoringWorkflow` becomes noticeably smaller.
 
-Минусы:
+Cons:
 
-- section artifacts пока не участвуют в deterministic final assembly как первичный источник;
-- service пока deterministic и не содержит отдельного reviewer/consistency sub-workflow по секциям.
+- section artifacts do not yet participate in the deterministic final assembly as a primary source;
+- service is still deterministic and does not contain a separate reviewer/consistency sub-workflow in sections.

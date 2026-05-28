@@ -1,25 +1,25 @@
-# ADR-0034: Binary demo documents для Knowledge Factory acceptance
+# ADR-0034: Binary demo documents for Knowledge Factory acceptance
 
-Дата: 2026-04-23
+Date: 2026-04-23
 
-Статус: Accepted
+Status: Accepted
 
-## Контекст
+## Context
 
-ADR-0031 добавил parser boundary для `.docx` и `.pdf`, но основной release go/no-go multifile demo фактически содержал только `.md/.txt/.json`. Из-за этого ручной acceptance прогон не подтверждал поддержку binary document formats, хотя framework уже имел соответствующие adapters.
+ADR-0031 added a parser boundary for `.docx` and `.pdf`, but the main release go/no-go multifile demo actually only contained `.md/.txt/.json`. Because of this, the manual acceptance run did not confirm support for binary document formats, although the framework already had the appropriate adapters.
 
-## Решение
+## Solution
 
-1. Расширить `release_go_no_go_multifile_case/input` двумя входными документами:
+1. Expand `release_go_no_go_multifile_case/input` with two input documents:
    - `05_release_notes.docx`;
    - `06_audit_summary.pdf`.
-2. Добавить генератор `backend/scripts/build_binary_demo_documents.py` и shell/PowerShell wrappers.
-3. Добавить флаг `--build-binary-demo-docs` в canonical indexing/retrieval smoke scripts.
-4. Обновить manual PostgreSQL runbook так, чтобы ручной acceptance прогон проверял `.md/.txt/.json/.docx/.pdf`.
+2. Add generator `backend/scripts/build_binary_demo_documents.py` and shell/PowerShell wrappers.
+3. Add the `--build-binary-demo-docs` flag to canonical indexing/retrieval smoke scripts.
+4. Update the manual PostgreSQL runbook so that the manual acceptance run checks `.md/.txt/.json/.docx/.pdf`.
 
-## Последствия
+## Consequences
 
-- Demo теперь реально валидирует все форматы текущего parser boundary.
-- Smoke Knowledge Indexing ожидает 6 canonical documents и file types `docx/json/md/pdf/txt`.
-- PDF fixture может давать quality flag `low_text_density`; это ожидаемое поведение MVP parser quality gates.
-- Binary fixtures остаются небольшими и версионируются вместе с demo, а generator нужен для восстановления/перезаписи fixture files.
+- Demo now actually validates all formats of the current parser boundary.
+- Smoke Knowledge Indexing expects 6 canonical documents and file types `docx/json/md/pdf/txt`.
+- PDF fixture can give quality flag `low_text_density`; This is the expected behavior of MVP parser quality gates.
+- Binary fixtures remain small and are versioned along with the demo, and a generator is needed to restore/rewrite fixture files.

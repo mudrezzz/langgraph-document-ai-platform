@@ -1,47 +1,47 @@
-# ADR-0024: OpenRouter LLM Gateway для authoring draft
+# ADR-0024: OpenRouter LLM Gateway for authoring draft
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-После `Increment 18` authoring flow работал только в deterministic режиме (`retrieval -> draft -> artifact`) и был полезен как технический контур, но демонстрационно выглядел слишком статично.
+After `Increment 18`, the authoring flow only worked in deterministic mode (`retrieval -> draft -> artifact`) and was useful as a technical outline, but looked too static for the demo.
 
-Нужно было:
+It was necessary:
 
-- подключить реальную LLM без слома текущего API;
-- сохранить предсказуемость regression-тестов;
-- добавить управляемый fallback для `prod`-совместимого контура.
+- connect a real LLM without breaking the current API;
+- maintain predictability of regression tests;
+- add controlled fallback for `prod`-compatible circuit.
 
-## Решение
+## Solution
 
-1. Добавить OpenRouter chat gateway в infra layer:
+1. Add OpenRouter chat gateway to the infra layer:
    - `infra/openrouter/OpenRouterChatModelGateway`;
-   - интеграция через существующий `IChatModelGateway` контракт.
-2. Расширить authoring API контракт полем `draft_strategy`:
-   - `auto` (использует LLM, если включена в env);
-   - `deterministic` (принудительно без LLM);
-   - `llm` (принудительно через LLM).
-3. Ввести env-конфигурацию LLM runtime:
+- integration through the existing `IChatModelGateway` contract.
+2. Expand the authoring API contract with the `draft_strategy` field:
+- `auto` (uses LLM if included in env);
+- `deterministic` (forced without LLM);
+- `llm` (forced via LLM).
+3. Enter the LLM runtime env configuration:
    - `APP_LLM_ENABLED`, `APP_LLM_PROVIDER`, `APP_LLM_STRICT`;
    - `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, `OPENROUTER_BASE_URL`, `OPENROUTER_TIMEOUT_SEC`.
-4. Добавить safe fallback:
-   - при `APP_LLM_STRICT=false` и ошибке gateway draft строится deterministic логикой;
-   - в metadata артефакта пишется `draft_generation_mode` и причина fallback.
-5. Добавить отдельный внешний тест real LLM:
+4. Add safe fallback:
+- if `APP_LLM_STRICT=false` and an error, the gateway draft is built using deterministic logic;
+- in the metadata of the artifact it is written `draft_generation_mode` and the reason for fallback.
+5. Add a separate external real LLM test:
    - `backend/tests/integration/test_authoring_openrouter_external.py`;
-   - запускается только при `RUN_EXTERNAL_LLM_TESTS=1`.
+- runs only when `RUN_EXTERNAL_LLM_TESTS=1`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- demo authoring стал "живым" благодаря реальной генерации текста;
-- API сохранил обратную совместимость (default `draft_strategy=auto`);
-- regression suite остается детерминированным (`draft_strategy=deterministic` в обычных integration/e2e тестах).
+- demo authoring became “live” thanks to real text generation;
+- API remains backward compatible (default `draft_strategy=auto`);
+- the regression suite remains deterministic (`draft_strategy=deterministic` in regular integration/e2e tests).
 
-Минусы:
+Cons:
 
-- добавлена зависимость от внешнего LLM-провайдера для external smoke;
-- качество draft зависит от выбранной модели и стабильности сети;
-- пока нет multi-step authoring цикла и reviewer-петли.
+- added dependency on external LLM provider for external smoke;
+- draft quality depends on the selected model and network stability;
+- there is no multi-step authoring cycle and reviewer loop yet.

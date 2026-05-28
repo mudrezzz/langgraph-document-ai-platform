@@ -1,31 +1,31 @@
-# ADR-0009: Reference-case и обязательные e2e тесты FastAPI
+# ADR-0009: Reference-case and mandatory e2e FastAPI tests
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-По мере роста framework нужно иметь стабильный и понятный для бизнеса индикатор прогресса: не только unit/integration тесты, но и постоянный реалистичный сценарий, который усложняется от итерации к итерации.
+As the framework grows, you need to have a stable and business-friendly indicator of progress: not only unit/integration tests, but also a constant realistic scenario that becomes more complex from iteration to iteration.
 
-## Решение
+## Solution
 
-1. Ввести постоянный reference-case:
-   - `saa_release_readiness_case` с тестовыми knowledge layers.
-2. Привязать retrieval workflow к case dataset через `task_context` (`case_dataset_id` / `case_dataset_path`).
-3. Добавить обязательные e2e FastAPI тесты на реальном `uvicorn`:
+1. Enter a constant reference-case:
+- `saa_release_readiness_case` with test knowledge layers.
+2. Link the retrieval workflow to the case dataset via `task_context` (`case_dataset_id` / `case_dataset_path`).
+3. Add mandatory e2e FastAPI tests on real `uvicorn`:
    - `backend/tests/e2e/test_fastapi_retrieval_e2e.py`.
-4. Добавить demo-run script для наглядного прогона кейса:
+4. Add a demo-run script for a visual run of the case:
    - `backend/scripts/demo_saa_release_readiness_case.ps1`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появляется сквозной, приближенный к реальности индикатор развития платформы;
-- прогресс виден через стабильный бизнес-сценарий;
-- e2e слой ловит проблемы, которые не видны в TestClient-only тестах.
+- an end-to-end indicator of platform development appears, close to reality;
+- progress is visible through a stable business scenario;
+- e2e layer catches problems that are not visible in TestClient-only tests.
 
-Минусы:
+Cons:
 
-- тестовый контур становится тяжелее и требует поддержки fixture-данных;
-- при изменениях контрактов нужно синхронно обновлять reference-case.
+- the test circuit becomes heavier and requires fixture data support;
+- when contracts change, you need to synchronously update the reference-case.

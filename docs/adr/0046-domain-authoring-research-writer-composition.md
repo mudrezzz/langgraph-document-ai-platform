@@ -1,39 +1,39 @@
 # ADR-0046: Domain authoring research and writer composition extraction
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0045 reviewer/outline/assembly logic уже была вынесена в `domain_authoring`, но `AuthoringApplicationService` все еще содержал:
+After ADR-0045 reviewer/outline/assembly logic was already moved to `domain_authoring`, but `AuthoringApplicationService` still contained:
 
-- построение research summary из evidence;
+- building a research summary from evidence;
 - deterministic writer draft composition;
 - LLM prompt composition.
 
-Это оставляло application layer перегруженным доменным форматированием текста и затрудняло дальнейшее выделение section-oriented authoring workflows.
+This left the application layer overloaded with domain-specific text formatting and made it difficult to further highlight section-oriented authoring workflows.
 
-## Решение
+## Solution
 
-1. Добавить в `domain_authoring` еще два stateless сервиса:
+1. Add two more stateless services to `domain_authoring`:
    - `ResearchSummaryBuilder`;
    - `WriterDraftService`.
-2. Оставить в `AuthoringApplicationService` только orchestration writer stage:
-   - выбор `draft_strategy`;
-   - вызов внешнего `IChatModelGateway`;
-   - fallback policy и metadata результата.
-3. Передать новые domain services в application layer через dependency injection с дефолтными реализациями.
-4. Не менять внешние authoring/HITL API и artifact contracts.
+2. Leave only the orchestration writer stage in `AuthoringApplicationService`:
+- select `draft_strategy`;
+- call external `IChatModelGateway`;
+- fallback policy and metadata of the result.
+3. Transfer new domain services to the application layer via dependency injection with default implementations.
+4. Do not change external authoring/HITL API and artifact contracts.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- research/writer text composition теперь тестируется отдельно от orchestration и LLM gateway;
-- граница между domain formatting и application orchestration стала явнее;
-- следующий slice может выносить section packets/workflows без смешивания с prompt/draft formatting.
+- research/writer text composition is now tested separately from orchestration and LLM gateway;
+- the boundary between domain formatting and application orchestration has become clearer;
+- the next slice can carry section packets/workflows without mixing with prompt/draft formatting.
 
-Минусы:
+Cons:
 
-- решение все еще не выделяет полноценный section authoring workflow;
-- application layer пока сохраняет lifecycle orchestration и HITL rewrite policy.
+- the solution still does not highlight a full section authoring workflow;
+- application layer still retains lifecycle orchestration and HITL rewrite policy.

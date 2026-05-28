@@ -1,55 +1,55 @@
-# hitl_gate — асинхронный цикл ревью с HITL
+# hitl_gate - asynchronous review loop with HITL
 
-Агент, демонстрирующий reviewer-in-the-loop через async API: запускает задачу,
-поллит статус, при `waiting_human` подаёт решение ревьюера и повторяет цикл.
+Agent demonstrating reviewer-in-the-loop via async API: starts a task,
+pollit status, at `waiting_human` submits the reviewer's decision and repeats the cycle.
 
 ---
 
-## Что делает
+## What does it do
 
-Запускает создание артефакта через `start_async`, ждёт пока задача не попросит
-человеческого ревью (`waiting_human`), подаёт решение (`needs_changes` или
-`approve`) и повторяет до финального `completed`.
+Starts artifact creation via `start_async`, waits until the task asks
+human review (`waiting_human`), submits a solution (`needs_changes` or
+`approve`) and repeats until the final `completed`.
 
 ```
 POST /authoring/start_async → task_id
   → poll: waiting_human?
-      → GET /hitl/{task_id}/status   — текущая итерация
-      → POST /hitl/{task_id}/submit  — решение: needs_changes / approve
-  → poll снова...
+→ GET /hitl/{task_id}/status - current iteration
+→ POST /hitl/{task_id}/submit - solution: needs_changes / approve
+→ poll again...
   → completed → GET /artifact/{id}
 ```
 
-Каждое HITL-решение идемпотентно: агент передаёт `idempotency_key`,
-чтобы повторная отправка не создавала дублей.
+Each HITL solution is idempotent: the agent transmits `idempotency_key`,
+so that resending does not create duplicates.
 
 ---
 
-## Архитектурный смысл
+## Architectural meaning
 
-Показывает механику HITL на уровне API-протокола — как задача переходит между
-состояниями `running → waiting_human → running → completed`, как агент
-программно играет роль ревьюера.
+Shows the mechanics of HITL at the API protocol level - how a task moves between
+states `running → waiting_human → running → completed`, as an agent
+programmatically plays the role of a reviewer.
 
-В реальном сценарии решение (`needs_changes` / `approve`) принимает человек
-через UI; в примере оно передаётся через `--hitl-decisions` для автоматизации.
+In a real scenario, the decision (`needs_changes` / `approve`) is made by a person
+via UI; in the example it is passed via `--hitl-decisions` for automation.
 
 ---
 
-## Структура файлов
+## File structure
 
 ```
 hitl_gate/
-├── agent.py    # HitlGateAgent — async цикл с polling + HITL submissions
+├── agent.py # HitlGateAgent - async loop with polling + HITL submissions
 ├── config.py   # HitlGateConfig — hitl_required, workflow params
-└── prompts.py  # DEFAULT_QUERY — дефолтный запрос
+└── prompts.py # DEFAULT_QUERY - default query
 ```
 
 ---
 
-## Запуск
+## Launch
 
-Требуется PostgreSQL, миграции и async-воркер:
+Requires PostgreSQL, migrations and async worker:
 
 ```bash
 bash backend/scripts/postgres_up.sh
@@ -61,7 +61,7 @@ bash backend/scripts/async_up.sh
   --hitl-decisions needs_changes,approve
 ```
 
-Остановить инфраструктуру после запуска:
+Stop the infrastructure after starting:
 
 ```bash
 bash backend/scripts/async_down.sh
@@ -70,20 +70,20 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 
 ---
 
-## Параметр `--hitl-decisions`
+## Parameter `--hitl-decisions`
 
-Список решений для последовательного применения через запятую.
-Агент расходует их по одному на каждый `waiting_human`.
+List of solutions for sequential application separated by commas.
+The agent spends one for each `waiting_human`.
 
-Примеры:
-- `approve` — одно одобрение, если задача ждёт один раз
-- `needs_changes,approve` — сначала отклонить, потом одобрить
-- `needs_changes,needs_changes,approve` — два отклонения, потом одобрение
+Examples:
+- `approve` - ​​one approval, if the task waits once
+- `needs_changes,approve` - ​​first reject, then approve
+- `needs_changes,needs_changes,approve` - ​​two rejections, then approval
 
 ---
 
-## Что менять в первую очередь
+## What to change first
 
-1. `prompts.py` — изменить запрос.
-2. `config.py` — изменить `hitl_required` или `workflow_mode`.
-3. `agent.py::run()` — заменить `decisions` из параметра на реальный UI-ввод.
+1. `prompts.py` — change the request.
+2. `config.py` — change `hitl_required` or `workflow_mode`.
+3. `agent.py::run()` — replace `decisions` from the parameter with a real UI input.

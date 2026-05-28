@@ -1,37 +1,37 @@
 # ADR-0082: PDF form-like extraction and demo fixture hardening
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0081 PDF parser уже извлекает table-like блоки в `extracted_tables`, но release/governance документы часто содержат form-like key/value секции (approval forms, gate checklists), где данные представлены не как классическая таблица.
+After ADR-0081, PDF parser already extracts table-like blocks into `extracted_tables`, but release/governance documents often contain form-like key/value sections (approval forms, gate checklists), where the data is not presented as a classic table.
 
-Без явной поддержки form-like layouts часть важных полей деградирует до обычных paragraph blocks и теряет table-row provenance в retrieval/report path.
+Without explicit support for form-like layouts, some important fields degrade into ordinary paragraph blocks and lose table-row provenance in the retrieval/report path.
 
-## Решение
+## Solution
 
-1. Расширить PDF table extraction baseline:
-   - form-like key/value blocks также отправляются в tabular extraction path;
-   - table metadata и row metadata получают `pdf_table_kind` (`form_like|pipe_table|spaced_table`).
-2. Добавить parser quality flag `pdf_form_like_blocks_detected`.
-3. Обновить demo fixture `06_audit_summary.pdf`, чтобы он содержал:
+1. Expand PDF table extraction baseline:
+- form-like key/value blocks are also sent to the tabular extraction path;
+- table metadata and row metadata get `pdf_table_kind` (`form_like|pipe_table|spaced_table`).
+2. Add parser quality flag `pdf_form_like_blocks_detected`.
+3. Update the demo fixture `06_audit_summary.pdf` so that it contains:
    - complex table-like release controls;
    - form-like release gate block.
-4. Зафиксировать в тестах, что demo PDF дает:
+4. Record in tests what the demo PDF gives:
    - `pdf_tables_extracted`;
    - `pdf_form_like_blocks_detected`;
-   - canonical `table_row` blocks с `pdf_table_kind=form_like`.
+- canonical `table_row` blocks with `pdf_table_kind=form_like`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- retrieval/source mapping получает более точный provenance для form-like PDF sections;
-- demo smoke теперь проверяет не только table-like, но и form-like extraction в реальном кейсе;
-- сохраняется совместимость публичных API/MCP контрактов.
+- retrieval/source mapping gets more accurate provenance for form-like PDF sections;
+- demo smoke now checks not only table-like, but also form-like extraction in a real case;
+- compatibility of public API/MCP contracts is maintained.
 
-Минусы:
+Cons:
 
-- form-like extraction пока heuristic и требует будущего hardening для нестандартных шаблонов;
-- возможны частичные извлечения в сложных многострочных формах.
+- form-like extraction is still heuristic and requires future hardening for non-standard templates;
+- partial extractions are possible in complex multi-line forms.

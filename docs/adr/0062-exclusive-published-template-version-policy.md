@@ -1,42 +1,42 @@
 # ADR-0062: Exclusive published template version policy
 
-- Статус: Accepted
-- Дата: 2026-04-25
+- Status: Accepted
+- Date: 2026-04-25
 
-## Контекст
+## Context
 
-После ADR-0060 template library уже получила lifecycle `draft|published`, а authoring без явного `template_version` стал брать последнюю published version. Но publish semantics все еще были слишком слабыми: один `template_id` мог иметь несколько published versions одновременно.
+After ADR-0060, the template library already received a lifecycle `draft|published`, and authoring without an explicit `template_version` began to take the latest published version. But publish semantics were still too weak: one `template_id` could have several published versions at the same time.
 
-Для production-like template governance это создает двусмысленность:
+For production-like template governance this creates ambiguity:
 
-- default authoring resolution по published template перестает быть однозначным policy decision;
-- HTTP API, MCP и authoring path формально остаются совместимыми, но operator не получает простого invarianta "у шаблона одна активная published version";
-- rollback/promotion сценарии становятся менее предсказуемыми.
+- default authoring resolution by published template ceases to be an unambiguous policy decision;
+- HTTP API, MCP and authoring path formally remain compatible, but operator does not receive the simple invarianta “the template has one active published version”;
+- rollback/promotion scenarios become less predictable.
 
-## Решение
+## Solution
 
-1. Оставить lifecycle статусы без расширения:
+1. Leave lifecycle statuses without extension:
    - `draft`;
    - `published`.
-2. Изменить publish semantics так, чтобы для одного `template_id` одновременно оставалась только одна published version.
-3. При вызове `publish_template(template_id, version)`:
-   - выбранная версия получает статус `published`;
-   - все остальные published versions того же `template_id` автоматически демотируются в `draft`.
-4. Применить это правило одинаково в fallback store, PostgreSQL store, HTTP API и MCP path через existing `TemplateLibraryApplicationService` boundary.
-5. Сохранить backward compatibility:
-   - API/MCP contracts не меняются;
-   - explicit `get_template(template_id, version)` по-прежнему позволяет читать любую version независимо от статуса.
+2. Change publish semantics so that for one `template_id` there is only one published version at a time.
+3. When calling `publish_template(template_id, version)`:
+- the selected version receives the status `published`;
+- all other published versions of the same `template_id` are automatically demoted to `draft`.
+4. Apply this rule equally in the fallback store, PostgreSQL store, HTTP API and MCP path through the existing `TemplateLibraryApplicationService` boundary.
+5. Save backward compatibility:
+- API/MCP contracts do not change;
+- explicit `get_template(template_id, version)` still allows any version to be read regardless of status.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- published template resolution становится однозначным и проще для operator/runtime;
-- publish начинает работать как реальный promotion step, а не просто как добавление еще одной active version;
-- authoring, HTTP API и MCP используют одинаковый exclusive-publish invariant.
+- published template resolution becomes unambiguous and easier for operator/runtime;
+- publish begins to work as a real promotion step, and not just as adding another active version;
+- authoring, HTTP API and MCP use the same exclusive-publish invariant.
 
-Минусы:
+Cons:
 
-- publish больше не хранит несколько параллельных active published branches;
-- rollback требует повторного publish нужной старой version;
-- lifecycle governance затем закрыт в ADR-0063: добавлены `deprecated|archived`, explicit status transitions и metadata-based audit.
+- publish no longer stores multiple parallel active published branches;
+- rollback requires re-publishing the required old version;
+- lifecycle governance then closed in ADR-0063: added `deprecated|archived`, explicit status transitions and metadata-based audit.

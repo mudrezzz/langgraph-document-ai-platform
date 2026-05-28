@@ -1,32 +1,32 @@
 # ADR-0058: Template management API boundary
 
-- Статус: Accepted
-- Дата: 2026-04-25
+- Status: Accepted
+- Date: 2026-04-25
 
-## Контекст
+## Context
 
-После ADR-0057 persisted template library уже существовала как внутренняя application boundary, и authoring мог использовать versioned templates. Но сама library еще не имела публичной service boundary: шаблоны можно было сохранить только через внутренний container wiring или тестовый setup, что не соответствовало цели сделать reusable templates управляемой частью платформы.
+After ADR-0057, the persisted template library already existed as an internal application boundary, and authoring could use versioned templates. But the library itself did not yet have a public service boundary: templates could only be saved through internal container wiring or test setup, which did not correspond to the goal of making reusable templates a manageable part of the platform.
 
-## Решение
+## Solution
 
-1. Добавить минимальный public API boundary для template management:
+1. Add a minimal public API boundary for template management:
    - `PUT /api/v1/templates/{template_id}`;
    - `GET /api/v1/templates/{template_id}`;
    - `GET /api/v1/templates`.
-2. Использовать existing `TemplateLibraryApplicationService` и `TemplateCompiler`, не вводя параллельную template architecture.
-3. Сохранить scope минимальным: только upsert/get/list без delete, review workflow или RBAC.
-4. Не вводить Template MCP на этом шаге; сначала стабилизировать HTTP service boundary.
+2. Use the existing `TemplateLibraryApplicationService` and `TemplateCompiler` without introducing a parallel template architecture.
+3. Keep the scope minimal: only upsert/get/list without delete, review workflow or RBAC.
+4. Do not enter Template MCP at this step; first stabilize the HTTP service boundary.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- reusable templates теперь можно управляемо регистрировать и читать через публичный API;
-- persisted template library становится реально используемой service boundary, а не только внутренним wiring слоем;
-- следующий шаг к template MCP или governance policy упрощается.
+- reusable templates can now be controlled and read through the public API;
+- the persisted template library becomes the actually used service boundary, and not just the internal wiring layer;
+- the next step to template MCP or governance policy is simplified.
 
-Минусы:
+Cons:
 
-- API пока не имеет auth/RBAC и approval lifecycle для изменения шаблонов;
-- нет delete/archive semantics и нет version promotion policy;
-- template management пока ограничен HTTP boundary без отдельного MCP/read-model специализации.
+- The API does not yet have auth/RBAC and approval lifecycle for changing templates;
+- no delete/archive semantics and no version promotion policy;
+- template management is still limited to the HTTP boundary without a separate MCP/read-model specialization.

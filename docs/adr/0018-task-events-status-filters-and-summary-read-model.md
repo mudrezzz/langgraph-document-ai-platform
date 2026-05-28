@@ -1,41 +1,41 @@
-# ADR-0018: Расширенные Фильтры Task Events и Summary Read-Model
+#ADR-0018: Advanced Task Events and Summary Read-Model Filters
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-После `Increment 12` API уже отдавал сырой audit stream переходов статусов через `GET /api/v1/tasks/events`, но для эксплуатационного анализа не хватало:
+After `Increment 12` the API already provided a raw audit stream of status transitions via `GET /api/v1/tasks/events`, but it was not enough for operational analysis:
 
-- фильтрации по направлению перехода (`from_status`, `to_status`);
-- компактной агрегированной сводки без клиентского пост-агрегирования.
+- filtering by transition direction (`from_status`, `to_status`);
+- compact aggregated summary without client post-aggregation.
 
-Для ручной диагностики на Ubuntu-сервере важно быстро отвечать на вопросы вида:
+For manual diagnostics on an Ubuntu server, it is important to quickly answer questions like:
 
-- сколько было переходов `running -> completed`;
-- сколько задач попало в данный тип переходов за выбранный интервал.
+- how many transitions `running -> completed` were there;
+- how many tasks fell into this type of transition during the selected interval.
 
-## Решение
+## Solution
 
-1. Расширить `GET /api/v1/tasks/events` фильтрами:
+1. Expand `GET /api/v1/tasks/events` with filters:
    - `from_status`;
    - `to_status`.
-2. Добавить новый endpoint `GET /api/v1/tasks/events/summary`:
-   - поддерживает фильтры `task_id`, `task_type`, `from_status`, `to_status`, `from`, `to`;
-   - возвращает `total_events`, `unique_tasks` и агрегаты переходов `from_status -> to_status`.
-3. Добавить индексы для статусов в `task_events`:
-   - миграция `0005_task_events_status_filter_indexes.sql`.
-4. Обновить smoke/demo scripts:
-   - smoke JSON включает поля `events_summary_total`, `events_summary_unique_tasks`, `events_summary_has_running_to_completed`.
+2. Add a new endpoint `GET /api/v1/tasks/events/summary`:
+- supports filters `task_id`, `task_type`, `from_status`, `to_status`, `from`, `to`;
+- returns `total_events`, `unique_tasks` and transition aggregates `from_status -> to_status`.
+3. Add indexes for statuses in `task_events`:
+- migration of `0005_task_events_status_filter_indexes.sql`.
+4. Update smoke/demo scripts:
+- smoke JSON includes the fields `events_summary_total`, `events_summary_unique_tasks`, `events_summary_has_running_to_completed`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- API аудит-слоя стал пригоден для операционной аналитики без тяжелой постобработки;
-- smoke/runbook покрывают не только raw events, но и агрегированные проверки.
+- The audit layer API has become suitable for operational analytics without heavy post-processing;
+- smoke/runbook covers not only raw events, but also aggregated checks.
 
-Минусы:
+Cons:
 
-- summary endpoint пока строит агрегаты on-the-fly (нет materialized таблиц/дашбордов);
-- для больших объемов потребуется отдельный read-model и периодические precompute job.
+- summary endpoint is currently building on-the-fly aggregates (no materialized tables/dashboards);
+- for large volumes, a separate read-model and periodic precompute jobs will be required.

@@ -1,50 +1,50 @@
 # ADR-0072: Canonical parser quality read-model baseline
 
-- Статус: Accepted
-- Дата: 2026-04-27
+- Status: Accepted
+- Date: 2026-04-27
 
-## Контекст
+## Context
 
-Increment 31 начинает Knowledge Factory Hardening. До этого canonical ingestion хранил только плоский `quality_flags` список на уровне документа и aggregated `quality_summary` на уровне indexing task details.
+Increment 31 begins Knowledge Factory Hardening. Previously, canonical ingestion only stored a flat `quality_flags` list at the document level and an aggregated `quality_summary` list at the indexing task details level.
 
-Этого достаточно для MVP gate `passed|warning|failed`, но недостаточно для production hardening:
+This is enough for MVP gate `passed|warning|failed`, but not enough for production hardening:
 
-- нельзя понять parser family и extraction mode по документу;
-- нельзя отделить info/warning/blocking parser issues;
-- сложно видеть, какие документы содержат tables, нуждаются в OCR или потеряли структуру;
-- следующие slices (`OCR`, rich layout, DOCX tables/lists, `.xlsx/.pptx`) будут добавлять extraction behavior без измеримого read-model слоя.
+- it is impossible to understand parser family and extraction mode from the document;
+- you cannot separate info/warning/blocking parser issues;
+- it’s difficult to see which documents contain tables, need OCR or have lost their structure;
+- the following slices (`OCR`, rich layout, DOCX tables/lists, `.xlsx/.pptx`) will add extraction behavior without a measurable read-model layer.
 
-## Решение
+## Solution
 
-1. Добавить typed parser quality contracts в `schemas.documents`:
+1. Add typed parser quality contracts to `schemas.documents`:
    - `ParserQualityIssue`;
    - `ParserQualitySummary`.
-2. Расширить `CanonicalDocument` полем `parser_quality` без изменения existing ingestion API contract.
-3. `CanonicalDocumentParser` теперь обязан заполнять:
+2. Expand `CanonicalDocument` with the `parser_quality` field without changing the existing ingestion API contract.
+3. `CanonicalDocumentParser` is now required to fill in:
    - `parser_family`;
    - `extraction_mode`;
    - counts (`blocks/headings/lists/tables/pages`);
-   - typed issues и mirrored `flags`.
-4. Existing `quality_flags` сохраняются как backward-compatible coarse signal и продолжают использоваться текущим indexing quality gate.
-5. `KnowledgeIndexingApplicationService` прокидывает parser diagnostics в task details и aggregated `quality_summary`:
+- typed issues and mirrored `flags`.
+4. Existing `quality_flags` are saved as a backward-compatible coarse signal and continue to be used by the current indexing quality gate.
+5. `KnowledgeIndexingApplicationService` throws parser diagnostics into task details and aggregated `quality_summary`:
    - `parser_families`;
    - `extraction_modes`;
    - `parser_issues_total`;
    - `documents_with_tables`;
    - `documents_needing_ocr`.
-6. Retrieval/reporting surfaces получают `parser_quality` только как read-model metadata, без отдельной parser-specific runtime ветки.
+6. Retrieval/reporting surfaces receive `parser_quality` only as read-model metadata, without a separate parser-specific runtime branch.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появляется production-compatible измерительный слой для parser hardening;
-- smoke/demo/report теперь могут показывать parser diagnostics по документам;
-- будущие OCR/table/layout slices можно внедрять поверх уже существующего typed quality read-model;
-- existing APIs и quality gate semantics остаются совместимыми.
+- a production-compatible measurement layer for parser hardening appears;
+- smoke/demo/report can now show parser diagnostics based on documents;
+- future OCR/table/layout slices can be implemented on top of the existing typed quality read-model;
+- existing APIs and quality gate semantics remain compatible.
 
-Минусы:
+Cons:
 
-- quality gate по-прежнему опирается на `quality_flags`, а не на fully configurable production policy layer;
-- parser quality counters пока ограничены текущими `.md/.txt/.json/.docx/.pdf` adapters;
-- extracted tables/layout blocks еще не сохраняются как отдельные canonical entities.
+- quality gate still relies on `quality_flags`, and not on the fully configurable production policy layer;
+- parser quality counters are currently limited to the current `.md/.txt/.json/.docx/.pdf` adapters;
+- extracted tables/layout blocks are not yet saved as separate canonical entities.

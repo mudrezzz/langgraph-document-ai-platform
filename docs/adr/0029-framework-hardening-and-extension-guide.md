@@ -1,41 +1,41 @@
-# ADR-0029: Framework hardening и extension guide
+# ADR-0029: Framework hardening and extension guide
 
-- Статус: Accepted
-- Дата: 2026-04-23
+- Status: Accepted
+- Date: 2026-04-23
 
-## Контекст
+## Context
 
-После `Increment 23` framework layer уже содержит основные contracts и runtime primitives:
+After `Increment 23` the framework layer already contains the main contracts and runtime primitives:
 
 - agents/tools/workflows/rag/stores/db/models/hitl/mcp;
 - LangGraph-backed `BaseWorkflow`;
 - Postgres persistence adapters;
 - FastAPI/MCP service boundaries;
-- async authoring и iterative HITL.
+- async authoring and iterative HITL.
 
-Следующие инкременты будут расширять ingestion, retrieval и authoring домены. Без явного extension guide и contract tests новые доменные реализации могут начать обходить framework boundaries и закреплять временные shortcuts.
+The next increments will expand the ingestion, retrieval and authoring domains. Without an explicit extension guide and contract tests, new domain implementations may begin to bypass framework boundaries and enforce temporary shortcuts.
 
-## Решение
+## Solution
 
-1. Зафиксировать отдельный документ `docs/framework_extension_guide.md`.
-2. Добавить root backlog `BACKLOG.md` как рабочий план завершения backend/framework части.
-3. Усилить unit coverage для базовых framework contracts:
+1. Record a separate document `docs/framework_extension_guide.md`.
+2. Add root backlog `BACKLOG.md` as a work plan for completing the backend/framework part.
+3. Strengthen unit coverage for basic framework contracts:
    - agents;
    - tools;
    - MCP service metadata;
    - repository factory/unit of work;
    - base stores.
-4. Считать release go/no-go scripts обязательным acceptance demo harness для следующих инкрементов.
+4. Consider release go/no-go scripts mandatory acceptance demo harness for the next increments.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- новые workflows/tools/MCP services получают единый путь добавления;
-- framework layer становится проверяемым contract surface, а не только набором skeleton-классов;
-- demo сценарии закреплены как regression harness для ручной проверки.
+- new workflows/tools/MCP services receive a single addition path;
+- the framework layer becomes a verifiable contract surface, and not just a set of skeleton classes;
+- demo scripts are attached as a regression harness for manual testing.
 
-Минусы:
+Cons:
 
-- увеличивается объем документации, которую нужно обновлять при каждом инкременте;
-- часть tests фиксирует текущий минимальный behavior skeleton и потребует осознанного обновления при развитии framework.
+- the volume of documentation that needs to be updated with each increment increases;
+- the tests part fixes the current minimal behavior skeleton and will require a conscious update during the development of the framework.

@@ -1,34 +1,34 @@
 # Release Go/No-Go Case
 
-Мини-кейс для демонстрации file-based входа в retrieval pipeline.
+Mini-case to demonstrate file-based entry into the retrieval pipeline.
 
-## Вход
+## Login
 
-- `input/release_packet.md` — реалистичный релизный пакет по фиче Payments v2.
+- `input/release_packet.md` - ​​realistic release package for the Payments v2 feature.
 
-## Что демонстрирует
+## What it demonstrates
 
-1. Конвертацию markdown-файла в retrieval dataset (`build_release_packet_dataset.py`).
-2. Запуск retrieval задачи через API с `case_dataset_path`.
-3. Получение осмысленного артефакта `release_readiness_report.md`:
-   - GO/NO-GO решение;
-   - блокеры;
-   - незакрытые approvals;
-   - evidence источники;
-   - summary по task events.
+1. Conversion of a markdown file into a retrieval dataset (`build_release_packet_dataset.py`).
+2. Launch a retrieval task via the API with `case_dataset_path`.
+3. Obtaining a meaningful artifact `release_readiness_report.md`:
+- GO/NO-GO solution;
+- blockers;
+- unclosed approvals;
+- evidence sources;
+- summary of task events.
 
-## Основной скрипт демо
+## Main demo script
 
 - Sync demo Linux: `backend/scripts/demo_release_go_no_go_case.sh`
 - Sync demo Windows: `backend/scripts/demo_release_go_no_go_case.ps1`
 - Async demo Linux: `backend/scripts/demo_release_go_no_go_async_case.sh`
 
-Async demo использует тот же `release_packet.md`, но запускает retrieval через `POST /api/v1/tasks/retrieval/start_async` и позволяет руками увидеть `queued -> completed` lifecycle на том же кейсе.
+Async demo uses the same `release_packet.md`, but launches retrieval via `POST /api/v1/tasks/retrieval/start_async` and allows you to manually see the `queued -> completed` lifecycle on the same case.
 
-## Выходные артефакты
+## Output artifacts
 
 - `output/release_packet_dataset.generated.json`
 - `output/release_readiness_report.md`
 - `output/release_readiness_report_async.md`
 
-Файлы `output/*.generated.json` и `output/*.md` считаются runtime-артефактами и не коммитятся в git.
+The `output/*.generated.json` and `output/*.md` files are considered runtime artifacts and are not committed to git.
