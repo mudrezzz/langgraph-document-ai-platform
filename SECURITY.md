@@ -24,15 +24,15 @@ When reporting, specify:
 ## 3. Disclosure flow
 
 1. Maintainers confirm receipt of the report.
-2. Triage severity and scope are performed.
-3. Fix + test/documentation is being prepared.
+2. Maintainers triage severity and scope.
+3. A fix is prepared together with tests/documentation updates.
 4. After the release of the correction, a disclosure summary is published.
 
 ## 4. Security boundaries and limitations
 
 - RBAC boundary is activated only when `APP_AUTH_ENABLED=true`.
 - Without auth enabled, API/MCP sensitive operations do not have role enforcement.
-- Secrets must be transferred via env/secret-store and not committed to the repository.
+- Secrets must be provided via env/secret-store and never committed to the repository.
 
 ## 5. Recommended hardening baseline
 

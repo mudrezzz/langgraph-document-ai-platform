@@ -11,7 +11,7 @@ The document fixes the boundaries of stability of the framework layer for an ext
 - `Experimental`: Available for use, but allows inconsistent changes between increments.
 - `Internal`: internal implementation, not an external contract.
 
-Assumption: for `Stable` in v1 the endpoint/tool ​​names and basic payload models from `schemas` are saved; `details/metadata` internal fields can be expanded.
+Assumption: for `Stable` in v1, endpoint/tool names and core payload models from `schemas` are preserved; internal `details/metadata` fields may expand.
 
 ## 2. Stable: HTTP API surface
 

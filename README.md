@@ -218,6 +218,7 @@ bash backend/scripts/postgres_migrate.sh
 - I want to extend framework functionality:
   - `docs/developer_guide/extension_handbook.md`
   - `docs/developer_guide/extension_recipes.md`
+  - `docs/developer_guide/vibecoder_skill_import.md`
   - `docs/framework_extension_guide.md`
 - I want to build a new agent flow quickly:
   - `docs/developer_guide/canonical_e2e_walkthrough.md`
@@ -295,6 +296,7 @@ For vibe-coders:
 - This repository is intentionally open to vibe-coder contributions through small, well-scoped issues.
 - You can start from docs/examples tasks, ship quickly, and build a public OSS track with review-backed outcomes.
 - Growth path is explicit: docs -> examples -> packaging -> CI -> deeper framework changes.
+- You can bootstrap local agent setup from GitHub-hosted `SKILL.md/AGENT.md` via `backend/scripts/import_agent_skill.py` (guide: `docs/developer_guide/vibecoder_skill_import.md`).
 
 AI-assisted contribution policy:
 

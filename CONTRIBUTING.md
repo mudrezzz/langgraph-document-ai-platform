@@ -33,6 +33,7 @@ For vibe-coders:
 - recommended progression path: `docs -> examples -> packaging -> CI -> deeper framework tasks`;
 - fast iterations are welcome, but quality is enforced through checks and review;
 - in this project, "token contribution" means contribution via AI agents (vibe-coding), not financial donations.
+- for local agent setup, you can import GitHub-hosted `SKILL.md/AGENT.md` using `backend/scripts/import_agent_skill.py` (see `docs/developer_guide/vibecoder_skill_import.md`).
 
 AI-assisted contribution policy:
 

@@ -27,6 +27,7 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/persistence_reference.md",
         "docs/developer_guide/observability_reference.md",
         "docs/developer_guide/extension_handbook.md",
+        "docs/developer_guide/vibecoder_skill_import.md",
         "docs/developer_guide/examples_catalog.md",
         "docs/developer_guide/adr_reading_map.md",
         "docs/developer_guide/maintainer_playbook.md",

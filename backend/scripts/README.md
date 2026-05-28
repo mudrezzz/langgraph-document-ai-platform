@@ -20,6 +20,10 @@ The document describes scripts for launching and checking the project.
 - `async_down.sh` — stop Redis + Celery worker (optional delete volume).
 - `apply_migrations.sh` — apply migrations when `APP_DB_DSN` is already specified.
 - `build_binary_demo_documents.sh` — generate `.docx/.pdf/.xlsx/.pptx` inputs for release go/no-go multifile demo.
+- `import_agent_skill.py` - import `SKILL.md`/`AGENT.md` from GitHub for `codex`, `claude`, `cursor` into `.vibecoder/skills/<agent>/...`.
+- supports `--skill-url` or `--repo owner/name --path file.md [--ref ...]`;
+- applies GitHub-only + markdown-only + max-bytes safety checks;
+- supports `--dry-run` and `--overwrite`.
 - `smoke_retrieval_api.sh` — raise `uvicorn`, pull the API chain `start -> status -> evidence -> resume -> history -> task_events`.
 - supports `--keep-server` (do not disable API after smoke);
 - supports `--server-pid-file <path>` (where to write the PID of the running API).

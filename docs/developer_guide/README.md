@@ -39,6 +39,7 @@ Unified reading path by role:
    - `docs/developer_guide/extension_handbook.md`
    - `docs/developer_guide/public_contract_surface.md`
    - `docs/developer_guide/extension_recipes.md`
+   - `docs/developer_guide/vibecoder_skill_import.md`
    - `docs/framework_extension_guide.md`
 3. Maintainer (runtime/release):
    - `docs/developer_guide/persistence_reference.md`
@@ -91,6 +92,7 @@ Unified reading path by role:
 17. `adr_reading_map.md`: follow ADR path by role and change topic.
 18. `extension_handbook.md`: choose the required extension playbook (workflow/tool/MCP/persistence/domain).
 19. `extension_recipes.md`: add your workflow/tool/MCP path based on current framework contracts.
-20. `maintainer_playbook.md`: verify docs release/triage/review rules.
-21. `release_reproducible_flow.md`: run the linear reproducible release path.
-22. `operations_and_release.md`: run the release decision gate as the final quality barrier.
+20. `vibecoder_skill_import.md`: import/update local `SKILL.md/AGENT.md` from GitHub for codex/claude/cursor.
+21. `maintainer_playbook.md`: verify docs release/triage/review rules.
+22. `release_reproducible_flow.md`: run the linear reproducible release path.
+23. `operations_and_release.md`: run the release decision gate as the final quality barrier.

@@ -17,9 +17,9 @@ All services inherit `BaseFastMcpService` and use the same rules:
 
 Auth policy:
 
-- turns on via `APP_AUTH_ENABLED=true`
+- enabled via `APP_AUTH_ENABLED=true`
 - sensitive tools require `actor` + `roles` in payload
-- roles are checked per-tool via `_authorize_tool(...)`
+- roles are checked per tool via `_authorize_tool(...)`
 
 ## 2. Service matrix
 
@@ -62,13 +62,13 @@ Auth policy:
 ## 4. Error semantics
 
 - Validation errors:
-- incorrect payload -> Pydantic validation error.
+  - incorrect payload -> Pydantic validation error.
 - Auth errors (when enabled):
-- no actor/roles with a required role -> authentication/authorization error mapped to operation error.
+  - missing actor/roles for a required role -> authentication/authorization error mapped to operation error.
 - Domain not found/state errors:
-- for example `DocumentNotFoundError`, `TemplateNotFoundError`, `InvalidTaskStateError` -> operation error with the reason text.
+  - e.g. `DocumentNotFoundError`, `TemplateNotFoundError`, `InvalidTaskStateError` -> operation error with the reason text.
 
-Rule of thumb: MCP client should treat tool error as non-2xx operation result and read the error text.
+Rule of thumb: MCP clients should treat tool errors as failed operations and inspect the error text.
 
 ## 5. Runtime entrypoints and smoke
 

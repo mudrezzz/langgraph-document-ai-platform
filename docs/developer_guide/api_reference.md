@@ -100,11 +100,11 @@ Source of truth: `backend/apps/api/main.py`, `backend/packages/schemas/api/contr
   - invalid cursor
   - workflow execution error
 - `401 Unauthorized`:
-- no actor identity when `APP_AUTH_ENABLED` and required role are enabled
+  - no actor identity when `APP_AUTH_ENABLED` and required role are enabled
 - `403 Forbidden`:
-- actor without the required role
+  - actor without the required role
 - `404 Not Found`:
-- task/template/artifact/link not found
+  - task/template/artifact/link not found
 - `409 Conflict`:
   - invalid task state
   - invalid template status transition
