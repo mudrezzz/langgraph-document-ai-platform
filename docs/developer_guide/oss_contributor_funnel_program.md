@@ -1,16 +1,16 @@
-# OSS Contributor Funnel Program (Increment 33)
+﻿# OSS Contributor Funnel Program (Increment 33)
 
-Date: 2026-05-26
-Status: Planned
-Scope: community/onboarding/documentation packaging without changing backend public contracts.
+Date: 2026-05-28  
+Status: Active  
+Scope: community/onboarding/documentation/packaging improvements without changing backend stable public contracts.
 
 ## 1. Goal
 
-Reduce the entry threshold for external users and contributors without breaking the production-first positioning of the project.
+Reduce the entry threshold for external users and contributors while preserving the production-first position of the project.
 
-The program closes the path:
+Target path:
 
-`value -> first demo -> question -> issue -> first PR -> return contributor`.
+`value -> first demo -> question -> issue -> first PR -> repeat contributor`.
 
 ## 2. Boundaries and restrictions
 
@@ -18,102 +18,137 @@ The program closes the path:
    - `docs/developer_guide/public_contract_surface.md`
    - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/mcp_reference.md`
-2. Synchronize all docs changes via `docs/DOCS_BACKLOG.md`.
-3. Do not delete Production smoke/release path; just rearrange the priorities of onboarding entrypoints.
-4. Communication with contributors within the framework of `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `SUPPORT.md`.
+2. Sync every documentation change through `docs/DOCS_BACKLOG.md`.
+3. Do not remove production smoke/release paths; only reorder onboarding entrypoints.
+4. Communication and contribution rules are governed by:
+   - `CONTRIBUTING.md`
+   - `CODE_OF_CONDUCT.md`
+   - `SECURITY.md`
+   - `SUPPORT.md`
+5. "Token contribution" in this project means contribution done with AI coding agents (vibe-coding), not financial/token donations.
 
-## 3. Iteration plan and slices
+## 3. Iteration plan and slice tracking
 
-## Iteration 33.1 (P0): Foundation Fixes
+| Iteration | Window (30-day program) | Focus | Slices | Status |
+|---|---|---|---|---|
+| 33.1 | Day 1-5 | Foundation fixes | 33.1.1, 33.1.2, 33.1.3, 33.1.4 | Done |
+| 33.2 | Day 6-14 | Contributor funnel | 33.2.1, 33.2.2, 33.2.3 | Done |
+| 33.3 | Day 15-21 | Public front door | 33.3.1, 33.3.2, 33.3.3 | Done |
+| 33.4 | Day 22-30 | Community messaging + feedback loop | 33.4.1, 33.4.2, 33.4.3 | Done |
+| 33.8 | Day 30+ hardening | Program operationalization and KPI baseline | 33.8.1 | In Progress |
 
-Duration: Day 1-5.
+## 4. Slice register (completed and active)
 
-Slice 33.1.1: License/package consistency
-- Update `backend/packages/pyproject.toml`: `license = { text = "Apache-2.0" }`.
-- Check consistency claims in root `README.md`.
-- Result: there is no discrepancy between the root license and package metadata.
+### Iteration 33.1 (P0)
 
-Slice 33.1.2: Package README
-- Add `backend/packages/README.md`.
-- Enable blocks: `Install`, `Included`, `Not Included`, `Minimal example`.
-- Result: package metadata `readme = "README.md"` is valid and useful for external users.
+Slice 33.1.1: License/package consistency  
+DoD:
+- package metadata and root license are aligned;
+- no contradiction in package install docs.
 
-Slice 33.1.3: No-infra first success path
-- Add `2-Minute Demo: No Docker, No Postgres` block to root README.
-- Base: `agent_examples/run_example.py --pattern retrieval_first` (+ `--dry-run`).
-- Result: first launch without FastAPI/PostgreSQL/Celery/Redis/MCP.
+Slice 33.1.2: Package README  
+DoD:
+- `backend/packages/README.md` includes install/scope/minimal usage;
+- package metadata points to a valid README.
 
-Slice 33.1.4: Contribution entrypoint cleanup
-- Fix broken/ambiguous docs links in `CONTRIBUTING.md`.
-- Add section `First-time contributors` with a safe task area (docs/examples/packaging).
-- Result: a clear, safe path for the first PR without diving into the entire runtime.
+Slice 33.1.3: No-infra first success path  
+DoD:
+- root README contains `2-Minute Demo: No Docker, No Postgres`;
+- first-run path works without FastAPI/PostgreSQL/Celery/Redis/MCP.
 
-## Iteration 33.2 (P1): Contributor Funnel
+Slice 33.1.4: Contribution entrypoint cleanup  
+DoD:
+- `CONTRIBUTING.md` contains first-time contributor safe path;
+- broken or ambiguous links are removed.
 
-Duration: Day 6-14.
+### Iteration 33.2 (P1)
 
-Slice 33.2.1: GitHub templates
-- Add `.github/ISSUE_TEMPLATE/` (bug/documentation/feature/question).
-- Add `.github/pull_request_template.md`.
-- Result: structured inputs issue/PR.
+Slice 33.2.1: GitHub templates  
+DoD:
+- issue forms and PR template exist and are usable.
 
-Slice 33.2.2: Labels and triage baseline
-- Add labels to a set of technical specifications (`docs`, `examples`, `ci`, `packaging`, `community`, `needs maintainer review`, `blocked`, `security`, etc.).
-- Result: each new issue receives a type and triage status.
+Slice 33.2.2: Labels and triage baseline  
+DoD:
+- working label taxonomy is defined and applied;
+- new issues can be typed and triaged consistently.
 
-Slice 33.2.3: Initial public backlog
-- Create 15-20 issues; minimum 8 mark `good first issue`.
-- For each task: `Context`, `Scope`, `Suggested files`, `Acceptance criteria`, `Notes for first-time contributors`.
-- Result: public task queue for external contribution.
+Slice 33.2.3: Initial public backlog  
+DoD:
+- at least 15 public issues created;
+- at least 8 issues marked `good first issue`;
+- each issue has context, scope, and acceptance criteria.
 
-## Iteration 33.3 (P2): Public Front Door
+### Iteration 33.3 (P2)
 
-Duration: Day 15-21.
+Slice 33.3.1: README restructure  
+DoD:
+- root README follows front-door order from quick success to deep docs.
 
-Slice 33.3.1: README restructure
-- Rebuild the README in order: who-for, when-not-to-use, 2-minute demo, example output, architecture, production path, docs map, contributing, license.
-- Result: quick success to deep production documentation.
+Slice 33.3.2: Positioning clarity  
+DoD:
+- use-case fit table added (`Need / Use this project? / Why`).
 
-Slice 33.3.2: Positioning clarity
-- Add comparison/use-case table (`Need / Use this project? / Why`).
-- Result: honest user qualification and fewer untargeted requests.
+Slice 33.3.3: Repository discoverability  
+DoD:
+- capability-aligned repository topics added (<=20).
 
-Slice 33.3.3: Repository discoverability
-- Add GitHub topics on actual features (<=20).
-- Result: improved discoverability without misrepresentation.
+### Iteration 33.4 (P2)
 
-## Iteration 33.4 (P2): Community Messaging + Feedback Loop
+Slice 33.4.1: Contributor motivation copy  
+DoD:
+- README/CONTRIBUTING include `Why Contribute` and growth path.
 
-Duration: Day 22-30.
+Slice 33.4.2: AI-assisted contribution policy  
+DoD:
+- policy explicitly states equal quality bar for manual and AI-assisted contributions;
+- policy explicitly states no financial token donation semantics.
 
-Slice 33.4.1: Contributor motivation copy
-- Add `Why contribute` block to README/CONTRIBUTING:
-- public OSS track as a verifiable engineering contribution;
-- the opportunity to express yourself through real merged changes.
-- Result: clear motivation for first-time contributors.
+Slice 33.4.3: Updates and feedback tracker  
+DoD:
+- `FEEDBACK.md` is added;
+- `docs/project_update_template.md` is added;
+- links are present in front-door contributor routes.
 
-Slice 33.4.2: Token support policy
-- Add a neutral block about voluntary support of the project with “tokens” (if the maintainer confirms the channel).
-- Fix restrictions: no pay-to-prioritize, no feature guarantees, no bypass security/governance.
-- Result: project support without conflict with roadmap governance.
+### Iteration 33.8 (P0 hardening)
 
-Slice 33.4.3: Updates and feedback tracker
-- Add template `Project update` (once every 2 weeks).
-- Add `FEEDBACK.md` with fields from the TK.
-- Result: system collection of onboarding blockers and their transfer to the backlog.
+Slice 33.8.1: Program operationalization and KPI baseline  
+DoD:
+- this program document is updated to an operational state (status, iteration table, slice DoD);
+- KPI section has a measurable baseline-ready input/output list;
+- links to this program are synchronized in contributor-facing docs.
 
-## 4. Definition of Done (30 days)
+## 5. KPI baseline (input/output)
+
+Track these metrics weekly (UTC week):
+
+1. Input funnel:
+   - `issues_opened_total` (all new issues);
+   - `good_first_issue_open_total`;
+   - `community_labeled_issues_total`;
+   - `first_time_contributor_pr_open_total`.
+2. Throughput/output:
+   - `issues_closed_total`;
+   - `good_first_issue_closed_total`;
+   - `merged_pr_total`;
+   - `first_time_contributor_pr_merged_total`.
+3. Cycle-time and quality:
+   - `pr_time_to_first_review_hours` (median);
+   - `pr_open_to_merge_hours` (median);
+   - `docs_contract_failures_total` (count per week);
+   - `reopened_issue_total` (quality signal).
+
+## 6. Program-level Definition of Done (30-day cycle)
 
 1. README shows no-infra demo before production setup.
-2. Package/license metadata are agreed upon.
-3. Added issue/PR templates.
-4. A backlog of 15+ public issues, 8+ `good first issue` has been generated.
-5. `CONTRIBUTING.md` contains the first-time contributor path.
-6. Added GitHub topics.
-7. There is at least 1 public update and 1 external technical post draft.
-8. Feedback tracker launched.
+2. Package/license metadata are aligned.
+3. Issue/PR templates are active.
+4. Public backlog exists with 15+ issues and 8+ `good first issue`.
+5. `CONTRIBUTING.md` has first-time contributor path.
+6. Repository topics are capability-aligned.
+7. Feedback loop is active (`FEEDBACK.md` + update template).
+8. KPI baseline is defined and used for weekly program review.
 
-## 5. Mapping to Backlogs
+## 7. Mapping to Backlogs
 
 - Implementation track: `BACKLOG.md` -> `Increment 33: OSS Contributor Funnel and Community Readiness`.
-- Documentation track: `docs/DOCS_BACKLOG.md` -> `DOC-036..DOC-044`.
+- Documentation track: `docs/DOCS_BACKLOG.md` -> `DOC-036..DOC-046`.

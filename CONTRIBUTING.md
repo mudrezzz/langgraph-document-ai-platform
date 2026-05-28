@@ -48,6 +48,7 @@ AI-assisted contribution policy:
 3. Update documentation and `docs/DOCS_BACKLOG.md` together with code changes.
 4. Run minimal required checks (see below).
 5. Open a PR with a short changelog and known risks.
+6. For contributor-funnel slices, align scope and DoD with `docs/developer_guide/oss_contributor_funnel_program.md`.
 
 ## 4. First-time contributors
 

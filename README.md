@@ -227,6 +227,7 @@ bash backend/scripts/postgres_migrate.sh
 - I need operations and release readiness:
   - `docs/developer_guide/operations_and_release.md`
   - `docs/developer_guide/release_reproducible_flow.md`
+  - `docs/developer_guide/oss_contributor_funnel_program.md`
   - `docs/production_runbook.md`
 
 ## Quickstart: Build A New Agent Flow
