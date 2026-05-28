@@ -1,0 +1,20 @@
+{
+    "pattern": "authoring_first",
+    "execution_model": "in_process_framework_workflow",
+    "query": "Prepare a concise release policy brief with key risks and mitigations.",
+    "case_dataset_id": "saa_release_readiness",
+    "workflow_mode": "multi_step",
+    "draft_strategy": "deterministic",
+    "artifact_title": "Agent Examples: Policy Brief",
+    "artifact_format": "markdown",
+    "review_status": "completed",
+    "recommendation": "conditional_go",
+    "steps_total": 10,
+    "section_artifacts_total": 4,
+    "traceability_sections": 4,
+    "evidence_blocks": 5,
+    "unresolved_gaps": [
+        "low_confidence: top confidence 0.000, required 0.200"
+    ],
+    "content_preview": "# Release Readiness Report\n\n## Query\nPrepare a concise release policy brief with key risks and mitigations.\n\n## Research\n..."
+}

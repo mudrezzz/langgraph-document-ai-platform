@@ -193,8 +193,6 @@ bash backend/scripts/postgres_migrate.sh
 Authoring-first starter:
 
 ```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
@@ -205,7 +203,7 @@ bash backend/scripts/postgres_migrate.sh
   - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
-  - current status: `retrieval_first` is in-process framework pattern, `authoring_first/hitl_gate` are transition API-driven patterns.
+  - current status: `retrieval_first` and `authoring_first` are in-process framework patterns; `hitl_gate` remains API-driven during transition.
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
   - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.

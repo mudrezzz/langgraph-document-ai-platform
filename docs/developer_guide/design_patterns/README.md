@@ -1,6 +1,6 @@
 # Design Patterns Library
 
-Update date: 2026-04-30
+Update date: 2026-05-29
 Status: Active
 
 This library is needed when a developer asks:
@@ -39,8 +39,8 @@ Example: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions nee
 
 Note on current status:
 
-- `retrieval_first` has already been converted to in-process pattern.
-- `authoring_first` and `hitl_gate` remain API-driven for now as part of the transition phase.
+- `retrieval_first` and `authoring_first` are in-process patterns.
+- `hitl_gate` remains API-driven while async reviewer flow is in transition.
 
 ## Checking
 

@@ -29,8 +29,9 @@ This is an **in-process** pattern: the agent imports the framework as a library
 and calls `workflow.invoke()` directly. No network delays
 there is no need to raise the backend, the entire route is visible in Python objects.
 
-This is a target model for new agents - as opposed to API-driven patterns
-(`authoring_first`, `hitl_gate`) that communicate with the framework via HTTP.
+This is a target model for new agents. `authoring_first` now uses the same
+in-process model; `hitl_gate` remains API-driven while the async reviewer flow
+is still transitionary.
 
 ---
 

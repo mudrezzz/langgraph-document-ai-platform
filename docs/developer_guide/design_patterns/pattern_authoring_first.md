@@ -8,22 +8,22 @@ When to use:
 
 ## Skeleton
 
-`retrieval -> draft -> reviewer (internal) -> assembly -> artifact`
+`retrieval -> research -> draft -> reviewer -> section authoring -> assembly -> artifact`
 
 ## Runnable example
 
 ```bash
-.venv/bin/python agent_examples/run_example.py --pattern authoring_first
+.venv/bin/python agent_examples/patterns/authoring_first/main.py
 ```
 
 ## Extension points
 
-1. Set up `workflow_mode` (`single_pass|multi_step`).
-2. Add/edit artifact section structure template.
-3. Connect an LLM provider through an env contract if necessary.
+1. Configure `workflow_mode` (`single_pass|multi_step`) and `artifact_format`.
+2. Extend section-contract strategy in `workflow.py` (`template_id`, selection rules).
+3. Customize deterministic writer/review/assembly behavior with domain services.
 
 ## Anti-patterns
 
 1. Generate artifact without source traceability.
-2. Mix orchestration with the API endpoint transport layer.
+2. Hide orchestration behind API transport wrappers in an in-process example.
 3. Break backward compatibility authoring payload contracts.

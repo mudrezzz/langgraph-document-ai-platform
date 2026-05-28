@@ -1,7 +1,7 @@
 # Documentation Backlog (Framework)
 
 Start Date: 2026-04-30  
-Last Update: 2026-05-28  
+Last Update: 2026-05-29  
 Status: Active (living document)
 
 ## Purpose
@@ -59,7 +59,7 @@ This backlog is the single source of truth for framework-layer developer documen
 | DOC-028 | P0 | Example UX Integration | Embed new `agent_examples` into the main onboarding and README positioning of the project | README + developer guide route updates + contracts | Done | 2026-04-30 | Updated `README.md`, `docs/developer_guide/README.md`, `quickstart.md`, `examples_catalog.md`, `design_patterns/*`; added contract/unit tests for structure and dry-run launch of `agent_examples`. |
 | DOC-029 | P0 | Agent Examples Replatform Plan | Record a detailed plan for the transition of demo agents to in-process framework usage (instead of transport-first examples) | Program roadmap doc + docs route integration | Done | 2026-04-30 | Added `docs/developer_guide/agent_examples_demo_program.md`; updated `developer_guide/README.md`, `design_patterns/README.md`, docs contracts. |
 | DOC-030 | P0 | Retrieval Pattern Rebuild | Rebuild `retrieval_first` as library-style in-process agent (`main.py + workflow.py + tools.py`) | Reworked retrieval pattern folder + tests + expected output | Done | 2026-04-30 | `retrieval_first` moved to direct `build_retrieval_workflow(...).invoke(...)`; added `main.py`, `workflow.py`, `tools.py`, `expected_output`, pattern tests and updated `run_example.py` to in-process execution model for retrieval. |
-| DOC-031 | P0 | Authoring Pattern Rebuild | Rebuild `authoring_first` as an in-process agent with an explicit artifact assembly model | Reworked authoring pattern folder + tests + expected output | Planned | 2026-04-30 | Focus on clear composition code and traceability proof in one example. |
+| DOC-031 | P0 | Authoring Pattern Rebuild | Rebuild `authoring_first` as an in-process agent with an explicit artifact assembly model | Reworked authoring pattern folder + tests + expected output | Done | 2026-05-29 | Closed Slice 34.1.1: `authoring_first` moved to in-process composition (`main.py + workflow.py + tools.py`), added pattern tests and expected output proof, synchronized runner/docs for execution-model consistency, and preserved CLI entrypoint compatibility (`run_example.py --pattern authoring_first`). |
 | DOC-032 | P0 | HITL Pattern Rebuild | Rebuild `hitl_gate` as an in-process pattern with reviewer loop contract | Reworked hitl pattern folder + tests + expected output | Planned | 2026-04-30 | Show `needs_changes -> approve` without transport-first dependency as primary path. |
 | DOC-033 | P0 | Examples Test Harness | Add unified fast/full test lanes for `agent_examples` (structure/unit/smoke) | Test matrix doc + CI-ready command set | Planned | 2026-04-30 | Required to protect against degradation of examples and out of sync with documentation. |
 | DOC-034 | P1 | Async Batch Pattern | Add a separate in-process demo pattern for batch/long-running scenarios | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | After stabilization of the three basic P0 patterns. |
@@ -78,6 +78,7 @@ This backlog is the single source of truth for framework-layer developer documen
 
 ## Backlog Change Log
 
+- 2026-05-29: Closed DOC-031 / Slice 34.1.1 (authoring-first in-process replatform): updated `agent_examples/patterns/authoring_first/*` to explicit in-process artifact assembly flow, added tests and expected output, and synced design/docs references.
 - 2026-05-28: Closed DOC-036 / Slice 33.8.1 (program operationalization): updated `docs/developer_guide/oss_contributor_funnel_program.md` to `In Progress` operational state with iteration tracker, slice-level DoD, and KPI baseline; synced front-door links in `README.md` and `CONTRIBUTING.md`.
 - 2026-05-28: Closed DOC-044 / Slice 33.4.3: added `FEEDBACK.md` and `docs/project_update_template.md`, linked them from `README.md`, `CONTRIBUTING.md`, `SUPPORT.md`, and `docs/developer_guide/README.md`.
 - 2026-05-28: Closed DOC-046 / Slice 33.7.1 (vibe-coder agent bootstrap): added `backend/scripts/import_agent_skill.py`, unit tests `backend/tests/unit/test_import_agent_skill_script.py`, new guide `docs/developer_guide/vibecoder_skill_import.md`, and linked it from README/CONTRIBUTING/developer guide/scripts guide.

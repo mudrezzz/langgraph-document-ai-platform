@@ -52,7 +52,7 @@ PATTERN_INDEX = {
         pattern_id="authoring_first",
         title="Authoring First Agent",
         default_query=AUTHORING_QUERY,
-        execution_model="api_runtime_client",
+        execution_model="in_process_framework_workflow",
     ),
     "hitl_gate": PatternDescriptor(
         pattern_id="hitl_gate",
@@ -98,6 +98,11 @@ def _run_in_process_retrieval(query: str) -> dict[str, Any]:
     return agent.run(query=query)
 
 
+def _run_in_process_authoring(query: str) -> dict[str, Any]:
+    agent = AuthoringFirstAgent(config=AuthoringFirstConfig())
+    return agent.run(query=query)
+
+
 def _run_in_process_device_search(query: str) -> dict[str, Any]:
     agent = DeviceSearchAgent(config=DeviceSearchConfig())
     return agent.run(query=query, non_interactive=True)
@@ -115,9 +120,6 @@ def _run_api_patterns(
     no_local_api: bool,
 ) -> dict[str, Any]:
     def _run_with_client(client: FrameworkClient) -> dict[str, Any]:
-        if pattern == "authoring_first":
-            agent = AuthoringFirstAgent(client=client, config=AuthoringFirstConfig())
-            return agent.run(query=query)
         if pattern == "hitl_gate":
             agent = HitlGateAgent(client=client, config=HitlGateConfig())
             return agent.run(query=query, decisions=hitl_decisions)
@@ -150,7 +152,7 @@ def main() -> None:
         "execution_model": descriptor.execution_model,
         "notes": [
             "Pattern code is located in agent_examples/patterns/<pattern>/.",
-            "retrieval_first is now in-process; authoring/hitl remain API-driven during transition.",
+            "retrieval_first, authoring_first, and device_search are in-process patterns.",
         ],
     }
 
@@ -163,6 +165,8 @@ def main() -> None:
 
     if args.pattern == "retrieval_first":
         result = _run_in_process_retrieval(query=query)
+    elif args.pattern == "authoring_first":
+        result = _run_in_process_authoring(query=query)
     elif args.pattern == "device_search":
         result = _run_in_process_device_search(query=query)
     else:
