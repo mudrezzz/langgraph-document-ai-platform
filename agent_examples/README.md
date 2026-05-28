@@ -9,7 +9,7 @@ Each pattern is self-contained and optimized for fast onboarding.
 |---|---|---|---|
 | `retrieval_first` | Document retrieval + EvidencePack | In-process | Not needed |
 | `authoring_first` | Deterministic artifact assembly with traceability | In-process | Not needed |
-| `hitl_gate` | Async reviewer loop (`needs_changes -> approve`) | API-driven async + polling | PostgreSQL + async worker |
+| `hitl_gate` | Reviewer loop (`needs_changes -> approve`) | In-process | Not needed |
 | `device_search` | Product search with two HITL checkpoints | In-process | Not needed |
 
 ## Architectural context
@@ -17,8 +17,8 @@ Each pattern is self-contained and optimized for fast onboarding.
 In-process patterns import framework/domain modules directly and call workflows in memory.
 This is the preferred model for new contributor-facing examples.
 
-API-driven patterns call deployed HTTP endpoints and require runtime infrastructure.
-`hitl_gate` remains in this mode while async reviewer flow is being replatformed.
+`hitl_gate` demonstrates the same reviewer-state transitions as async transport flows,
+but in an in-process form optimized for fast iteration and tests.
 
 ## Patterns
 
@@ -45,15 +45,12 @@ Run:
 
 ### hitl_gate
 
-Async API-driven reviewer loop.
+In-process reviewer loop with deterministic HITL decisions.
 
 Run:
 
 ```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
-bash backend/scripts/async_up.sh
-.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
+.venv/bin/python agent_examples/patterns/hitl_gate/main.py --hitl-decisions needs_changes,approve
 ```
 
 ### device_search
@@ -85,6 +82,7 @@ Dry-run (no runtime side effects):
 ```bash
 .venv/bin/pytest -q agent_examples/patterns/retrieval_first/tests/test_agent.py
 .venv/bin/pytest -q agent_examples/patterns/authoring_first/tests/test_agent.py
+.venv/bin/pytest -q agent_examples/patterns/hitl_gate/tests/test_agent.py
 .venv/bin/pytest -q backend/tests/unit/test_agent_examples_contracts.py
 .venv/bin/pytest -q agent_examples/tests/test_run_example.py
 ```

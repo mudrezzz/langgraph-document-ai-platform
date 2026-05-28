@@ -1,7 +1,7 @@
 # Agent Examples Demo Program (In-Process)
 
 Update date: 2026-05-29
-Status: In Progress (DOC-030 and DOC-031 completed; DOC-032..DOC-035 pending)
+Status: In Progress (DOC-030, DOC-031, and DOC-032 completed; DOC-033..DOC-035 pending)
 
 ## 1. Product Goal
 
@@ -17,7 +17,7 @@ Key UX:
 ## 2. Problem Statement
 
 The examples are moving from API-driven wrappers to in-process framework composition.
-`retrieval_first` and `authoring_first` are already in-process; `hitl_gate` remains API-driven.
+`retrieval_first`, `authoring_first`, and `hitl_gate` are already in-process.
 
 For the scenario “I’m creating a new agent using the framework”, a different format is needed:
 
@@ -146,10 +146,9 @@ Each pattern must contain:
 
 ## 9.1 P0 (must-have)
 
-1. Replatform `hitl_gate` in in-process style.
-2. Unify shared helpers for pattern folders.
-3. Connect examples contract tests and dry/smoke checks in the CI path.
-4. Update root README + developer guide as primary entrypoint to `agent_examples/`.
+1. Unify shared helpers for pattern folders.
+2. Connect examples contract tests and dry/smoke checks in the CI path.
+3. Update root README + developer guide as primary entrypoint to `agent_examples/`.
 
 ## 9.2 P1 (next)
 

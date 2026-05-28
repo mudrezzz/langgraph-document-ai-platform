@@ -39,8 +39,8 @@ Example: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions nee
 
 Note on current status:
 
-- `retrieval_first` and `authoring_first` are in-process patterns.
-- `hitl_gate` remains API-driven while async reviewer flow is in transition.
+- `retrieval_first`, `authoring_first`, and `hitl_gate` are in-process patterns.
+- async transport-specific behavior can be layered later on top of the same state model.
 
 ## Checking
 

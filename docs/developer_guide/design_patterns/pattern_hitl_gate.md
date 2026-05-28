@@ -8,23 +8,22 @@ When to use:
 
 ## Skeleton
 
-`authoring/start_async -> waiting_human -> hitl/submit -> resume -> completed`
+`retrieval -> section_authoring -> waiting_human -> needs_changes|approve -> assembly -> completed`
 
 ## Runnable example
 
 ```bash
-bash backend/scripts/async_up.sh
-.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
+.venv/bin/python agent_examples/patterns/hitl_gate/main.py --hitl-decisions needs_changes,approve
 ```
 
 ## Extension points
 
-1. Set up max iterations and timeout via `APP_HITL_*`.
-2. Add reviewer roles/RBAC policy for sensitive decisions.
-3. Add your observability checks to the release gate.
+1. Configure `hitl_max_iterations` and decision list policy.
+2. Add reviewer role semantics and policy checks in workflow state.
+3. Map in-process transitions to async transport path where needed.
 
 ## Anti-patterns
 
-1. Don't check `expected_iteration`/idempotency when submitting.
-2. Continue the pipeline at `reject` as at `approve`.
-3. Do not close async resources after smoke/rehearsal.
+1. Continue pipeline on `reject` as if it was approval.
+2. Skip explicit decision history in traceability/audit payload.
+3. Mix transport concerns into in-process pattern core logic.

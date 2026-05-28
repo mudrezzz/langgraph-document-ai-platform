@@ -203,7 +203,7 @@ Authoring-first starter:
   - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
-  - current status: `retrieval_first` and `authoring_first` are in-process framework patterns; `hitl_gate` remains API-driven during transition.
+  - current status: `retrieval_first`, `authoring_first`, and `hitl_gate` are in-process framework patterns.
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
   - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.

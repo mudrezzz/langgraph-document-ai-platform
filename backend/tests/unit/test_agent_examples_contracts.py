@@ -44,6 +44,11 @@ def test_agent_examples_contains_required_structure() -> None:
         "agent_examples/patterns/authoring_first/expected_output/result.example.json",
         "agent_examples/patterns/authoring_first/README.md",
         "agent_examples/patterns/hitl_gate/agent.py",
+        "agent_examples/patterns/hitl_gate/workflow.py",
+        "agent_examples/patterns/hitl_gate/tools.py",
+        "agent_examples/patterns/hitl_gate/main.py",
+        "agent_examples/patterns/hitl_gate/tests/test_agent.py",
+        "agent_examples/patterns/hitl_gate/expected_output/result.example.json",
         "agent_examples/patterns/hitl_gate/README.md",
     ]
     for path in required_paths:
@@ -102,3 +107,22 @@ def test_authoring_pattern_main_runs_in_process() -> None:
     assert payload["pattern"] == "authoring_first"
     assert payload["execution_model"] == "in_process_framework_workflow"
     assert payload["section_artifacts_total"] > 0
+
+
+def test_hitl_pattern_main_runs_in_process() -> None:
+    python_bin = _resolve_python_bin()
+    completed = subprocess.run(
+        [
+            python_bin,
+            str(AGENT_EXAMPLES_ROOT / "patterns" / "hitl_gate" / "main.py"),
+            "--hitl-decisions",
+            "needs_changes,approve",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+    assert payload["pattern"] == "hitl_gate"
+    assert payload["execution_model"] == "in_process_framework_workflow"
+    assert payload["task_status"] == "completed"

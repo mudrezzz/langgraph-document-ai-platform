@@ -14,9 +14,7 @@ from agent_examples.common.path_setup import ensure_backend_paths
 
 ensure_backend_paths(repo_root=Path(__file__).resolve().parents[1])
 
-from agent_examples.common.framework_client import FrameworkClient
 from agent_examples.common.io_utils import print_json, write_json
-from agent_examples.common.runtime import LocalApiRuntime
 from agent_examples.patterns.authoring_first.agent import AuthoringFirstAgent
 from agent_examples.patterns.authoring_first.config import AuthoringFirstConfig
 from agent_examples.patterns.authoring_first.prompts import DEFAULT_QUERY as AUTHORING_QUERY
@@ -58,7 +56,7 @@ PATTERN_INDEX = {
         pattern_id="hitl_gate",
         title="HITL Gate Agent",
         default_query=HITL_QUERY,
-        execution_model="api_runtime_client",
+        execution_model="in_process_framework_workflow",
     ),
     "device_search": PatternDescriptor(
         pattern_id="device_search",
@@ -108,28 +106,9 @@ def _run_in_process_device_search(query: str) -> dict[str, Any]:
     return agent.run(query=query, non_interactive=True)
 
 
-def _run_api_patterns(
-    pattern: str,
-    *,
-    query: str,
-    hitl_decisions: list[str],
-    host: str,
-    port: int,
-    startup_timeout_sec: int,
-    base_url: str,
-    no_local_api: bool,
-) -> dict[str, Any]:
-    def _run_with_client(client: FrameworkClient) -> dict[str, Any]:
-        if pattern == "hitl_gate":
-            agent = HitlGateAgent(client=client, config=HitlGateConfig())
-            return agent.run(query=query, decisions=hitl_decisions)
-        raise ValueError(f"Pattern {pattern} is not API-driven")
-
-    if no_local_api:
-        return _run_with_client(FrameworkClient(base_url=base_url))
-
-    with LocalApiRuntime(host=host, port=port, startup_timeout_sec=startup_timeout_sec):
-        return _run_with_client(FrameworkClient(base_url=base_url))
+def _run_in_process_hitl(query: str, hitl_decisions: list[str]) -> dict[str, Any]:
+    agent = HitlGateAgent(config=HitlGateConfig())
+    return agent.run(query=query, decisions=hitl_decisions)
 
 
 def main() -> None:
@@ -152,12 +131,9 @@ def main() -> None:
         "execution_model": descriptor.execution_model,
         "notes": [
             "Pattern code is located in agent_examples/patterns/<pattern>/.",
-            "retrieval_first, authoring_first, and device_search are in-process patterns.",
+            "retrieval_first, authoring_first, hitl_gate, and device_search are in-process patterns.",
         ],
     }
-
-    if descriptor.execution_model == "api_runtime_client":
-        payload["base_url"] = base_url
 
     if args.dry_run:
         print_json(payload)
@@ -169,17 +145,10 @@ def main() -> None:
         result = _run_in_process_authoring(query=query)
     elif args.pattern == "device_search":
         result = _run_in_process_device_search(query=query)
+    elif args.pattern == "hitl_gate":
+        result = _run_in_process_hitl(query=query, hitl_decisions=hitl_decisions)
     else:
-        result = _run_api_patterns(
-            args.pattern,
-            query=query,
-            hitl_decisions=hitl_decisions,
-            host=args.host,
-            port=args.port,
-            startup_timeout_sec=args.startup_timeout_sec,
-            base_url=base_url,
-            no_local_api=args.no_local_api,
-        )
+        raise ValueError(f"Unsupported pattern: {args.pattern}")
 
     payload["result"] = result
     print_json(payload)
