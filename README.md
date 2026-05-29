@@ -93,6 +93,43 @@ bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
 ```
 
+Expected output shape:
+
+```json
+{
+    "pattern": "retrieval_first",
+    "title": "Retrieval First Agent",
+    "query": "What are the top release risks and missing approvals?",
+    "mode": "execute",
+    "execution_model": "in_process_framework_workflow",
+    "notes": [
+        "Pattern code is located in agent_examples/patterns/<pattern>/.",
+        "retrieval_first is now in-process; authoring/hitl remain API-driven during transition."
+    ],
+    "result": {
+        "pattern": "retrieval_first",
+        "execution_model": "in_process_framework_workflow",
+        "query": "What are the top release risks and missing approvals?",
+        "case_dataset_id": "saa_release_readiness",
+        "confidence": 0.0,
+        "evidence_blocks": 5,
+        "top_sources": [
+            {
+                "doc_id": "METH-001",
+                "version": "1",
+                "block_id": "S-1"
+            }
+        ],
+        "unresolved_gaps": [
+            "low_confidence: top confidence 0.000, required 0.200"
+        ],
+        "confidence_notes": [
+            "top_confidence=0.000"
+        ]
+    }
+}
+```
+
 Authoring-first starter:
 
 ```bash
