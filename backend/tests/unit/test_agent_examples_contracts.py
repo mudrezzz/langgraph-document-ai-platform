@@ -26,6 +26,7 @@ def test_agent_examples_contains_required_structure() -> None:
     required_paths = [
         "agent_examples/README.md",
         "agent_examples/run_example.py",
+        "agent_examples/tests/run_harness.py",
         "agent_examples/common/framework_client.py",
         "agent_examples/common/path_setup.py",
         "agent_examples/common/runtime.py",

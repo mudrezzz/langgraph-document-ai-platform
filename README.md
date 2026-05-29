@@ -203,6 +203,7 @@ Authoring-first starter:
   - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+  - `python agent_examples/tests/run_harness.py --lane fast` (unified examples pre-check)
   - current status: `retrieval_first`, `authoring_first`, and `hitl_gate` are in-process framework patterns.
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
@@ -221,6 +222,7 @@ Authoring-first starter:
 - I want to build a new agent flow quickly:
   - `docs/developer_guide/canonical_e2e_walkthrough.md`
   - `docs/developer_guide/examples_catalog.md`
+  - `docs/developer_guide/agent_examples_test_harness.md`
   - `docs/developer_guide/api_reference.md`
 - I need operations and release readiness:
   - `docs/developer_guide/operations_and_release.md`

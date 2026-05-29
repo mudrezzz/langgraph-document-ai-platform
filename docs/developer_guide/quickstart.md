@@ -1,6 +1,6 @@
 # Quickstart
 
-Update Date: 2026-05-28
+Update Date: 2026-05-29
 Status: Entry point for new developers
 
 This quickstart answers one question:
@@ -56,7 +56,10 @@ Fast path:
    - open `agent_examples/README.md`;
    - choose pattern `retrieval_first | authoring_first | hitl_gate`;
    - run `.venv/bin/python agent_examples/run_example.py --pattern <pattern>`.
-6. For reusable templates and extension points:
+6. Validate examples with unified harness:
+   - `python agent_examples/tests/run_harness.py --lane fast`;
+   - optional full lane: `python agent_examples/tests/run_harness.py --lane full`.
+7. For reusable templates and extension points:
    - `docs/developer_guide/design_patterns/README.md`
 
 ## Goal C: Validate release path and operations

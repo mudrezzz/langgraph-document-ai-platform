@@ -79,6 +79,21 @@ Dry-run (no runtime side effects):
 
 ## Tests
 
+Unified harness:
+
+```bash
+python agent_examples/tests/run_harness.py --lane fast
+python agent_examples/tests/run_harness.py --lane full
+```
+
+Optional required external smoke (`device_search`):
+
+```bash
+RUN_EXTERNAL_LLM_TESTS=1 OPENROUTER_API_KEY=... python agent_examples/tests/run_harness.py --lane full --require-external-llm-smoke
+```
+
+Equivalent direct checks:
+
 ```bash
 .venv/bin/pytest -q agent_examples/patterns/retrieval_first/tests/test_agent.py
 .venv/bin/pytest -q agent_examples/patterns/authoring_first/tests/test_agent.py

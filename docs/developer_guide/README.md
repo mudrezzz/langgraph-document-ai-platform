@@ -1,6 +1,6 @@
 # External Developer Guide
 
-Update Date: 2026-05-28
+Update Date: 2026-05-29
 Status: Active
 
 This section is the single entry point for external developers who want to use the backend/framework library as a production retrieval + authoring platform on LangGraph.
@@ -13,6 +13,7 @@ Unified reading path by role:
    - `docs/developer_guide/quickstart.md`
    - `agent_examples/README.md`
    - `docs/developer_guide/design_patterns/README.md`
+   - `docs/developer_guide/agent_examples_test_harness.md`
    - `docs/developer_guide/env_profile_snippets.md`
    - `docs/developer_guide/manual_demo_checks.md`
    - `docs/developer_guide/canonical_e2e_walkthrough.md`
@@ -28,6 +29,7 @@ Unified reading path by role:
    - `docs/developer_guide/design_patterns/pattern_retrieval_first.md`
    - `docs/developer_guide/design_patterns/pattern_authoring_first.md`
    - `docs/developer_guide/design_patterns/pattern_hitl_gate.md`
+   - `docs/developer_guide/agent_examples_test_harness.md`
    - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/mcp_reference.md`
    - `docs/developer_guide/env_config_reference.md`
@@ -82,19 +84,20 @@ Unified reading path by role:
 5. `agent_examples/README.md`: choose a runnable Python agent example and run it with `run_example.py`.
 6. `agent_examples_demo_program.md`: align with the target in-process demo-agent model and roadmap.
 7. `design_patterns/README.md`: choose a pattern for your use case and extension points.
-8. `api_reference.md`: verify endpoints, payload contracts, and error mapping.
-9. `mcp_reference.md`: verify MCP tools/scopes/roles and error semantics.
-10. `env_config_reference.md`: define the env profile before run or deploy.
-11. `env_profile_snippets.md`: copy a ready-to-use env profile (`dev/stage/prod`).
-12. `persistence_reference.md`: verify tables, version policy, and rollback expectations.
-13. `observability_reference.md`: interpret task/HITL observability and SLA aggregates.
-14. `versioning_policy.md`: verify deprecation and contract versioning rules.
-15. `examples_catalog.md`: choose the closest reusable integration scenario.
-16. `manual_demo_checks.md`: validate canonical indexing and real PDF/PPTX parsing path.
-17. `adr_reading_map.md`: follow ADR path by role and change topic.
-18. `extension_handbook.md`: choose the required extension playbook (workflow/tool/MCP/persistence/domain).
-19. `extension_recipes.md`: add your workflow/tool/MCP path based on current framework contracts.
-20. `vibecoder_skill_import.md`: import/update local `SKILL.md/AGENT.md` from GitHub for codex/claude/cursor.
-21. `maintainer_playbook.md`: verify docs release/triage/review rules.
-22. `release_reproducible_flow.md`: run the linear reproducible release path.
-23. `operations_and_release.md`: run the release decision gate as the final quality barrier.
+8. `agent_examples_test_harness.md`: run unified fast/full lanes for example contracts and smoke.
+9. `api_reference.md`: verify endpoints, payload contracts, and error mapping.
+10. `mcp_reference.md`: verify MCP tools/scopes/roles and error semantics.
+11. `env_config_reference.md`: define the env profile before run or deploy.
+12. `env_profile_snippets.md`: copy a ready-to-use env profile (`dev/stage/prod`).
+13. `persistence_reference.md`: verify tables, version policy, and rollback expectations.
+14. `observability_reference.md`: interpret task/HITL observability and SLA aggregates.
+15. `versioning_policy.md`: verify deprecation and contract versioning rules.
+16. `examples_catalog.md`: choose the closest reusable integration scenario.
+17. `manual_demo_checks.md`: validate canonical indexing and real PDF/PPTX parsing path.
+18. `adr_reading_map.md`: follow ADR path by role and change topic.
+19. `extension_handbook.md`: choose the required extension playbook (workflow/tool/MCP/persistence/domain).
+20. `extension_recipes.md`: add your workflow/tool/MCP path based on current framework contracts.
+21. `vibecoder_skill_import.md`: import/update local `SKILL.md/AGENT.md` from GitHub for codex/claude/cursor.
+22. `maintainer_playbook.md`: verify docs release/triage/review rules.
+23. `release_reproducible_flow.md`: run the linear reproducible release path.
+24. `operations_and_release.md`: run the release decision gate as the final quality barrier.
