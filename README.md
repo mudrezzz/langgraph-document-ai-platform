@@ -18,6 +18,17 @@ Build retrieval, indexing, authoring, and human-in-the-loop review flows with au
 2. Authoring copilot with multi-step draft flow and iterative HITL review loop.
 3. Governance-aware template/repository/artifact services over MCP.
 
+## Use-Case Fit
+
+| Need | Use this project? | Why |
+| --- | --- | --- |
+| Production document AI workflows with retrieval, indexing, authoring, and HITL review | Yes | The platform combines LangGraph workflows, typed contracts, persistence, and release gates in one stack. |
+| Auditable document automation for teams that need task history, evidence packs, and review traces | Yes | The runtime is designed around observable task lifecycle, persisted artifacts, and human review boundaries. |
+| A framework for extending document-agent workflows behind API or MCP boundaries | Yes | The repository includes extension guides, public contract docs, and reusable workflow, tool, and MCP patterns. |
+| A quick single-file chatbot or lightweight prototype | Probably not | The platform includes PostgreSQL, worker, API, and governance surfaces that are unnecessary for small experiments. |
+| Hosted no-code document processing | Probably not | This is a self-hosted developer framework, not a managed SaaS product. |
+| A generic RAG demo without release gates or team ownership boundaries | Probably not | Simpler RAG stacks are easier to operate when auditability and production contracts are not required. |
+
 ## Install as a Library
 
 The framework core (`framework`, `schemas`, `infra.openrouter`) is available as
