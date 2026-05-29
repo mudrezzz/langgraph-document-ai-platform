@@ -93,6 +93,13 @@ bash backend/scripts/postgres_migrate.sh
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
 ```
 
+Device-search starter (in-process workflow; requires `OPENROUTER_API_KEY`, no backend API required):
+
+```bash
+export OPENROUTER_API_KEY="sk-or-..."
+.venv/bin/python agent_examples/run_example.py --pattern device_search
+```
+
 Authoring-first starter:
 
 ```bash
