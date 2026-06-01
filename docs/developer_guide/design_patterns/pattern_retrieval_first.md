@@ -1,22 +1,22 @@
 # Pattern: Retrieval-First Agent
 
-Когда применять:
+When to use:
 
-- нужен быстрый путь "вопрос -> доказательная выборка";
-- итоговый output - evidence pack, а не длинный authored artifact;
-- важна объяснимость источников и traceability к knowledge blocks.
+- we need a quick path “question -> evidence-based sampling”;
+- the final output is an evidence pack, not a long authored artifact;
+- explainability of sources and traceability to knowledge blocks are important.
 
-## Скелет
+## Skeleton
 
 `build workflow -> invoke(state) -> evidence pack`
 
-## Runnable пример
+## Runnable example
 
 ```bash
 .venv/bin/python agent_examples/patterns/retrieval_first/main.py
 ```
 
-или
+or
 
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern retrieval_first
@@ -24,12 +24,12 @@
 
 ## Extension points
 
-1. Сменить retrieval query через `prompts.py` или `main.py --query`.
-2. Подключить свой case dataset через `main.py --dataset-id`.
-3. Изменить фильтры в `agent_examples/patterns/retrieval_first/tools.py`.
+1. Change retrieval query via `prompts.py` or `main.py --query`.
+2. Connect your case dataset via `main.py --dataset-id`.
+3. Change filters in `agent_examples/patterns/retrieval_first/tools.py`.
 
-## Анти-паттерны
+## Anti-patterns
 
-1. Делать heavy authoring в retrieval path.
-2. Обходить typed contracts из `schemas`.
-3. Игнорировать task events и observability после расширения.
+1. Do heavy authoring in the retrieval path.
+2. Bypass typed contracts from `schemas`.
+3. Ignore task events and observability after expansion.

@@ -1,39 +1,39 @@
 # ADR-0045: Minimal domain_authoring service extraction
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После закрытия `Increment 27` authoring path уже поддерживал sync/async execution, HITL, artifact traceability и LLM fallback, но большая часть authoring domain logic оставалась внутри `AuthoringApplicationService`.
+After `Increment 27` was closed, the authoring path already supported sync/async execution, HITL, artifact traceability and LLM fallback, but most of the authoring domain logic remained inside `AuthoringApplicationService`.
 
-Для `Increment 28` нужен постепенный переход к отдельному `domain_authoring` пакету без ломки существующих API и без большого рефакторинга за один slice.
+`Increment 28` requires a gradual transition to a separate `domain_authoring` package without breaking existing APIs and without a lot of refactoring in one slice.
 
-## Решение
+## Solution
 
-1. Добавить пакет `backend/packages/domain_authoring`.
-2. На первом slice вынести минимальные domain services:
+1. Add package `backend/packages/domain_authoring`.
+2. On the first slice, add the minimum domain services:
    - `OutlinePlanner`;
    - `SectionReviewService`;
    - `DocumentAssembler`.
-3. Сохранить `AuthoringApplicationService` как application/orchestration boundary:
+3. Save `AuthoringApplicationService` as application/orchestration boundary:
    - retrieval task lifecycle;
    - async dispatch;
    - HITL state transitions;
    - artifact persistence;
    - task/artifact link.
-4. Интегрировать новые domain services через dependency injection с дефолтными реализациями.
-5. Не менять внешние API/contracts на этом slice.
+4. Integrate new domain services via dependency injection with default implementations.
+5. Do not change external APIs/contracts on this slice.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- начинается реальная декомпозиция authoring домена без регрессии публичных контрактов;
-- reviewer/outline/assembly logic становится изолированной и напрямую тестируемой;
-- следующие slices могут отдельно выносить outline planning, section workflows и assembly contracts.
+- real decomposition of the authoring domain begins without regression of public contracts;
+- reviewer/outline/assembly logic becomes isolated and directly testable;
+- the following slices can separately include outline planning, section workflows and assembly contracts.
 
-Минусы:
+Cons:
 
-- `AuthoringApplicationService` пока остается крупным orchestrator;
-- writer/research/traceability/HITL logic еще не полностью вынесены в `domain_authoring`.
+- `AuthoringApplicationService` remains a major orchestrator for now;
+- writer/research/traceability/HITL logic is not yet fully included in `domain_authoring`.

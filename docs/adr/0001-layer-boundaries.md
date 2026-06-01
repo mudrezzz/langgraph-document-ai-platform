@@ -1,30 +1,30 @@
-﻿# ADR-0001: Границы слоев системы
+﻿# ADR-0001: System Layer Boundaries
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-Требуется разделить framework, domain и infrastructure так, чтобы прикладная логика не зависела от конкретных библиотек и сервисов.
+It is required to separate the framework, domain and infrastructure so that application logic does not depend on specific libraries and services.
 
-## Решение
+## Solution
 
-Принять слоистую модель:
+Adopt layered model:
 
-1. `packages/schemas` — единая точка истины по типизированным контрактам.
-2. `packages/framework` — абстракции и базовые реализации runtime-паттернов.
-3. `packages/domain_*` — прикладная бизнес-логика поверх интерфейсов framework.
-4. `infra/*` и service adapters — concrete реализации внешних интеграций.
+1. `packages/schemas` - a single point of truth for typed contracts.
+2. `packages/framework` - abstractions and basic implementations of runtime patterns.
+3. `packages/domain_*` - applied business logic on top of the framework interfaces.
+4. `infra/*` and service adapters - concrete implementation of external integrations.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- предсказуемая структура зависимостей;
-- упрощение contract testing;
-- удобная замена конкретных адаптеров.
+- predictable dependency structure;
+- simplification of contract testing;
+- convenient replacement of specific adapters.
 
-Минусы:
+Cons:
 
-- выше дисциплинарная нагрузка на команду;
-- больше интерфейсного кода на старте.
+- higher disciplinary burden on the team;
+- more interface code at the start.

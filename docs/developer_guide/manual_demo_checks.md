@@ -1,8 +1,8 @@
 # Manual Demo Checks
 
-Документ дает короткий ручной сценарий, который подтверждает работу реальных binary parsers и сквозного demo-пути.
+The document gives a short manual script that validates the operation of real binary parsers and the end-to-end demo path.
 
-## 1. Подготовка runtime
+## 1. Preparing runtime
 
 ```bash
 cd /root/langgraph-document-ai-platform
@@ -19,7 +19,7 @@ APP_DB_SCHEMA=app \
 bash backend/scripts/postgres_migrate.sh
 ```
 
-## 2. Проверка реального PDF/PPTX parsing в Knowledge Indexing API
+## 2. Checking real PDF/PPTX parsing in the Knowledge Indexing API
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -30,7 +30,7 @@ bash backend/scripts/smoke_knowledge_indexing_api.sh --host 127.0.0.1 --port 807
   | tee /tmp/knowledge_indexing_api.json
 ```
 
-Проверки:
+Checks:
 
 ```bash
 jq '.file_types' /tmp/knowledge_indexing_api.json
@@ -38,13 +38,13 @@ jq '[.parser_quality[] | select(.parser_family=="pptx")] | length' /tmp/knowledg
 jq '.pdf_demo_proof' /tmp/knowledge_indexing_api.json
 ```
 
-Ожидается:
+Expected:
 
-- В `file_types` есть `"pptx"` и `"pdf"`.
-- Счетчик `parser_family=="pptx"` больше 0.
+- In `file_types` there are `"pptx"` and `"pdf"`.
+- Counter `parser_family=="pptx"` is greater than 0.
 - `pdf_demo_proof.found == true`.
 
-## 3. Проверка сквозного release go/no-go multifile demo
+## 3. Checking the cross-release go/no-go multifile demo
 
 ```bash
 APP_RUNTIME_PROFILE=prod \
@@ -54,17 +54,17 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --port 8022
 ```
 
-Проверьте итоговый артефакт:
+Check out the final artifact:
 
 - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`
 
-В отчете должны быть:
+The report should include:
 
 - `Canonical Quality Summary`;
 - `Canonical Source Mapping`;
-- evidence с PDF provenance/table metadata.
+- evidence with PDF provenance/table metadata.
 
-## 4. Остановка окружения
+## 4. Stopping the environment
 
 ```bash
 bash backend/scripts/postgres_down.sh --remove-volumes

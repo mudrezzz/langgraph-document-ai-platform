@@ -1,35 +1,35 @@
-# ADR-0012: Миграция на Linux сервер и Bash operations profile
+# ADR-0012: Migration to Linux server and Bash operations profile
 
-- Статус: Accepted
-- Дата: 2026-04-19
+- Status: Accepted
+- Date: 2026-04-19
 
-## Контекст
+## Context
 
-Локальная разработка на Windows оказалась тяжелой для Docker-нагрузки. Для дальнейших итераций проект переносится на Linux-сервер (Ubuntu 24), где нужно иметь штатный операционный контур без зависимости от PowerShell.
+Local development on Windows turned out to be heavy on the Docker workload. For further iterations, the project is transferred to a Linux server (Ubuntu 24), where it is necessary to have a standard operating circuit without dependence on PowerShell.
 
-## Решение
+## Solution
 
-1. Зафиксировать Linux-скрипты в `backend/scripts`:
+1. Commit Linux scripts to `backend/scripts`:
    - `apply_migrations.sh`;
    - `postgres_up.sh`, `postgres_migrate.sh`, `postgres_down.sh`;
    - `smoke_retrieval_api.sh`;
    - `demo_saa_release_readiness_case.sh`.
-2. Добавить отдельную документацию по скриптам:
+2. Add separate documentation for scripts:
    - `backend/scripts/README.md`.
-3. Зафиксировать handoff-документ для старта нового чата уже на сервере:
+3. Fix the handoff document to start a new chat on the server:
    - `docs/handoff/2026-04-19_ubuntu24_server_handoff.md`.
-4. Размещать дальнейшие инкременты в GitHub-репозитории:
+4. Post further increments to the GitHub repository:
    - `https://github.com/mudrezzz/langgraph-document-ai-platform`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- операционный контур больше не привязан к Windows/Powershell;
-- запуск PostgreSQL, миграций и smoke становится одинаковым для серверной среды;
-- ускоряется переход к реальному server deployment циклу.
+- the operating circuit is no longer tied to Windows/Powershell;
+- launching PostgreSQL, migrations and smoke becomes the same for the server environment;
+- the transition to the real server deployment cycle is accelerated.
 
-Минусы:
+Cons:
 
-- нужно сопровождать два набора скриптов (`.ps1` и `.sh`) в переходный период;
-- часть сценариев теперь должна регулярно проверяться и на Linux, и на Windows.
+- two sets of scripts (`.ps1` and `.sh`) need to be maintained during the transition period;
+- some scripts should now be regularly checked on both Linux and Windows.

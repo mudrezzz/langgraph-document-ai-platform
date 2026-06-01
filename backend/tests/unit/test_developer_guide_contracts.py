@@ -18,6 +18,9 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/design_patterns/pattern_retrieval_first.md",
         "docs/developer_guide/design_patterns/pattern_authoring_first.md",
         "docs/developer_guide/design_patterns/pattern_hitl_gate.md",
+        "docs/developer_guide/design_patterns/pattern_async_batch.md",
+        "docs/developer_guide/design_patterns/pattern_mcp_tool_facade.md",
+        "docs/developer_guide/agent_examples_test_harness.md",
         "docs/developer_guide/public_contract_surface.md",
         "docs/developer_guide/framework_concepts.md",
         "docs/developer_guide/canonical_e2e_walkthrough.md",
@@ -27,6 +30,7 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/persistence_reference.md",
         "docs/developer_guide/observability_reference.md",
         "docs/developer_guide/extension_handbook.md",
+        "docs/developer_guide/vibecoder_skill_import.md",
         "docs/developer_guide/examples_catalog.md",
         "docs/developer_guide/adr_reading_map.md",
         "docs/developer_guide/maintainer_playbook.md",
@@ -35,6 +39,8 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/manual_demo_checks.md",
         "docs/developer_guide/extension_recipes.md",
         "docs/developer_guide/operations_and_release.md",
+        "FEEDBACK.md",
+        "docs/project_update_template.md",
     ]
 
     for page in required_pages:

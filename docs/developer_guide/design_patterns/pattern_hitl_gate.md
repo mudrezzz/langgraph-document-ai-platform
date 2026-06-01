@@ -1,30 +1,29 @@
 # Pattern: HITL Gate Pattern
 
-Когда применять:
+When to use:
 
-- решение нельзя полностью автоматизировать без reviewer sign-off;
-- нужен повторяемый path `needs_changes -> rewrite -> approve`;
-- нужно хранить timeline reviewer actions для аудита.
+- the solution cannot be fully automated without reviewer sign-off;
+- need a repeatable path `needs_changes -> rewrite -> approve`;
+- you need to store timeline reviewer actions for auditing.
 
-## Скелет
+## Skeleton
 
-`authoring/start_async -> waiting_human -> hitl/submit -> resume -> completed`
+`retrieval -> section_authoring -> waiting_human -> needs_changes|approve -> assembly -> completed`
 
-## Runnable пример
+## Runnable example
 
 ```bash
-bash backend/scripts/async_up.sh
-.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve
+.venv/bin/python agent_examples/patterns/hitl_gate/main.py --hitl-decisions needs_changes,approve
 ```
 
 ## Extension points
 
-1. Настроить max iterations и timeout через `APP_HITL_*`.
-2. Добавить reviewer roles/RBAC policy для sensitive decisions.
-3. Добавить свои observability checks в release gate.
+1. Configure `hitl_max_iterations` and decision list policy.
+2. Add reviewer role semantics and policy checks in workflow state.
+3. Map in-process transitions to async transport path where needed.
 
-## Анти-паттерны
+## Anti-patterns
 
-1. Не проверять `expected_iteration`/idempotency при submit.
-2. Продолжать pipeline при `reject` как при `approve`.
-3. Не закрывать async resources после smoke/rehearsal.
+1. Continue pipeline on `reject` as if it was approval.
+2. Skip explicit decision history in traceability/audit payload.
+3. Mix transport concerns into in-process pattern core logic.

@@ -1,31 +1,31 @@
 # Persistence & Data Reference
 
-Дата обновления: 2026-04-30  
-Статус: Active (P1 reference)
+Update date: 2026-04-30
+Status: Active (P1 reference)
 
-Источник истины: `backend/migrations/*.sql`, `backend/packages/infra/postgres/*`, `backend/packages/application/*`.
+Source of truth: `backend/migrations/*.sql`, `backend/packages/infra/postgres/*`, `backend/packages/application/*`.
 
 ## 1. Runtime policy
 
-- Основной persistence target: PostgreSQL (`APP_DB_DSN`).
-- Профили:
-  - `APP_RUNTIME_PROFILE=dev|stage`: fallback persistence разрешен при отсутствии DSN.
-  - `APP_RUNTIME_PROFILE=prod`: fallback отключен; DSN обязателен.
-- Базовый schema: `APP_DB_SCHEMA` (default `app`).
+- Main persistence target: PostgreSQL (`APP_DB_DSN`).
+- Profiles:
+- `APP_RUNTIME_PROFILE=dev|stage`: fallback persistence is allowed when there is no DSN.
+- `APP_RUNTIME_PROFILE=prod`: fallback disabled; DSN is required.
+- Basic schema: `APP_DB_SCHEMA` (default `app`).
 
 ## 2. Migration policy
 
-Применение миграций:
+Applying migrations:
 
 ```bash
 APP_DB_DSN=postgresql://... python backend/scripts/apply_migrations.py
 ```
 
-Что важно:
+What's important:
 
-- миграции выполняются в лексикографическом порядке `0001...0013`;
-- migration-tracking table не используется;
-- миграции проектируются idempotent (`IF NOT EXISTS`, additive `ALTER`/`CREATE INDEX IF NOT EXISTS`).
+- migrations are performed in lexicographic order `0001...0013`;
+- migration-tracking table is not used;
+- migrations are designed idempotent (`IF NOT EXISTS`, additive `ALTER`/`CREATE INDEX IF NOT EXISTS`).
 
 ## 3. Data model map
 
@@ -38,8 +38,8 @@ APP_DB_DSN=postgresql://... python backend/scripts/apply_migrations.py
 ## 3.2 Task lifecycle & observability
 
 - `app.tasks`: latest task state (`task_id`, `task_type`, `status`, `current_node`, `details`).
-- `app.task_events`: статусные события и node-level audit payload.
-- Индексы фильтров/summary:
+- `app.task_events`: status events and node-level audit payload.
+- Filter indexes/summary:
   - `ix_tasks_updated_at_task_id`
   - `ix_task_events_from_status`
   - `ix_task_events_from_to_created_at`
@@ -50,7 +50,7 @@ APP_DB_DSN=postgresql://... python backend/scripts/apply_migrations.py
 - `app.langgraph_checkpoint_blobs`
 - `app.langgraph_checkpoint_writes`
 
-Поддерживаемые runtime операции checkpointer:
+Supported checkpointer runtime operations:
 
 - read/list/put checkpoint tuples
 - pending writes
@@ -76,9 +76,9 @@ Version history:
 
 Policy:
 
-- latest lookup по `doc_id` читает `canonical_documents`;
-- explicit version lookup (`doc_id + version`) читает `canonical_document_versions`;
-- при re-index latest layer обновляется, исторические версии сохраняются.
+- latest lookup by `doc_id` reads `canonical_documents`;
+- explicit version lookup (`doc_id + version`) reads `canonical_document_versions`;
+- when re-index the latest layer is updated, historical versions are saved.
 
 ## 3.6 Template & configuration libraries
 
@@ -105,31 +105,31 @@ Task/history read models:
 
 - `tasks`: `ORDER BY updated_at DESC, task_id DESC`
 - `task_events`: `ORDER BY created_at DESC, event_id DESC`
-- cursors кодируются/декодируются в application layer и считаются частью API behavior.
+- cursors are encoded/decoded in the application layer and are considered part of the API behavior.
 
 HITL actions:
 
 - `ORDER BY created_at DESC, action_id DESC`
-- cursor-based pagination через `action_id + created_at`.
+- cursor-based pagination via `action_id + created_at`.
 
 ## 6. Rollback expectations
 
-Текущая стратегия:
+Current strategy:
 
-- schema migrations additive; destructive rollback SQL не поддерживается как стандартный путь;
-- rollback на проде предполагает:
-  - восстановление из backup;
-  - или forward-fix migration.
+- schema migrations additive; destructive rollback SQL is not supported as a standard path;
+- rollback on production assumes:
+- restore from backup;
+- or forward-fix migration.
 
-Практический контракт для изменений:
+Practical contract for changes:
 
-1. Не удалять существующие таблицы/колонки, используемые public read-model endpoint-ами.
-2. Не ломать latest/history compatibility для canonical и templates/config versions.
-3. Для каждого schema-change обновлять docs + backlog.
+1. Do not delete existing tables/columns used by public read-model endpoints.
+2. Do not break latest/history compatibility for canonical and templates/config versions.
+3. For each schema-change, update docs + backlog.
 
 ## 7. Operational checks
 
-Минимум после migration/data change:
+Minimum after migration/data change:
 
 1. `bash backend/scripts/postgres_migrate.sh`
 2. `bash backend/scripts/smoke_retrieval_api.sh`
@@ -137,7 +137,7 @@ HITL actions:
 4. `bash backend/scripts/smoke_authoring_api.sh`
 5. `bash backend/scripts/smoke_release_gate.sh --gate-profile stage`
 
-## 8. Связанные документы
+## 8. Related documents
 
 - `docs/developer_guide/env_config_reference.md`
 - `docs/developer_guide/api_reference.md`

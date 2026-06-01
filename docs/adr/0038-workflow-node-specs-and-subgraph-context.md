@@ -1,51 +1,51 @@
-# ADR-0038: Workflow node specs и subgraph context propagation
+# ADR-0038: Workflow node specs and subgraph context propagation
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После первых framework инкрементов `BaseWorkflow` уже исполнялся через LangGraph runtime, но фактически компилировал одношаговый graph, который делегировал всю работу в `execute()` или `execute_resume()`. Это было достаточно для ранних retrieval/indexing slices, но слабовато для целевой архитектуры:
+After the first framework increments, `BaseWorkflow` was already executed through the LangGraph runtime, but actually compiled a one-step graph, which delegated all the work to `execute()` or `execute_resume()`. This was sufficient for early retrieval/indexing slices, but rather weak for the target architecture:
 
-- domain workflows должны быть явно multi-node;
-- reusable subgraphs должны передавать parent workflow metadata;
-- node-level audit и observability требуют стабильного `node_name`;
-- `task_id` и `correlation_id` должны быть доступны внутри node handlers.
+- domain workflows must be explicitly multi-node;
+- reusable subgraphs must pass parent workflow metadata;
+- node-level audit and observability require a stable `node_name`;
+- `task_id` and `correlation_id` must be available inside node handlers.
 
-## Решение
+## Solution
 
-1. Добавить `WorkflowExecutionContext`:
+1. Add `WorkflowExecutionContext`:
    - `workflow_name`;
    - `node_name`;
    - `task_id`;
    - `correlation_id`;
    - `is_resume`;
    - `metadata`.
-2. Добавить `WorkflowNodeSpec`:
+2. Add `WorkflowNodeSpec`:
    - `name`;
    - `handler`;
    - `next_node`.
-3. Расширить `BaseWorkflow.workflow_nodes(is_resume=...)`.
-4. Сохранить backward compatibility:
-   - default `workflow_nodes` строит прежний одноузловой graph;
-   - existing subclasses, которые переопределяют только `execute/execute_resume`, продолжают работать.
-5. Компилировать LangGraph invoke/resume graphs из sequential node specs.
-6. Исполнять те же node specs в fallback runtime.
-7. Доработать `SubgraphWorkflow`:
+3. Expand `BaseWorkflow.workflow_nodes(is_resume=...)`.
+4. Save backward compatibility:
+- default `workflow_nodes` builds the same single-node graph;
+- existing subclasses that only override `execute/execute_resume` continue to work.
+5. Compile LangGraph invoke/resume graphs from sequential node specs.
+6. Execute the same node specs in fallback runtime.
+7. Improve `SubgraphWorkflow`:
    - `subgraph_name`;
    - `invoke_as_subgraph(...)`;
-   - parent context propagation через `task_context`.
+- parent context propagation via `task_context`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- domain workflows теперь могут объявлять явные framework-level nodes без переписывания compile/invoke/checkpointer логики;
-- node handlers получают typed context с task/correlation metadata;
-- `SubgraphWorkflow` стал полезной reusable базой, а не пустым subclass marker;
-- следующий slice может добавить node-level task events поверх стабильного `node_name`.
+- domain workflows can now declare explicit framework-level nodes without rewriting compile/invoke/checkpointer logic;
+- node handlers receive typed context with task/correlation metadata;
+- `SubgraphWorkflow` has become a useful reusable base, rather than an empty subclass marker;
+- the next slice can add node-level task events on top of the stable `node_name`.
 
-Минусы:
+Cons:
 
-- текущая реализация поддерживает sequential graph specs; conditional routing остается задачей следующих slices;
-- parent context propagation работает через `task_context` и требует state schemas, в которых такое поле присутствует.
+- the current implementation supports sequential graph specs; conditional routing remains the task of the next slices;
+- parent context propagation works through `task_context` and requires state schemas in which such a field is present.

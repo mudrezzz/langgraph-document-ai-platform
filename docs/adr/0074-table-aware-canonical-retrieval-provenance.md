@@ -1,35 +1,35 @@
 # ADR-0074: Table-aware canonical retrieval provenance
 
-- Статус: Accepted
-- Дата: 2026-04-27
+- Status: Accepted
+- Date: 2026-04-27
 
-## Контекст
+## Context
 
-После DOCX hardening строки таблиц уже попадают в canonical corpus как `table_row` blocks. Retrieval и MCP search умеют находить такие блоки, но source mapping оставался слишком плоским: consumer видел только `doc_id/block_id`, без явного ответа, что evidence пришел из таблицы, из какой именно таблицы и какой строки.
+After DOCX hardening, table rows are already included in the canonical corpus as `table_row` blocks. Retrieval and MCP search are able to find such blocks, but the source mapping remained too flat: the consumer saw only `doc_id/block_id`, without an explicit answer that the evidence came from the table, from which table and which row.
 
-Это снижает production value retrieval fabric: найденный approval status трудно быстро проверить вручную и трудно объяснить в report/traceability path.
+This reduces the production value of retrieval fabric: the found approval status is difficult to quickly check manually and difficult to explain in the report/traceability path.
 
-## Решение
+## Solution
 
-1. Не вводить отдельный provenance store или новую retrieval архитектуру.
-2. Сохранять table-aware provenance в existing canonical/vector metadata path для `table_row` blocks:
+1. Do not introduce a separate provenance store or a new retrieval architecture.
+2. Save table-aware provenance in the existing canonical/vector metadata path for `table_row` blocks:
    - `source_kind=table_row`;
    - `table_id`, `table_title`, `table_columns`;
    - `row_index`, `row_values`;
    - `section_title`.
-3. `CanonicalVectorRetriever` и dataset loader должны прокидывать эти поля в `RetrievedBlock.metadata`.
-4. `FastMcpRetrievalService.lookup_source` должен возвращать typed provenance payload и table payload для table-backed evidence.
-5. Release readiness report должен уметь показать table-aware source mapping для табличных evidence blocks.
+3. `CanonicalVectorRetriever` and dataset loader should pass these fields to `RetrievedBlock.metadata`.
+4. `FastMcpRetrievalService.lookup_source` must return typed provenance payload and table payload for table-backed evidence.
+5. Release readiness report should be able to show table-aware source mapping for tabular evidence blocks.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- найденное evidence можно объяснить и проверить как конкретную строку approval matrix;
-- MCP lookup/source mapping становится пригоднее для downstream authoring/traceability;
-- решение переиспользует existing canonical documents, knowledge blocks и vector metadata.
+- the evidence found can be explained and verified as a specific line of the approval matrix;
+- MCP lookup/source mapping becomes more suitable for downstream authoring/traceability;
+- the solution reuses existing canonical documents, knowledge blocks and vector metadata.
 
-Минусы:
+Cons:
 
-- metadata schema vector records становится богаче и требует аккуратной совместимости;
-- report layer пока показывает агрегированную table provenance, а не полный cell-level trace.
+- metadata schema vector records are becoming richer and require careful compatibility;
+- the report layer currently shows the aggregated table provenance, and not the full cell-level trace.

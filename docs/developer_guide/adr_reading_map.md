@@ -1,15 +1,15 @@
 # ADR Reading Map
 
-Дата обновления: 2026-04-30  
-Статус: Active (P2 navigation)
+Update date: 2026-04-30
+Status: Active (P2 navigation)
 
-Цель: ускорить навигацию по ADR для внешнего разработчика.
+Goal: Speed ​​up navigation through ADR for an external developer.
 
 ## 1. Fast path by role
 
-## Integrator (минимальный контекст)
+## Integrator (minimal context)
 
-Прочитать в порядке:
+Read in order:
 
 1. `0001-layer-boundaries.md`
 2. `0005-api-boundary-and-task-lifecycle.md`
@@ -19,9 +19,9 @@
 6. `0091-final-release-decision-contract.md`
 7. `0092-external-developer-documentation-surface.md`
 
-## Contributor (расширение framework/domain)
+## Contributor (framework/domain extension)
 
-Прочитать в порядке:
+Read in order:
 
 1. `0001-layer-boundaries.md`
 2. `0002-langgraph-runtime-boundary.md`
@@ -31,9 +31,9 @@
 6. `0039-workflow-node-events-task-audit.md`
 7. `0040-workflow-factory-di-builders.md`
 
-## Maintainer (операции и release governance)
+## Maintainer (operations and release governance)
 
-Прочитать в порядке:
+Read in order:
 
 1. `0008-postgres-pgvector-baseline-persistence.md`
 2. `0013-runtime-profiles-task-history-cursor-and-status-audit.md`
@@ -75,8 +75,8 @@ Observability / release gates:
 
 ## 3. How to use with docs set
 
-1. Сначала пройти `docs/developer_guide/public_contract_surface.md`.
-2. Потом выбрать role-based ADR fast path.
-3. Для deep dive перейти в `docs/adr/README.md` и topic map above.
+1. First go through `docs/developer_guide/public_contract_surface.md`.
+2. Then select role-based ADR fast path.
+3. For deep dive, go to `docs/adr/README.md` and topic map above.
 
-Это снижает риск читать ADR в случайном порядке и пропустить ключевые контракты.
+This reduces the risk of reading ADRs at random and missing key contracts.

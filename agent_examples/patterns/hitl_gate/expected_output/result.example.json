@@ -1,0 +1,28 @@
+{
+    "pattern": "hitl_gate",
+    "execution_model": "in_process_framework_workflow",
+    "query": "Draft release decision note and require reviewer approval before completion.",
+    "task_status": "completed",
+    "hitl_decisions_applied": [
+        {
+            "iteration": 1,
+            "decision": "needs_changes",
+            "status_before": "waiting_human",
+            "status_after": "running",
+            "comment": "reviewer_decision=needs_changes"
+        },
+        {
+            "iteration": 2,
+            "decision": "approve",
+            "status_before": "waiting_human",
+            "status_after": "approve",
+            "comment": "reviewer_decision=approve"
+        }
+    ],
+    "artifact_title": "Agent Examples: HITL Review",
+    "artifact_format": "markdown",
+    "recommendation": "conditional_go",
+    "steps_total": 7,
+    "traceability_sections": 4,
+    "content_preview": "# Release Readiness Report\n\n## Query\nDraft release decision note and require reviewer approval before completion.\n\n## Research\n..."
+}

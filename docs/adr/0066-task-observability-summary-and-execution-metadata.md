@@ -1,21 +1,21 @@
 # ADR-0066: Task Observability Summary and Execution Metadata on Unified Plane third slice
 
-- Статус: Accepted
-- Дата: 2026-04-26
+- Status: Accepted
+- Date: 2026-04-26
 
-## Контекст
+## Context
 
-После ADR-0064 и ADR-0065 unified async execution plane уже покрывает authoring, knowledge indexing и retrieval, но оператору все еще неудобно разбирать runtime состояние системы:
+After ADR-0064 and ADR-0065, the unified async execution plane already covers authoring, knowledge indexing and retrieval, but it is still inconvenient for the operator to parse the runtime state of the system:
 
-- `GET /api/v1/tasks` показывает только отдельные task rows;
-- `GET /api/v1/tasks/events` и `/summary` показывают transitions, но не дают dashboard-friendly current-state aggregates;
-- manual smoke/demo подтверждали только факт completion, а не execution trace (`queue`, `dispatch`, `correlation`, queue wait).
+- `GET /api/v1/tasks` shows only individual task rows;
+- `GET /api/v1/tasks/events` and `/summary` show transitions, but do not give dashboard-friendly current-state aggregates;
+- manual smoke/demo confirmed only the fact of completion, and not the execution trace (`queue`, `dispatch`, `correlation`, queue wait).
 
-Для Increment 29 нужен минимальный observability slice поверх уже существующего read-model слоя, без новой telemetry-подсистемы.
+Increment 29 requires a minimal observability slice on top of the existing read-model layer, without a new telemetry subsystem.
 
-## Решение
+## Solution
 
-1. Расширить task lifecycle details execution metadata полями:
+1. Expand task lifecycle details execution metadata with fields:
    - `correlation_id`;
    - `async_provider`;
    - `queue_name`;
@@ -23,26 +23,26 @@
    - `started_at`;
    - `completed_at`/`failed_at`;
    - `queue_wait_ms`.
-2. Оставить эти поля в существующем `details` payload задачи, не вводя отдельную таблицу.
-3. Добавить новый read-model endpoint `GET /api/v1/tasks/observability/summary`.
-4. Считать агрегаты поверх existing task registry, а не поверх raw queue backend:
+2. Leave these fields in the existing `details` payload of the task, without introducing a separate table.
+3. Add a new read-model endpoint `GET /api/v1/tasks/observability/summary`.
+4. Count aggregates on top of the existing task registry, and not on top of the raw queue backend:
    - `total_tasks`;
-   - counts по текущим статусам (`queued`, `running`, `waiting_human`, `completed`, `failed`);
+- counts by current statuses (`queued`, `running`, `waiting_human`, `completed`, `failed`);
    - `async_tasks`;
    - `avg_duration_ms`, `max_duration_ms`, `avg_queue_wait_ms`;
-   - breakdown по `task_type`.
-5. Ручные smoke/demo scripts должны выводить execution metadata и observability summary, чтобы оператор мог проверить unified execution plane вручную.
+- breakdown by `task_type`.
+5. Manual smoke/demo scripts should output execution metadata and observability summary so that the operator can check the unified execution plane manually.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- execution plane становится наблюдаемым без новой инфраструктуры metrics/logging;
-- оператор видит не только transitions, но и текущую сводку по задачам и queue wait behavior;
-- API остается backward-compatible: новые поля добавлены как расширение существующих details/read-model payloads.
+- the execution plane becomes observable without the new metrics/logging infrastructure;
+- the operator sees not only transitions, but also the current summary of tasks and queue wait behavior;
+- The API remains backward-compatible: new fields are added as an extension of the existing details/read-model payloads.
 
-Минусы:
+Cons:
 
-- агрегаты строятся по состоянию task registry, а не по реальным внутренним метрикам брокера очередей;
-- structured JSON logging и межсервисная log correlation еще не закрыты;
-- для production dashboards при росте нагрузки может понадобиться отдельный pre-aggregated read model.
+- aggregates are built according to the state of the task registry, and not according to the real internal metrics of the queue broker;
+- structured JSON logging and cross-service log correlation are not yet closed;
+- for production dashboards, as the load increases, a separate pre-aggregated read model may be needed.

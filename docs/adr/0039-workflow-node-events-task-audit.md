@@ -1,45 +1,45 @@
-# ADR-0039: Workflow node events в task audit
+# ADR-0039: Workflow node events in task audit
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-ADR-0038 добавил `WorkflowNodeSpec` и `WorkflowExecutionContext`, но observability все еще была только на уровне переходов статусов задач. Для production troubleshooting этого недостаточно: задача может оставаться в статусе `running`, а оператору нужно видеть, какой graph node стартовал, завершился или упал.
+ADR-0038 added `WorkflowNodeSpec` and `WorkflowExecutionContext`, but observability was still only at the task status transition level. For production troubleshooting, this is not enough: the task can remain in the `running` status, and the operator needs to see which graph node started, ended or crashed.
 
-Новая схема БД не обязательна: `app.task_events` уже содержит `from_current_node`, `to_current_node` и JSONB `event_payload`.
+A new database schema is not required: `app.task_events` already contains `from_current_node`, `to_current_node` and JSONB `event_payload`.
 
-## Решение
+## Solution
 
-1. Добавить framework event contract:
+1. Add framework event contract:
    - `WorkflowNodeEventRecord`;
    - `WorkflowNodeEventSink`.
-2. `BaseWorkflow` эмитит события вокруг каждого node:
+2. `BaseWorkflow` emits events around each node:
    - `started`;
    - `completed`;
    - `failed`.
-3. Добавить application adapter `TaskWorkflowNodeEventSink`.
-4. Мапить node events в существующую таблицу `app.task_events`:
-   - `from_status` и `to_status` равны текущему статусу задачи;
-   - `from_current_node` равен текущему `task.current_node`;
-   - `to_current_node` равен имени workflow node;
+3. Add application adapter `TaskWorkflowNodeEventSink`.
+4. Map node events to the existing table `app.task_events`:
+- `from_status` and `to_status` are equal to the current task status;
+- `from_current_node` is equal to the current `task.current_node`;
+- `to_current_node` is equal to the name of the workflow node;
    - `event_payload.event_kind = "workflow_node"`;
-   - payload содержит `workflow_name`, `node_name`, `node_status`, `is_resume`, `correlation_id`, `metadata`, `error`.
-5. Подключить node event sink к retrieval и knowledge-indexing workflows.
-6. Не менять внешний API:
-   - `GET /api/v1/tasks/events` уже возвращает `event_payload`;
-   - фильтры `from_status/to_status/task_id/task_type` продолжают работать.
+- payload contains `workflow_name`, `node_name`, `node_status`, `is_resume`, `correlation_id`, `metadata`, `error`.
+5. Connect node event sink to retrieval and knowledge-indexing workflows.
+6. Do not change the external API:
+- `GET /api/v1/tasks/events` already returns `event_payload`;
+- filters `from_status/to_status/task_id/task_type` continue to work.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появляется node-level audit без новой миграции и без изменения API schemas;
-- status transition events и node events живут в одном cursor/read-model API;
-- demo/smoke может проверять graph-node activity через existing task events endpoint;
-- следующий observability slice может строить агрегаты поверх `event_payload.event_kind`.
+- node-level audit appears without a new migration and without changing API schemas;
+- status transition events and node events live in the same cursor/read-model API;
+- demo/smoke can check graph-node activity through existing task events endpoint;
+- the next observability slice can build aggregates on top of `event_payload.event_kind`.
 
-Минусы:
+Cons:
 
-- summary endpoint пока группирует все events по `from_status/to_status`, поэтому node events вида `running -> running` могут увеличивать `total_events`;
-- отдельного фильтра `event_kind` в API пока нет, чтобы не менять внешний контракт в этом slice.
+- summary endpoint currently groups all events by `from_status/to_status`, so node events like `running -> running` can increase `total_events`;
+- there is no separate `event_kind` filter in the API yet, so as not to change the external contract in this slice.

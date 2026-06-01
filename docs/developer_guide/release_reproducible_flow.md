@@ -1,14 +1,14 @@
 # Release Reproducible Flow
 
-Дата обновления: 2026-04-30  
-Статус: Active (P0 ops flow)
+Update date: 2026-04-30
+Status: Active (P0 ops flow)
 
-Цель: один повторяемый путь проверки релизной готовности через `smoke_release_gate` и `release_decision_gate`.
+Goal: One repeatable path to verify release readiness via `smoke_release_gate` and `release_decision_gate`.
 
 ## 1. Preconditions
 
-- Репозиторий: `/root/langgraph-document-ai-platform`
-- Python venv + зависимости:
+- Repository: `/root/langgraph-document-ai-platform`
+- Python venv + dependencies:
 
 ```bash
 cd /root/langgraph-document-ai-platform
@@ -26,7 +26,7 @@ bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
 ```
 
-Если нужен async/celery rehearsal:
+If you need async/celery rehearsal:
 
 ```bash
 bash backend/scripts/async_up.sh
@@ -34,13 +34,13 @@ bash backend/scripts/async_up.sh
 
 ## 3. Gate profile selection
 
-Базовые профили:
+Basic profiles:
 
-- `dev`: мягкие проверки.
-- `stage`: рабочий pre-release baseline.
+- `dev`: soft checks.
+- `stage`: working pre-release baseline.
 - `prod`: strict SLA profile.
 
-Рекомендуемый baseline для репетиции релиза:
+Recommended baseline for release rehearsal:
 
 ```bash
 export APP_RUNTIME_PROFILE=prod
@@ -58,11 +58,11 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-profile stage
 ```
 
-Критерий pass:
+pass criterion:
 
 - `gate_status=pass`
 - `failed_checks=[]`
-- checks содержат валидные RG-коды (`RG001..RG012`, в зависимости от профиля/LLM требований)
+- checks contain valid RG codes (`RG001..RG012`, depending on the profile/LLM requirements)
 
 ## 5. Step B: final release decision
 
@@ -74,20 +74,20 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/release_decision_gate.sh --host 127.0.0.1 --port 8090 --gate-profile stage
 ```
 
-Скрипт выполняет:
+The script does:
 
 1. `smoke_release_gate`
 2. full pytest gate
-3. запись итогового verdict артефакта
+3. recording the final verdict of the artifact
 
-Выходные артефакты:
+Output artifacts:
 
 - `backend/.release_gate/release_decision_*.json`
 - `backend/.release_gate/release_decision_*.md`
 
 ## 6. Optional strict LLM token gate
 
-Используйте, если release policy требует доказательства реального LLM path:
+Use if the release policy requires proof of a real LLM path:
 
 ```bash
 OPENROUTER_API_KEY="$(awk -F= '/^OPENROUTER_API_KEY=/{print substr($0, index($0,"=")+1)}' backend/.env)" \
@@ -100,13 +100,13 @@ bash backend/scripts/smoke_release_gate.sh --host 127.0.0.1 --port 8088 --gate-p
 
 ## 7. Triage if gate fails
 
-Минимальный порядок triage:
+Minimum triage order:
 
-1. Проверить `failed_checks` и их `code` (`RG...`) в JSON verdict.
-2. Проверить `artifacts.observability_summary`.
-3. Проверить `artifacts.retrieval_events_summary`.
-4. Проверить `artifacts.authoring.status_payload.details`.
-5. Повторить gate с тем же профилем после фикса.
+1. Check `failed_checks` and their `code` (`RG...`) in JSON verdict.
+2. Check `artifacts.observability_summary`.
+3. Check `artifacts.retrieval_events_summary`.
+4. Check `artifacts.authoring.status_payload.details`.
+5. Repeat gate with the same profile after the fix.
 
 ## 8. Shutdown
 
@@ -115,4 +115,4 @@ bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
-Если async не поднимался, первый шаг можно пропустить.
+If async was not raised, you can skip the first step.

@@ -1,90 +1,94 @@
 # Scripts Guide
 
-Документ описывает скрипты запуска и проверки проекта.
+The document describes scripts for launching and checking the project.
 
 ## Linux (Ubuntu 24.04)
 
-### Требования
+### Requirements
 
 - `python` 3.12+
-- установленный пакет `psycopg[binary]` в Python окружении проекта
+- installed package `psycopg[binary]` in the Python environment of the project
 - `docker` + `docker compose` plugin
 - `curl`
 
-### Скрипты
+### Scripts
 
-- `postgres_up.sh` — поднять PostgreSQL + pgvector через docker compose.
-- `postgres_migrate.sh` — загрузить `.env` и применить SQL-миграции.
-- `postgres_down.sh` — остановить PostgreSQL контейнер (опционально удалить volume).
-- `async_up.sh` — поднять Redis + Celery worker через docker compose.
-- `async_down.sh` — остановить Redis + Celery worker (опционально удалить volume).
-- `apply_migrations.sh` — применить миграции при уже заданной `APP_DB_DSN`.
-- `build_binary_demo_documents.sh` — сгенерировать `.docx/.pdf/.xlsx/.pptx` входы для release go/no-go multifile demo.
-- `smoke_retrieval_api.sh` — поднять `uvicorn`, дернуть API-цепочку `start -> status -> evidence -> resume -> history -> task_events`.
-  - поддерживает `--keep-server` (не выключать API после smoke);
-  - поддерживает `--server-pid-file <path>` (куда записать PID запущенного API).
+- `postgres_up.sh` - ​​raise PostgreSQL + pgvector via docker compose.
+- `postgres_migrate.sh` — load `.env` and apply SQL migrations.
+- `postgres_down.sh` — stop the PostgreSQL container (optional delete volume).
+- `async_up.sh` — raise Redis + Celery worker via docker compose.
+- `async_down.sh` — stop Redis + Celery worker (optional delete volume).
+- `apply_migrations.sh` — apply migrations when `APP_DB_DSN` is already specified.
+- `build_binary_demo_documents.sh` — generate `.docx/.pdf/.xlsx/.pptx` inputs for release go/no-go multifile demo.
+- `import_agent_skill.py` - import `SKILL.md`/`AGENT.md` from GitHub for `codex`, `claude`, `cursor` into `.vibecoder/skills/<agent>/...`.
+- supports `--skill-url` or `--repo owner/name --path file.md [--ref ...]`;
+- applies GitHub-only + markdown-only + max-bytes safety checks;
+- supports `--dry-run` and `--overwrite`.
+- `smoke_retrieval_api.sh` — raise `uvicorn`, pull the API chain `start -> status -> evidence -> resume -> history -> task_events`.
+- supports `--keep-server` (do not disable API after smoke);
+- supports `--server-pid-file <path>` (where to write the PID of the running API).
 - `smoke_retrieval_async_api.sh` — smoke API flow `retrieval/start_async -> queued -> completed -> evidence -> events/summary -> observability/summary`.
-- `demo_saa_release_readiness_case.sh` — человекочитаемый demo-ран reference-кейса.
+- `demo_saa_release_readiness_case.sh` - ​​human-readable demo run of the reference case.
 - `demo_release_go_no_go_multifile_case.sh` — canonical release go/no-go demo.
-  - запускает `knowledge-indexing/start`, затем canonical retrieval по `canonical_doc_ids`;
-  - обновляет markdown report с quality summary и source mapping.
-- `demo_release_go_no_go_async_case.sh` — file-based async retrieval demo с итоговым markdown report.
-  - пересобирает dataset из `release_packet.md`;
-  - запускает `retrieval/start_async` и пишет `release_readiness_report_async.md`.
-- `run_retrieval_mcp.sh` — запуск Retrieval MCP runtime (`build_evidence_pack/search_summaries/search_blocks/lookup_source`).
-- `smoke_retrieval_mcp.sh` — ручной smoke Retrieval MCP indexed tools через `smoke_retrieval_mcp.py`.
-- `run_repository_mcp.sh` — запуск Repository MCP runtime (`upsert_document/get_document/list_documents`).
-- `smoke_repository_mcp.sh` — ручной smoke Repository MCP service через `smoke_repository_mcp.py`.
-- `smoke_knowledge_indexing.sh` — ручной smoke canonical indexing для release go/no-go multifile input.
-  - проверяет запись canonical documents и derived knowledge blocks в canonical store.
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
-- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (или при `APP_ASYNC_PROVIDER=celery` проверка `knowledge-indexing/start_async -> queued -> completed -> observability/summary`).
-  - проверяет task registry/checkpoint/task events для canonical indexing.
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
-- `smoke_canonical_retrieval.sh` — ручной smoke canonical indexing + retrieval поверх `knowledge_blocks`.
-  - проверяет embedding indexing и vector-backed detail retrieval (`retrieval_backend=pgvector`).
-  - поддерживает `--build-binary-demo-docs` для генерации `.docx/.pdf/.xlsx/.pptx` входов перед индексированием.
-- `run_artifact_writer_mcp.sh` — запуск Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
-- `smoke_artifact_writer_mcp.sh` — ручной smoke Artifact Writer MCP service через `smoke_artifact_writer_mcp.py`.
-- `run_template_library_mcp.sh` — запуск Template Library MCP runtime (`upsert_template/publish_template/set_template_status/get_template/list_templates`).
-- `smoke_template_library_mcp.sh` — ручной smoke Template Library MCP service через `smoke_template_library_mcp.py` (publish + deprecated governance path).
+- launches `knowledge-indexing/start`, then canonical retrieval on `canonical_doc_ids`;
+- updates markdown report with quality summary and source mapping.
+- `demo_release_go_no_go_async_case.sh` — file-based async retrieval demo with final markdown report.
+- rebuilds dataset from `release_packet.md`;
+- launches `retrieval/start_async` and writes `release_readiness_report_async.md`.
+- `run_retrieval_mcp.sh` — launch Retrieval MCP runtime (`build_evidence_pack/search_summaries/search_blocks/lookup_source`).
+- `smoke_retrieval_mcp.sh` - ​​manual smoke Retrieval MCP indexed tools via `smoke_retrieval_mcp.py`.
+- `run_repository_mcp.sh` — starting Repository MCP runtime (`upsert_document/get_document/list_documents`).
+- `smoke_repository_mcp.sh` - ​​manual smoke Repository MCP service via `smoke_repository_mcp.py`.
+- `smoke_knowledge_indexing.sh` - manual smoke canonical indexing for release go/no-go multifile input.
+- checks the entry of canonical documents and derived knowledge blocks in the canonical store.
+- supports `--build-binary-demo-docs` to generate `.docx/.pdf/.xlsx/.pptx` inputs before indexing.
+- `smoke_knowledge_indexing_api.sh` — smoke API flow `knowledge-indexing/start -> status -> events/summary` (or at `APP_ASYNC_PROVIDER=celery` check `knowledge-indexing/start_async -> queued -> completed -> observability/summary`).
+- checks task registry/checkpoint/task events for canonical indexing.
+- supports `--build-binary-demo-docs` to generate `.docx/.pdf/.xlsx/.pptx` inputs before indexing.
+- `smoke_canonical_retrieval.sh` — manual smoke canonical indexing + retrieval on top of `knowledge_blocks`.
+- checks embedding indexing and vector-backed detail retrieval (`retrieval_backend=pgvector`).
+- supports `--build-binary-demo-docs` to generate `.docx/.pdf/.xlsx/.pptx` inputs before indexing.
+- `run_artifact_writer_mcp.sh` — starting Artifact Writer MCP runtime (`write_artifact/get_artifact/list_artifacts`).
+- `smoke_artifact_writer_mcp.sh` - ​​manual smoke Artifact Writer MCP service via `smoke_artifact_writer_mcp.py`.
+- `run_template_library_mcp.sh` — launch Template Library MCP runtime (`upsert_template/publish_template/set_template_status/get_template/list_templates`).
+- `smoke_template_library_mcp.sh` - ​​manual smoke Template Library MCP service via `smoke_template_library_mcp.py` (publish + deprecated governance path).
 - `smoke_authoring_api.sh` — smoke API flow `authoring/start -> status -> artifact -> events/summary`.
-  - поддерживает `--draft-strategy auto|deterministic|llm`;
-  - поддерживает `--workflow-mode single_pass|multi_step`;
-  - поддерживает `--require-llm` для проверки, что ответ действительно сгенерирован LLM.
-- `demo_release_authoring_traceability_case.sh` — demo authoring + traceability с сохранением результата в JSON.
+- supports `--draft-strategy auto|deterministic|llm`;
+- supports `--workflow-mode single_pass|multi_step`;
+- supports `--require-llm` to check that the response is actually generated by LLM.
+- `demo_release_authoring_traceability_case.sh` - ​​demo authoring + traceability with saving the result in JSON.
 - `smoke_authoring_async_api.sh` — smoke API flow `authoring/start_async -> waiting_human -> hitl/submit -> artifact -> observability/summary`.
-  - поддерживает `--hitl-decision-sequence` (например `needs_changes,approve`) для проверки итеративного HITL loop.
-  - проверяет read-model endpoint `GET /api/v1/hitl/actions` для текущего task.
-- `smoke_release_gate.sh` — unified release-gate smoke c итоговым JSON verdict (`gate_status=pass|fail`).
+- supports `--hitl-decision-sequence` (for example `needs_changes,approve`) for checking iterative HITL loop.
+- checks read-model endpoint `GET /api/v1/hitl/actions` for the current task.
+- `smoke_release_gate.sh` — unified release-gate smoke c itogovym JSON verdict (`gate_status=pass|fail`).
   - path: optional `knowledge-indexing` -> `retrieval` -> `authoring + HITL` -> `events/observability/hitl-observability` checks;
-  - поддерживает policy profile `--gate-profile dev|stage|prod`;
-  - поддерживает env/CLI thresholds (`APP_RELEASE_GATE_*`) и optional проверку `llm_tokens_*`;
-  - `checks[]` содержит short codes `RG001..RG012` для triage.
-- `release_decision_gate.sh` — финальный orchestrator релизного решения.
-  - запускает `smoke_release_gate` и full pytest gate;
-  - пишет machine-readable verdict в `backend/.release_gate/release_decision_*.json` и markdown summary;
-  - итоговый статус: `pass|fail` + `decision_reason`.
-- `demo_release_authoring_async_hitl_case.sh` — demo async authoring + HITL с сохранением результата в JSON.
+- supports policy profile `--gate-profile dev|stage|prod`;
+- supports env/CLI thresholds (`APP_RELEASE_GATE_*`) and optional `llm_tokens_*` check;
+- `checks[]` contains short codes `RG001..RG012` for triage.
+- `release_decision_gate.sh` is the final orchestrator of the release solution.
+- launches `smoke_release_gate` and full pytest gate;
+- writes machine-readable verdict in `backend/.release_gate/release_decision_*.json` and markdown summary;
+- final status: `pass|fail` + `decision_reason`.
+- `demo_release_authoring_async_hitl_case.sh` - ​​demo async authoring + HITL with saving the result in JSON.
 
-### Пример полного цикла
+### Full cycle example
 
 ```bash
-# Создайте backend/.env вручную (пример полей см. docs/manual_smoke_postgres_runbook.md)
+# Create backend/.env manually (for example fields see docs/manual_smoke_postgres_runbook.md)
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
 bash backend/scripts/async_up.sh
 APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
   bash backend/scripts/smoke_retrieval_api.sh --port 8010
 
-# Для ручных curl-проверок после smoke:
+# For manual curl checks after smoke:
 APP_RUNTIME_PROFILE=stage APP_DB_DSN=postgresql://app:app@localhost:55432/langgraph APP_DB_SCHEMA=app \
   bash backend/scripts/smoke_retrieval_api.sh --port 8010 --keep-server
 
-# Остановка API после --keep-server:
+# Stopping the API after --keep-server:
 kill "$(cat backend/.smoke_uvicorn_8010.pid)" && rm -f backend/.smoke_uvicorn_8010.pid
 
-# Repository MCP smoke (работает в текущем runtime profile и DSN из окружения/.env):
+# Repository MCP smoke (works in the current runtime profile and DSN from the environment/.env):
 bash backend/scripts/smoke_repository_mcp.sh
 
 # Retrieval MCP indexed-tools smoke:
@@ -99,11 +103,11 @@ bash backend/scripts/smoke_knowledge_indexing_api.sh --build-binary-demo-docs
 # Canonical retrieval smoke:
 bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 
-# Запуск MCP runtime (до Ctrl+C), выполняйте по одному:
+# Start MCP runtime (before Ctrl+C), do one at a time:
 bash backend/scripts/run_repository_mcp.sh
-# либо:
+# either:
 bash backend/scripts/run_artifact_writer_mcp.sh
-# либо:
+# either:
 bash backend/scripts/run_template_library_mcp.sh
 
 # Artifact Writer MCP smoke:
@@ -112,12 +116,12 @@ bash backend/scripts/smoke_artifact_writer_mcp.sh
 # Template Library MCP smoke:
 bash backend/scripts/smoke_template_library_mcp.sh
 
-# Smoke проверяет draft -> publish и draft -> deprecated governance path.
+# Smoke checks draft -> publish and draft -> deprecated governance path.
 
 # Authoring API smoke:
 bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step
 
-# Authoring API smoke c реальной LLM (при заданном OPENROUTER_API_KEY):
+# Authoring API smoke with real LLM (with OPENROUTER_API_KEY specified):
 set -a && source backend/.env && set +a
 APP_LLM_ENABLED=true APP_LLM_PROVIDER=openrouter APP_LLM_STRICT=true \
   bash backend/scripts/smoke_authoring_api.sh --port 8030 --workflow-mode multi_step --draft-strategy llm --require-llm
@@ -130,12 +134,12 @@ set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_HITL_MAX_ITERATIONS=2 \
   bash backend/scripts/smoke_authoring_async_api.sh --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 
-# Async retrieval через ту же execution plane:
+# Async retrieval through the execution plane:
 set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_CELERY_RETRIEVAL_QUEUE=retrieval \
   bash backend/scripts/smoke_retrieval_async_api.sh --port 8076
 
-# Async Knowledge Indexing через ту же execution plane:
+# Async Knowledge Indexing through the execution plane:
 set -a && source backend/.env && set +a
 APP_ASYNC_PROVIDER=celery APP_CELERY_BROKER_URL=redis://127.0.0.1:56379/0 APP_CELERY_RESULT_BACKEND=redis://127.0.0.1:56379/0 APP_CELERY_INDEXING_QUEUE=knowledge-indexing \
   python backend/scripts/smoke_knowledge_indexing_api.py --port 8075 --build-binary-demo-docs
@@ -163,7 +167,7 @@ bash backend/scripts/async_down.sh
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
-Если PostgreSQL поднят на нестандартном host-порту, задайте `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` перед `async_up.sh`. Для async retrieval/indexing при docker-compose worker queue используйте также `APP_CELERY_RETRIEVAL_QUEUE=retrieval` и `APP_CELERY_INDEXING_QUEUE=knowledge-indexing`.
+If PostgreSQL is running on a non-standard host port, specify `APP_WORKER_DB_DSN=postgresql://...@host.docker.internal:<port>/langgraph` before `async_up.sh`. For async retrieval/indexing with docker-compose worker queue, also use `APP_CELERY_RETRIEVAL_QUEUE=retrieval` and `APP_CELERY_INDEXING_QUEUE=knowledge-indexing`.
 
 ## Windows (PowerShell)
 
@@ -196,9 +200,9 @@ bash backend/scripts/postgres_down.sh --remove-volumes
 
 ## Production Runbook
 
-Полный stage/prod rehearsal path для Increment 30 вынесен в `docs/production_runbook.md`.
+The full stage/prod rehearsal path for Increment 30 has been moved to `docs/production_runbook.md`.
 
-Он связывает эти scripts в один operational checklist:
+It links these scripts into one operational checklist:
 
 - deploy/migrate PostgreSQL + pgvector;
 - FastAPI smoke;

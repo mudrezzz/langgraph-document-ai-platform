@@ -1,46 +1,46 @@
 # ADR-0065: Async Retrieval on Unified Execution Plane second slice
 
-- Статус: Accepted
-- Дата: 2026-04-26
+- Status: Accepted
+- Date: 2026-04-26
 
-## Контекст
+## Context
 
-После ADR-0064 unified execution plane уже покрывает authoring/HITL и knowledge indexing, но retrieval task lifecycle оставался синхронным special-case path. Это создавало архитектурный разрыв:
+After ADR-0064, the unified execution plane already covers authoring/HITL and knowledge indexing, but the retrieval task lifecycle remained synchronous with the special-case path. This created an architectural gap:
 
-- retrieval является обязательным шагом почти всех production сценариев;
-- task/events/checkpoint contracts уже едины, но queue-based execution для retrieval отсутствовал;
-- ручной demo и Docker/Celery e2e не могли проверить, что execution plane реально покрывает основной retrieval workload.
+- retrieval is a mandatory step in almost all production scenarios;
+- task/events/checkpoint contracts are already uniform, but queue-based execution for retrieval was missing;
+- manual demo and Docker/Celery e2e could not verify that the execution plane actually covers the main retrieval workload.
 
-Для Increment 29 нужен следующий минимальный slice: перевести retrieval на тот же async plane без ввода нового runtime слоя и без breaking changes sync API.
+For Increment 29, the following minimum slice is needed: transfer retrieval to the same async plane without introducing a new runtime layer and without breaking changes sync API.
 
-## Решение
+## Solution
 
-1. Расширить existing async dispatcher plane новым портом `RetrievalAsyncDispatcher`.
-2. Добавить runtime implementations:
-   - `InlineRetrievalAsyncDispatcher` для dev/test;
-   - `CeleryRetrievalAsyncDispatcher` для production-like queue execution.
-3. Расширить `RetrievalApplicationService` методами:
+1. Extend the existing async dispatcher plane with a new port `RetrievalAsyncDispatcher`.
+2. Add runtime implementations:
+- `InlineRetrievalAsyncDispatcher` for dev/test;
+- `CeleryRetrievalAsyncDispatcher` for production-like queue execution.
+3. Extend `RetrievalApplicationService` methods:
    - `start_async(request, dispatcher=...)`;
    - `run_existing_task(task_id, request)`.
-4. Оставить sync endpoint `POST /api/v1/tasks/retrieval/start` без изменения внешнего контракта.
-5. Добавить совместимое расширение API: `POST /api/v1/tasks/retrieval/start_async`.
-6. Выполнять queued execution через existing worker app:
+4. Leave the sync endpoint `POST /api/v1/tasks/retrieval/start` without changing the external contract.
+5. Add a compatible API extension: `POST /api/v1/tasks/retrieval/start_async`.
+6. Perform queued execution through an existing worker app:
    - Celery task `apps.worker.tasks.run_retrieval_task`;
-   - отдельная queue `retrieval` через env `APP_CELERY_RETRIEVAL_QUEUE`.
-7. Расширить docker-compose async worker так, чтобы один worker слушал очереди `authoring`, `knowledge-indexing`, `retrieval`.
-8. Добавить operational smoke/demo scripts, чтобы async retrieval можно было проверить вручную в PostgreSQL/Celery контуре.
+- separate queue `retrieval` via env `APP_CELERY_RETRIEVAL_QUEUE`.
+7. Extend docker-compose async worker so that one worker listens to the `authoring`, `knowledge-indexing`, `retrieval` queues.
+8. Add operational smoke/demo scripts so that async retrieval can be checked manually in the PostgreSQL/Celery loop.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- unified execution plane теперь покрывает все три основных long-running workflow: retrieval, knowledge indexing, authoring;
-- sync API сохранен, а async retrieval добавлен как backward-compatible extension;
-- task lifecycle, checkpoint и task events остаются едиными для sync/async retrieval paths;
-- manual smoke и Docker/Celery e2e теперь подтверждают queue-backed retrieval path, а не только authoring/indexing.
+- unified execution plane now covers all three main long-running workflows: retrieval, knowledge indexing, authoring;
+- sync API is preserved, and async retrieval is added as a backward-compatible extension;
+- task lifecycle, checkpoint and task events remain the same for sync/async retrieval paths;
+- manual smoke and Docker/Celery e2e now confirm queue-backed retrieval path, and not just authoring/indexing.
 
-Минусы:
+Cons:
 
-- authoring пока по-прежнему вызывает retrieval синхронно внутри своего pipeline, то есть nested async orchestration еще не вводится;
-- observability слой пока ограничен существующими task events/status details и не добавляет отдельные queue metrics;
-- worker topology остается pragmatic single-worker/multi-queue layout для docker-compose acceptance контура.
+- authoring still calls retrieval synchronously within its pipeline, that is, nested async orchestration has not yet been introduced;
+- the observability layer is currently limited to existing task events/status details and does not add separate queue metrics;
+- worker topology remains pragmatic single-worker/multi-queue layout for docker-compose acceptance contour.

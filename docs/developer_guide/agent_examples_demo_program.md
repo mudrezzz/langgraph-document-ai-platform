@@ -1,37 +1,38 @@
 # Agent Examples Demo Program (In-Process)
 
-Дата обновления: 2026-04-30  
-Статус: In Progress (DOC-030 completed; DOC-031..DOC-035 pending)
+Update date: 2026-06-02
+Status: Completed for current scope (DOC-030..DOC-035 completed)
 
 ## 1. Product Goal
 
-Сделать `agent_examples/` отдельным продуктовым входом для внешнего разработчика.
+Make `agent_examples/` a separate product input for external developer.
 
-Ключевой UX:
+Key UX:
 
-1. Открыть одну папку.
-2. Прочитать Python-код агента без погружения во внутренности framework.
-3. Запустить `main.py` одной командой.
-4. Изменить несколько файлов (`prompts/config/tools`) и быстро получить своего агента.
+1. Open one folder.
+2. Read the Python code of the agent without diving into the internals of the framework.
+3. Run `main.py` with one command.
+4. Change a few files (`prompts/config/tools`) and quickly get your agent.
 
 ## 2. Problem Statement
 
-Текущие примеры в основном показывают API-driven интеграционный путь (`framework as service`).
+The examples are moving from API-driven wrappers to in-process framework composition.
+`retrieval_first`, `authoring_first`, and `hitl_gate` are already in-process.
 
-Для сценария "создаю нового агента на framework" нужен другой формат:
+For the scenario “I’m creating a new agent using the framework”, a different format is needed:
 
-- in-process composition поверх framework contracts;
-- демонстрация кода `agent/workflow/tools` как библиотеки;
-- минимальная зависимость от API-boundary/transport слоя.
+- in-process composition over framework contracts;
+- demonstration of `agent/workflow/tools` code as a library;
+- minimal dependence on the API-boundary/transport layer.
 
 ## 3. Non-Negotiable Principles
 
-1. Primary path = in-process framework usage, не HTTP-клиент.
-2. Один pattern = одна самодостаточная подпапка с одинаковой структурой.
-3. `python .../main.py` должен быть основным способом запуска.
-4. Быстрый deterministic режим обязателен для onboarding.
-5. Production-like режим должен быть опциональным, но документированным.
-6. Каждый пример имеет локальные тесты и ожидаемый output proof.
+1. Primary path = in-process framework usage, not HTTP client.
+2. One pattern = one self-contained subfolder with the same structure.
+3. `python .../main.py` should be the main launch method.
+4. Fast deterministic mode is required for onboarding.
+5. Production-like mode should be optional, but documented.
+6. Each example has local tests and an expected output proof.
 
 ## 4. Target Information Architecture
 
@@ -104,87 +105,84 @@ agent_examples/
 
 ## 6. Pattern Blueprint Contract
 
-Каждый pattern обязан содержать:
+Each pattern must contain:
 
-1. `agent.py`: composition root и публичный run-путь.
+1. `agent.py`: composition root and public run path.
 2. `workflow.py`: orchestration steps/state transitions.
-3. `tools.py`: локальные tools и typed I/O contracts.
-4. `prompts.py`: prompt templates и минимальный explanation.
+3. `tools.py`: local tools and typed I/O contracts.
+4. `prompts.py`: prompt templates and minimal explanation.
 5. `config.py`: deterministic/prod-like profiles.
-6. `main.py`: CLI запуск и печать результата.
+6. `main.py`: CLI launch and print the result.
 7. `README.md`: use case, run steps, expected output, extension points.
-8. `tests/`: unit + smoke для текущего pattern.
-9. `expected_output/`: эталонный результат для быстрой ручной проверки.
+8. `tests/`: unit + smoke for the current pattern.
+9. `expected_output/`: reference result for quick manual checking.
 
 ## 7. Execution Modes
 
 1. Quick deterministic mode:
-   - запуск без внешних сервисов по умолчанию;
-   - предсказуемый output для onboarding и CI.
+- launch without external services by default;
+- predictable output for onboarding and CI.
 2. Production-like mode:
-   - включает инфраструктурные зависимости;
-   - используется для parity-check и расширенной проверки.
+- includes infrastructure dependencies;
+- used for parity-check and extended checking.
 
 ## 8. Test Strategy
 
 1. Pattern Unit Tests:
-   - проверка логики workflow/tools/prompt shaping.
+- checking the workflow/tools/prompt shaping logic.
 2. Pattern Smoke Tests:
-   - запуск `main.py` end-to-end и проверка expected output.
+- start `main.py` end-to-end and check expected output.
 3. Determinism Tests:
-   - одинаковый вход => одинаковый output в quick mode.
+- same input => same output in quick mode.
 4. Structure Contracts:
-   - все pattern-папки содержат обязательные файлы.
+- all pattern folders contain required files.
 5. Docs Contracts:
-   - команды в `README` валидны и воспроизводимы.
+- the commands in `README` are valid and reproducible.
 6. CI lanes:
    - fast lane: unit + contracts;
-   - full lane: smoke всех pattern demos.
+- full lane: smoke all pattern demos.
 
 ## 9. Implementation Roadmap
 
 ## 9.1 P0 (must-have)
 
-1. Replatform `retrieval_first` в in-process style.
-2. Replatform `authoring_first` в in-process style.
-3. Replatform `hitl_gate` в in-process style.
-4. Унифицировать shared helpers для pattern folders.
-5. Подключить examples contract tests и dry/smoke проверку в CI path.
-6. Обновить root README + developer guide как primary entrypoint на `agent_examples/`.
+1. Unify shared helpers for pattern folders.
+2. Connect examples contract tests and dry/smoke checks in the CI path.
+3. Update root README + developer guide as primary entrypoint to `agent_examples/`.
 
 ## 9.2 P1 (next)
 
-1. Добавить `async_batch` pattern demo.
-2. Добавить `mcp_tool_facade` pattern demo.
-3. Добавить шаблон `create-your-agent` (copy-and-modify starter kit).
+1. Add `async_batch` pattern demo. (Done)
+2. Add `mcp_tool_facade` pattern demo. (Done)
+3. Add template `create-your-agent` (copy-and-modify starter kit).
 
 ## 10. Definition of Done (per pattern)
 
-1. Один command-run из корня репозитория.
-2. Наглядный, прокомментированный Python-код.
-3. Нет необходимости читать framework internals для понимания flow.
-4. Локальный smoke test проходит стабильно.
-5. Есть expected output proof и инструкция проверки.
-6. Обновлены docs routes и `docs/DOCS_BACKLOG.md`.
+1. One command-run from the root of the repository.
+2. Visual, commented Python code.
+3. There is no need to read framework internals to understand flow.
+4. Local smoke test is stable.
+5. There is expected output proof and verification instructions.
+6. Updated docs routes and `docs/DOCS_BACKLOG.md`.
 
 ## 11. Risks and Mitigations
 
-1. Риск: примеры снова станут API wrappers.
-   - Mitigation: review checklist запрещает transport-only implementation как primary path.
-2. Риск: сложный setup ухудшит onboarding.
-   - Mitigation: обязательный deterministic mode.
-3. Риск: примеры устареют относительно runtime.
-   - Mitigation: structure + smoke tests в CI.
-4. Риск: дублирование логики между patterns.
-   - Mitigation: ограниченный `shared/` слой + strict template contract.
+1. Risk: examples will again become API wrappers.
+- Mitigation: review checklist prohibits transport-only implementation as primary path.
+2. Risk: complex setup will worsen onboarding.
+- Mitigation: mandatory deterministic mode.
+3. Risk: examples will become outdated relative to runtime.
+- Mitigation: structure + smoke tests in CI.
+4. Risk: duplication of logic between patterns.
+- Mitigation: limited `shared/` layer + strict template contract.
 
 ## 12. Governance and Ownership
 
-1. Любой PR с изменением `agent_examples/*` обновляет:
+1. Any PR with `agent_examples/*` change updates:
    - `agent_examples/README.md`
-   - соответствующий pattern `README.md`
+- corresponding pattern `README.md`
    - `docs/DOCS_BACKLOG.md`
-2. До слияния обязательны:
-   - локальный fast lane;
-   - проверка links/contracts;
-   - проверка команд из docs.
+2. Before the merger, the following are required:
+- local fast lane;
+- verification of links/contracts;
+- checking commands from docs.

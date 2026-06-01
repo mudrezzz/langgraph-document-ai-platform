@@ -1,37 +1,37 @@
 # ADR-0032: Canonical knowledge retrieval source
 
-- Статус: Accepted
-- Дата: 2026-04-23
+- Status: Accepted
+- Date: 2026-04-23
 
-## Контекст
+## Context
 
-ADR-0031 добавил canonical store и `knowledge_blocks`, но retrieval продолжал использовать только demo dataset loaders (`case_dataset_id`, `case_dataset_path`, `case_dataset_dir`). Это оставляло разрыв между Knowledge Factory output и Retrieval Fabric.
+ADR-0031 added canonical store and `knowledge_blocks`, but retrieval continued to use only demo dataset loaders (`case_dataset_id`, `case_dataset_path`, `case_dataset_dir`). This left a gap between the Knowledge Factory output and the Retrieval Fabric.
 
-## Решение
+## Solution
 
-1. Добавить loader `load_canonical_knowledge_dataset(...)`, который строит:
-   - summary blocks из `CanonicalDocument.section_summaries`;
-   - detail blocks из `app.knowledge_blocks`.
-2. Расширить `build_retrieval_workflow(...)` режимом `knowledge_source="canonical"`.
-3. Расширить `RetrievalApplicationService` и API `task_context`:
+1. Add loader `load_canonical_knowledge_dataset(...)`, which builds:
+- summary blocks from `CanonicalDocument.section_summaries`;
+- detail blocks from `app.knowledge_blocks`.
+2. Extend `build_retrieval_workflow(...)` with `knowledge_source="canonical"` mode.
+3. Extend `RetrievalApplicationService` and `task_context` API:
    - `knowledge_source: "canonical"`;
-   - `canonical_doc_ids: list[str] | str` для ограничения корпуса.
-4. Сохранить существующий default путь через demo case datasets для обратной совместимости.
-5. Добавить smoke `smoke_canonical_retrieval.sh/.ps1`, который выполняет:
+- `canonical_doc_ids: list[str] | str` to constrain the hull.
+4. Save the existing default path through demo case datasets for backward compatibility.
+5. Add smoke `smoke_canonical_retrieval.sh/.ps1`, which does:
    - canonical indexing demo input;
-   - retrieval поверх canonical store;
-   - проверку evidence pack и `knowledge_source=canonical`.
+- retrieval on top of the canonical store;
+- checking evidence pack and `knowledge_source=canonical`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- Knowledge Factory output впервые используется Retrieval Fabric напрямую;
-- demo corpus может проходить path `documents -> canonical documents -> knowledge_blocks -> evidence pack`;
-- API contract остается backward-compatible.
+- Knowledge Factory output is used directly by Retrieval Fabric for the first time;
+- demo corpus can go through the path `documents -> canonical documents -> knowledge_blocks -> evidence pack`;
+- API contract remains backward-compatible.
 
-Минусы:
+Cons:
 
-- retrieval по canonical store пока lexical/in-memory после чтения read-model;
-- pgvector/embedding write path еще не подключен;
-- canonical source smoke запускает indexing и retrieval в одном процессе для fallback-контура.
+- retrieval by canonical store while lexical/in-memory after reading read-model;
+- pgvector/embedding write path is not connected yet;
+- canonical source smoke runs indexing and retrieval in one process for the fallback circuit.

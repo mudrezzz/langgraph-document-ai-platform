@@ -1,33 +1,33 @@
 # ADR-0055: Section authoring workflow baseline
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0054 authoring уже имел typed `SectionContract`, `SectionPacket`, `SectionArtifact`, outline approval point и template-aware deterministic assembly. Но section generation по-прежнему исполнялась как прямой вызов `SectionAuthoringService`, без собственной workflow boundary, хотя в scope `Increment 28` изначально был заложен `SectionAuthoringWorkflow`.
+After ADR-0054, authoring already had the typed `SectionContract`, `SectionPacket`, `SectionArtifact`, outline approval point and template-aware deterministic assembly. But section generation was still executed as a direct call to `SectionAuthoringService`, without its own workflow boundary, although `SectionAuthoringWorkflow` was originally included in the scope `Increment 28`.
 
-## Решение
+## Solution
 
-1. Добавить `domain_authoring.SectionAuthoringWorkflow` как baseline workflow поверх существующих `SectionAuthoringService` и `SectionReviewService`.
-2. Использовать typed `SectionAuthoringState` и multi-node path:
+1. Add `domain_authoring.SectionAuthoringWorkflow` as a baseline workflow on top of the existing `SectionAuthoringService` and `SectionReviewService`.
+2. Use typed `SectionAuthoringState` and multi-node path:
    - `write_section`;
    - `review_section`;
    - `finalize_section`.
-3. Для resume path поддержать baseline rewrite hook `rewrite_section`, который применяет section-level human feedback без отдельного reviewer/HITL subgraph.
-4. Перевести `AuthoringApplicationService` на построение `section_artifacts` через workflow boundary, не меняя внешние authoring API.
-5. Не вводить отдельный section persistence/read-model и не выносить section workflow в самостоятельный публичный endpoint на этом шаге.
+3. For the resume path, support the baseline rewrite hook `rewrite_section`, which applies section-level human feedback without a separate reviewer/HITL subgraph.
+4. Convert `AuthoringApplicationService` to build `section_artifacts` via a workflow boundary, without changing external authoring APIs.
+5. Do not introduce a separate section persistence/read-model and do not move the workflow section to a separate public endpoint at this step.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- section authoring теперь следует тем же framework workflow patterns, что и retrieval/indexing;
-- появляется явная точка роста для section HITL, section review subgraph и selective rewrite;
-- application service меньше зависит от прямого deterministic service call.
+- section authoring now follows the same framework workflow patterns as retrieval/indexing;
+- an obvious growth point appears for section HITL, section review subgraph and selective rewrite;
+- application service is less dependent on direct deterministic service call.
 
-Минусы:
+Cons:
 
-- workflow пока запускается по одной секции за раз и не имеет собственного persistence/read-model слоя;
-- section review по-прежнему использует общий deterministic reviewer heuristic, без отдельной section-specific policy;
-- resume path пока поддерживает только простой feedback append, а не полноценный rewrite planner.
+- workflow is currently launched one section at a time and does not have its own persistence/read-model layer;
+- section review still uses the general deterministic reviewer heuristic, without a separate section-specific policy;
+- resume path currently only supports a simple feedback append, and not a full-fledged rewrite planner.

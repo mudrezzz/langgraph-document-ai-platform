@@ -1,34 +1,34 @@
 # ADR-0081: PDF table extraction baseline for canonical ingestion
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0080 PDF path уже давал `reading_order_index` и `layout_kind`, но это оставалось эвристическим hint-слоем. Для production retrieval/traceability нужен тот же уровень source precision, что уже есть для DOCX/XLSX: таблицы в `extracted_tables` и строки как canonical `table_row` blocks.
+After ADR-0080, the PDF path already gave `reading_order_index` and `layout_kind`, but this remained a heuristic hint layer. Production retrieval/traceability requires the same level of source precision that already exists for DOCX/XLSX: tables in `extracted_tables` and rows as canonical `table_row` blocks.
 
-## Решение
+## Solution
 
-1. Добавить baseline table extraction в PDF parser:
-   - для `layout_kind=table_like` пробовать собрать табличную спецификацию;
-   - поддержать lightweight patterns: `|`-разделители, key-value rows, multi-column spacing;
-   - при успехе создавать `CanonicalTable` (`PDF-T-*`) и `table_row` blocks.
-2. Прокидывать provenance для PDF table rows:
+1. Add baseline table extraction to PDF parser:
+- for `layout_kind=table_like` try to assemble a table specification;
+- support lightweight patterns: `|`-separators, key-value rows, multi-column spacing;
+- if successful, create `CanonicalTable` (`PDF-T-*`) and `table_row` blocks.
+2. Check provenance for PDF table rows:
    - `source_kind=table_row`;
    - `table_id`, `row_index`;
    - `page_number`, `reading_order_index`, `layout_kind`, `layout_source`, `bbox`.
-3. Добавить parser quality flag `pdf_tables_extracted`.
-4. Не вводить отдельный PDF-table store: переиспользовать существующий canonical store + retrieval metadata path.
+3. Add parser quality flag `pdf_tables_extracted`.
+4. Do not introduce a separate PDF-table store: reuse the existing canonical store + retrieval metadata path.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- retrieval/source mapping для PDF теперь может ссылаться на конкретную строку таблицы, а не только на page block;
-- унификация с DOCX/XLSX table-aware path;
-- без breaking changes в API/MCP контрактах.
+- retrieval/source mapping for PDF can now refer to a specific table row, and not just to the page block;
+- unification with DOCX/XLSX table-aware path;
+- without breaking changes in API/MCP contracts.
 
-Минусы:
+Cons:
 
-- extraction остаётся best-effort heuristic baseline и не покрывает сложные merged/rotated tables;
-- для сложных PDF потребуется отдельный hardening slice (специализированный table detector/parser).
+- extraction remains the best-effort heuristic baseline and does not cover complex merged/rotated tables;
+- for complex PDFs you will need a separate hardening slice (specialized table detector/parser).

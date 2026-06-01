@@ -2,25 +2,25 @@
 
 ## Our Commitment
 
-Мы хотим поддерживать открытое, безопасное и уважительное пространство для всех участников проекта.
+We are committed to maintaining an open, safe, and respectful environment for all project participants.
 
 ## Expected Behavior
 
-- конструктивная обратная связь;
-- уважительный тон в обсуждениях и review;
-- фокус на проблеме и решении, а не на личности;
-- готовность уточнять и помогать.
+- Provide constructive feedback.
+- Keep a respectful tone in discussions and reviews.
+- Focus on the problem and solution, not on personal attacks.
+- Be willing to clarify and help.
 
 ## Unacceptable Behavior
 
-- оскорбления, травля, угрозы, дискриминация;
-- намеренное саботирование обсуждений или процесса review;
-- публикация приватных данных без согласия.
+- Insults, harassment, threats, or discrimination.
+- Intentional disruption of discussions or review process.
+- Publishing private information without consent.
 
 ## Enforcement
 
-Maintainers могут модерировать обсуждения, удалять комментарии и ограничивать участие при нарушениях.
+Maintainers may moderate discussions, remove comments, and restrict participation in case of violations.
 
 ## Reporting
 
-Если вы столкнулись с неприемлемым поведением, используйте каналы из `SUPPORT.md`.
+If you encounter unacceptable behavior, use the channels listed in `SUPPORT.md`.

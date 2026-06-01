@@ -1,44 +1,44 @@
-# ADR-0021: Repository MCP MVP и базовые document tools
+# ADR-0021: Repository MCP MVP and basic document tools
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-После `Increment 15` в системе уже был Retrieval MCP MVP, но отсутствовал отдельный MCP-контур для работы с документами репозитория. Это создавало GAP к целевой архитектуре:
+After `Increment 15` the system already had Retrieval MCP MVP, but there was no separate MCP circuit for working with repository documents. This created a GAP to the target architecture:
 
-- MCP boundary покрывал только retrieval-сценарий;
-- не было стандартного MCP-контракта для операций `upsert/get/list` документов;
-- ручной smoke MCP-контуров не включал проверку document repository tools.
+- MCP boundary covered only the retrieval scenario;
+- there was no standard MCP contract for `upsert/get/list` document operations;
+- manual smoke MCP circuits did not include the document repository tools check.
 
-## Решение
+## Solution
 
-1. Добавить application-сервис документов:
+1. Add application-document service:
    - `DocumentApplicationService` (`upsert_document`, `get_document`, `list_documents`);
-   - модель страницы `DocumentListPage` для list-операций.
-2. Расширить `PostgresDocumentRepository`:
-   - поддержка list-операции `list_documents(limit, offset)` в PostgreSQL и fallback режиме;
-   - fallback storage хранит `created_at/updated_at` для стабильного порядка list.
-3. Ввести Repository MCP MVP:
+- `DocumentListPage` page model for list operations.
+2. Extend `PostgresDocumentRepository`:
+- support for the list operation `list_documents(limit, offset)` in PostgreSQL and fallback mode;
+- fallback storage stores `created_at/updated_at` for stable list order.
+3. Enter Repository MCP MVP:
    - app entrypoint `apps/mcp_repository/main.py`;
-   - сервис `FastMcpRepositoryService`;
+- service `FastMcpRepositoryService`;
    - MCP tools: `upsert_document`, `get_document`, `list_documents`.
-4. Зафиксировать typed MCP контракты:
-   - `schemas/mcp/repository.py` (input/output модели для 3 tool-ов).
-5. Добавить операционные скрипты и smoke:
-   - запуск MCP runtime: `run_repository_mcp.sh/.ps1`;
-   - ручной smoke: `smoke_repository_mcp.py` + обертки `smoke_repository_mcp.sh/.ps1`.
+4. Fix typed MCP contracts:
+- `schemas/mcp/repository.py` (input/output models for 3 tools).
+5. Add operational scripts and smoke:
+- launch MCP runtime: `run_repository_mcp.sh/.ps1`;
+- manual smoke: `smoke_repository_mcp.py` + wrappers `smoke_repository_mcp.sh/.ps1`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- MCP-контур расширен вторым рабочим сервисом (`Repository MCP`) поверх существующего Retrieval MCP;
-- появился типизированный контракт document tools для интеграции внешних MCP-клиентов;
-- ручной runbook и smoke покрывают базовые document repository операции.
+- The MCP circuit has been expanded with a second working service (`Repository MCP`) on top of the existing Retrieval MCP;
+- a typed document tools contract has appeared for the integration of external MCP clients;
+- manual runbook and smoke cover basic document repository operations.
 
-Минусы:
+Cons:
 
-- `list_documents` в MVP использует `limit/offset`, а не cursor pagination;
-- Repository MCP пока без auth/rate-limit/observability политик;
-- MCP-сценарии пока ограничены базовыми CRUD/read-model операциями (без artifact writer и orchestration между MCP-сервисами).
+- `list_documents` in MVP uses `limit/offset`, not cursor pagination;
+- Repository MCP does not yet have auth/rate-limit/observability policies;
+- MCP scripts are currently limited to basic CRUD/read-model operations (without artifact writer and orchestration between MCP services).

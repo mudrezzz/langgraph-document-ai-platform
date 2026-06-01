@@ -1,46 +1,46 @@
-# ADR-0023: Authoring API Flow и task->artifact traceability link
+# ADR-0023: Authoring API Flow and task->artifact traceability link
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-После `Increment 17` в системе уже были Retrieval/Repository/Artifact Writer MCP сервисы, но отсутствовал единый API flow, который:
+After `Increment 17` the system already had Retrieval/Repository/Artifact Writer MCP services, but there was no single API flow, which:
 
-- запускает authoring задачу поверх retrieval;
-- формирует итоговый артефакт;
-- сохраняет traceability между task, retrieval источниками и артефактом.
+- runs the authoring task on top of retrieval;
+- forms the final artifact;
+- preserves traceability between task, retrieval sources and artifact.
 
-Без этого API boundary оставался retrieval-centric, а authoring сценарий требовал ручной оркестрации нескольких MCP инструментов.
+Without this API boundary remained retrieval-centric, and the authoring scenario required manual orchestration of several MCP tools.
 
-## Решение
+## Solution
 
-1. Добавить authoring API lifecycle:
+1. Add authoring API lifecycle:
    - `POST /api/v1/tasks/authoring/start`;
    - `GET /api/v1/tasks/{task_id}/artifact`.
-2. Добавить `AuthoringApplicationService`:
+2. Add `AuthoringApplicationService`:
    - orchestration `retrieval -> draft -> artifact`;
-   - запись task checkpoint + details в общий lifecycle контур.
-3. Ввести persistence link между задачей и артефактом:
-   - таблица `app.task_artifacts` (миграция `0007_task_artifacts.sql`);
-   - адаптер `PostgresTaskArtifactRegistry`.
-4. Добавить traceability контракт в API:
+- recording task checkpoint + details in the general lifecycle circuit.
+3. Enter a persistence link between the task and the artifact:
+- table `app.task_artifacts` (migration `0007_task_artifacts.sql`);
+- `PostgresTaskArtifactRegistry` adapter.
+4. Add traceability contract to the API:
    - `retrieval_task_id`;
-   - `source_refs` (`doc_id/version/block_id`) для итогового артефакта.
-5. Добавить smoke/demo для authoring API:
+- `source_refs` (`doc_id/version/block_id`) for the resulting artifact.
+5. Add smoke/demo for authoring API:
    - `smoke_authoring_api.sh/.ps1` (+ python runner);
    - `demo_release_authoring_traceability_case.sh/.ps1`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- появился минимальный end-to-end authoring flow на API boundary;
-- traceability между task/evidence/artifact стала персистентной и читаемой через API;
-- smoke/runbook покрывают новый authoring сценарий в `prod` profile.
+- a minimal end-to-end authoring flow has appeared on the API boundary;
+- traceability between task/evidence/artifact has become persistent and readable via the API;
+- smoke/runbook covers the new authoring script in the `prod` profile.
 
-Минусы:
+Cons:
 
-- authoring draft пока rule-based (без отдельного LLM section writer/reviewer цикла);
-- `task_artifacts` в MVP предполагает 1 artifact на task (PK по `task_id`);
-- list/read-model для authoring артефактов пока offset-based и без отдельного dashboard слоя.
+- authoring draft is still rule-based (without a separate LLM section writer/reviewer cycle);
+- `task_artifacts` in MVP assumes 1 artifact per task (PK by `task_id`);
+- list/read-model for authoring artifacts while offset-based and without a separate dashboard layer.

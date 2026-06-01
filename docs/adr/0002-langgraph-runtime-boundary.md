@@ -1,26 +1,26 @@
-﻿# ADR-0002: LangGraph как единственный runtime оркестрации
+﻿# ADR-0002: LangGraph as the only orchestration runtime
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-Необходимо исключить размытие orchestration-логики между UI, prompt-кодом и интеграционными скриптами.
+It is necessary to eliminate the blurring of orchestration logic between the UI, prompt code and integration scripts.
 
-## Решение
+## Solution
 
-- Все сложные процессы реализуются как workflow/subgraph на базе LangGraph.
-- Framework-слой предоставляет тонкие обертки (`BaseWorkflow`, `SubgraphWorkflow`), но не заменяет LangGraph.
-- Запрещается создание внутреннего DSL для оркестрации.
+- All complex processes are implemented as workflow/subgraph based on LangGraph.
+- The Framework layer provides thin wrappers (`BaseWorkflow`, `SubgraphWorkflow`), but does not replace LangGraph.
+- Creation of an internal DSL for orchestration is prohibited.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- прозрачный lifecycle задач;
-- единая модель interrupt/resume/checkpoint;
-- понятная трассировка graph-переходов.
+- transparent lifecycle of tasks;
+- unified interrupt/resume/checkpoint model;
+- clear tracing of graph transitions.
 
-Минусы:
+Cons:
 
-- дополнительные требования к инженерной дисциплине при проектировании state.
+- additional requirements for the engineering discipline when designing state.

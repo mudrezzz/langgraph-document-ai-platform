@@ -1,34 +1,34 @@
 # ADR-0075: XLSX parser baseline for canonical ingestion
 
-- Статус: Accepted
-- Дата: 2026-04-27
+- Status: Accepted
+- Date: 2026-04-27
 
-## Контекст
+## Context
 
-После DOCX table extraction и table-aware retrieval provenance система уже умеет хорошо работать с табличным evidence. Следующий production-relevant формат для такого evidence — `.xlsx`: approval trackers, risk registers, release matrices и контрольные чеклисты часто приходят именно в Excel.
+After DOCX table extraction and table-aware retrieval provenance, the system can already work well with table evidence. The next production-relevant format for such evidence is `.xlsx`: approval trackers, risk registers, release matrices and control checklists often come in Excel.
 
-Нельзя строить отдельный ingestion path для spreadsheet-документов. XLSX должен входить в тот же canonical/indexing/retrieval контур, что и DOCX/PDF/JSON.
+You cannot build a separate ingestion path for spreadsheet documents. XLSX must be in the same canonical/indexing/retrieval loop as DOCX/PDF/JSON.
 
-## Решение
+## Solution
 
-1. Добавить `.xlsx` в supported extensions canonical parser.
-2. Реализовать baseline parser на `openpyxl`:
-   - workbook sheets становятся structural sections;
-   - sheet header + rows извлекаются как canonical table;
-   - строки таблицы становятся `table_row` blocks;
-   - metadata включает `sheet_name`.
-3. Binary demo input расширить реальным fixture `08_release_tracker.xlsx`.
-4. Не вводить отдельный spreadsheet-specific retrieval stack: XLSX reuse-ит existing `CanonicalDocument`, `KnowledgeIndexingApplicationService`, vector indexing и retrieval provenance path.
+1. Add `.xlsx` to supported extensions canonical parser.
+2. Implement baseline parser on `openpyxl`:
+- workbook sheets become structural sections;
+- sheet header + rows are extracted as canonical table;
+- table rows become `table_row` blocks;
+- metadata includes `sheet_name`.
+3. Binary demo input expand with real fixture `08_release_tracker.xlsx`.
+4. Do not introduce a separate spreadsheet-specific retrieval stack: XLSX reuse the existing `CanonicalDocument`, `KnowledgeIndexingApplicationService`, vector indexing and retrieval provenance path.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- ingestion покрывает еще один частый enterprise format;
-- табличное evidence из Excel сразу доступно для retrieval/MCP/reporting;
-- решение естественно продолжает уже введенный table-aware provenance path.
+- ingestion covers another frequent enterprise format;
+- tabular evidence from Excel is immediately available for retrieval/MCP/reporting;
+- the solution naturally continues the already introduced table-aware provenance path.
 
-Минусы:
+Cons:
 
-- baseline parser пока ориентирован на sheet-level tabular extraction, без merged-cells/formatting/formulas semantics;
-- `.xls` и rich workbook semantics остаются вне текущего slice.
+- baseline parser is currently focused on sheet-level tabular extraction, without merged-cells/formatting/formulas semantics;
+- `.xls` and rich workbook semantics remain outside the current slice.

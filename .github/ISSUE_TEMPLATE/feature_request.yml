@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose a new capability or behavior.
+title: "enhancement: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the problem and proposed behavior.
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Who needs this and why?
+    validations:
+      required: true
+  - type: textarea
+    id: current_workaround
+    attributes:
+      label: Current workaround
+      description: How do you solve this today?
+    validations:
+      required: true
+  - type: input
+    id: target_user
+    attributes:
+      label: Target user
+      placeholder: "e.g. integrator / contributor / maintainer"
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_behavior
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: contract_impact
+    attributes:
+      label: Does this affect public contracts?
+      options:
+        - "No"
+        - "Yes - API contract"
+        - "Yes - MCP contract"
+        - "Not sure"
+    validations:
+      required: true

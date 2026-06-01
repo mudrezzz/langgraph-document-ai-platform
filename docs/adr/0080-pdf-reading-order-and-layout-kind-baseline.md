@@ -1,41 +1,41 @@
 # ADR-0080: PDF reading-order and layout-kind baseline
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0079 в retrieval появился page-level provenance для PDF, но evidence по-прежнему оставался слишком грубым: не хватало baseline-сигнала о порядке чтения блоков и признака табличной структуры внутри страницы.
+After ADR-0079, page-level provenance for PDF appeared in retrieval, but evidence still remained too rough: there was not enough baseline signal about the order of reading blocks and a sign of the table structure inside the page.
 
-Для ручной проверки в demo/report и для downstream retrieval/rerank нужно минимум два дополнительных поля:
+For manual checking in demo/report and for downstream retrieval/rerank, you need at least two additional fields:
 
-- `reading_order_index` (порядок блока на странице);
+- `reading_order_index` (block order on the page);
 - `layout_kind` (`paragraph|table_like`).
 
-## Решение
+## Solution
 
-1. В PDF parser path добавить reading-order нормализацию:
-   - сортировка layout blocks по `y/x`;
-   - запись `reading_order_index` в metadata.
-2. Добавить lightweight layout эвристику:
-   - `layout_kind=table_like`, если блок похож на табличный (`|`-разделители, key-value row pattern, multi-column spacing);
-   - иначе `layout_kind=paragraph`.
-3. В parser quality flags добавить `pdf_table_like_blocks_detected` при наличии хотя бы одного `table_like` блока.
-4. Прокинуть новые поля без изменения публичных API:
+1. Add reading-order normalization to the PDF parser path:
+- sorting layout blocks by `y/x`;
+- record `reading_order_index` in metadata.
+2. Add lightweight layout heuristics:
+- `layout_kind=table_like`, if the block is similar to a table one (`|`-separators, key-value row pattern, multi-column spacing);
+- otherwise `layout_kind=paragraph`.
+3. Add `pdf_table_like_blocks_detected` to parser quality flags if there is at least one `table_like` block.
+4. Add new fields without changing public APIs:
    - canonical retrieval dataset;
    - pgvector metadata mapping;
    - MCP `lookup_source` typed provenance;
    - release report canonical source mapping.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- evidence из PDF становится лучше объяснимым: видно страницу, порядок и тип layout блока;
-- в report/MCP можно явно отделять paragraph vs table-like evidence;
-- решение остается совместимым с текущими contracts.
+- evidence from PDF becomes better explainable: the page, order and type of block layout are visible;
+- in report/MCP you can clearly separate paragraph vs table-like evidence;
+- the solution remains compatible with current contracts.
 
-Минусы:
+Cons:
 
-- `table_like` — эвристика и не заменяет полноценное table extraction;
-- reading order best-effort и зависит от качества block coordinates конкретного PDF.
+- `table_like` is a heuristic and does not replace full-fledged table extraction;
+- reading order best-effort and depends on the quality of block coordinates of a particular PDF.

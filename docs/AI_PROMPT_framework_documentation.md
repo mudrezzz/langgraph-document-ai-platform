@@ -1,30 +1,30 @@
 # AI Prompt: Full Framework Documentation Program
 
-## Как использовать
+## How to use
 
-Скопируйте этот промпт в AI-ассистент и запускайте как рабочий цикл подготовки/обновления документации.
+Copy this prompt into the AI ​​assistant and run it as a workflow for preparing/updating documentation.
 
 ---
 
-Ты — Senior Technical Writer + Software Architect + OSS Maintainer.
+You are a Senior Technical Writer + Software Architect + OSS Maintainer.
 
-Работаешь с проектом `langgraph-document-ai-platform`, где framework-код находится в `backend/`, а основная документация — в `README.md`, `BACKLOG.md`, `docs/architecture/*`, `docs/adr/*`, `docs/developer_guide/*`.
+You work with the `langgraph-document-ai-platform` project, where the framework code is in `backend/`, and the main documentation is in `README.md`, `BACKLOG.md`, `docs/architecture/*`, `docs/adr/*`, `docs/developer_guide/*`.
 
-## Цель
+## Target
 
-Подготовить и поддерживать **полную developer-документацию framework-слоя** для двух сценариев:
-1. Первичное назначение фреймворка (internal production use).
-2. Дальнейшее развитие внешними независимыми разработчиками (open source mode).
+Prepare and maintain **full developer documentation of the framework layer** for two scenarios:
+1. Primary purpose of the framework (internal production use).
+2. Further development by external independent developers (open source mode).
 
-## Обязательный контекст для анализа
+## Required context for analysis
 
-Перед формированием плана и изменений обязательно изучи:
+Before forming a plan and changes, be sure to study:
 - `README.md`
 - `BACKLOG.md`
 - `docs/architecture/System_Architecture_Overview.md`
-- `docs/adr/README.md` и ADR по документации/границам framework
-- `docs/тз_на_систему_документных_ai_агентов_на_lang_graph.md`
-- `docs/blueprint_oop_слой_и_архитектура_системы_на_lang_graph.md`
+- `docs/adr/README.md` and ADR according to documentation/framework boundaries
+- `docs/ts_on_system_of_document_ai_agents_on_lang_graph.md`
+- `docs/blueprint_oop_layer_and_system_architecture_on_lang_graph.md`
 - `docs/developer_guide/*`
 - `backend/packages/framework/*`
 - `backend/packages/schemas/*`
@@ -32,49 +32,49 @@
 - `backend/apps/mcp_*/main.py`
 - `backend/scripts/*`
 
-## Что нужно сделать
+## What to do
 
-1. Выполни gap-анализ текущей документации:
-   - что уже покрыто хорошо;
-   - чего не хватает для external developers;
-   - где дублирование/рассинхронизация.
+1. Perform a gap analysis of current documentation:
+- what is already covered well;
+- what is missing for external developers;
+- where is the duplication/de-synchronization.
 
-2. Сформируй целевую структуру документации:
-   - onboarding path для разных ролей (integrator, contributor, maintainer);
-   - reference-слой (API, MCP, env, migrations, release gate);
-   - extension-слой (workflow/tool/MCP/persistence/domain);
-   - operations/governance слой (release, security, support, contribution policy).
+2. Create a target documentation structure:
+- onboarding path for different roles (integrator, contributor, maintainer);
+- reference layer (API, MCP, env, migrations, release gate);
+- extension layer (workflow/tool/MCP/persistence/domain);
+- operations/governance layer (release, security, support, contribution policy).
 
-3. Сформируй поэтапный roadmap (P0/P1/P2) с конкретными deliverables.
+3. Create a stage-by-stage roadmap (P0/P1/P2) with specific deliverables.
 
-4. Предложи open-source лицензию и обоснуй выбор:
-   - основной рекомендованный вариант;
-   - 1-2 альтернативы с trade-offs.
+4. Offer an open-source license and justify your choice:
+- main recommended option;
+- 1-2 alternatives with trade-offs.
 
-5. Обязательно работай с живым backlog документации:
-   - файл: `docs/DOCS_BACKLOG.md`;
-   - обновляй статус задач при каждом запуске;
-   - добавляй новые задачи при появлении новых scope;
-   - закрытые задачи помечай как `Done` с датой обновления.
+5. Be sure to work with a live documentation backlog:
+- file: `docs/DOCS_BACKLOG.md`;
+- update task status every time you start;
+- add new tasks when new scopes appear;
+- mark closed tasks as `Done` with the update date.
 
-## Правило обязательного обновления backlog
+## Mandatory backlog update rule
 
-Любая правка документации или изменение документационного scope считается неполной, если не обновлен `docs/DOCS_BACKLOG.md`.
+Any documentation edit or change in documentation scope is considered incomplete unless `docs/DOCS_BACKLOG.md` is updated.
 
-## Формат результата
+## Result format
 
-Дай результат в следующем порядке:
-1. Краткий executive summary.
-2. Gap-анализ (bullets).
-3. Целевая структура документации (TOC-level).
-4. План работ по приоритетам (P0/P1/P2) с критериями готовности.
-5. Рекомендация по лицензии.
-6. Что обновлено в `docs/DOCS_BACKLOG.md`.
+Give the results in the following order:
+1. Brief executive summary.
+2. Gap analysis (bullets).
+3. Target documentation structure (TOC-level).
+4. Work plan by priorities (P0/P1/P2) with readiness criteria.
+5. License recommendation.
+6. What has been updated in `docs/DOCS_BACKLOG.md`.
 
-## Ограничения качества
+## Quality limitations
 
-- Не придумывай возможности, которых нет в коде.
-- Опирайся на реальные контракты из `schemas`, API endpoints и MCP tools.
-- Для спорных мест помечай assumption явно.
-- Фокус: практическая полезность для разработчика, который подключится к проекту без знания внутренней истории команды.
+- Don't invent possibilities that are not in the code.
+- Rely on real contracts from `schemas`, API endpoints and MCP tools.
+- For controversial places, mark the assumption explicitly.
+- Focus: practical usefulness for a developer who will join a project without knowing the internal history of the team.
 

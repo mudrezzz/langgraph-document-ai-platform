@@ -1,40 +1,40 @@
-# ADR-0028: HITL actions persistence и read-model API
+# ADR-0028: HITL actions persistence and read-model API
 
-- Статус: Accepted
-- Дата: 2026-04-22
+- Status: Accepted
+- Date: 2026-04-22
 
-## Контекст
+## Context
 
-После `Increment 22` reviewer actions сохранялись только внутри checkpoint/task details.
+After `Increment 22` reviewer actions were saved only inside checkpoint/task details.
 
-Ограничения такого подхода:
+Limitations of this approach:
 
-- нет отдельного query API по reviewer actions;
-- аналитика по решениям reviewer (`approve/needs_changes/reject`) затруднена;
-- данные reviewer actions сильно связаны с внутренним state payload.
+- there is no separate query API for reviewer actions;
+- analytics on reviewer decisions (`approve/needs_changes/reject`) is difficult;
+- reviewer actions data is strongly related to the internal state payload.
 
-## Решение
+## Solution
 
-1. Добавить отдельный persistence слой HITL actions:
-   - таблица `app.hitl_actions` (`0008_hitl_actions.sql`);
-   - adapter `PostgresHitlActionStore` с fallback режимом для dev/test.
-2. Сохранять действия reviewer при каждом ключевом переходе:
+1. Add a separate persistence layer HITL actions:
+- table `app.hitl_actions` (`0008_hitl_actions.sql`);
+- adapter `PostgresHitlActionStore` with fallback mode for dev/test.
+2. Save reviewer actions at each key transition:
    - `queued -> processing -> completed|dispatch_failed`.
-3. Добавить read-model endpoint:
+3. Add read-model endpoint:
    - `GET /api/v1/hitl/actions`;
-   - фильтры `task_id`, `decision`, `status`, `reviewer`, `from`, `to`;
-   - курсорная пагинация.
-4. Оставить checkpoint payload как runtime-state слой, но сделать history/actions доступными через отдельный read-model.
+- filters `task_id`, `decision`, `status`, `reviewer`, `from`, `to`;
+- cursor pagination.
+4. Leave checkpoint payload as a runtime-state layer, but make history/actions available through a separate read-model.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- reviewer actions доступны как отдельный API/read-model;
-- проще строить аудит и отчеты по reviewer decisions;
-- меньше связности между runtime-state и отчетным чтением.
+- reviewer actions are available as a separate API/read-model;
+- it’s easier to build audits and reports on reviewer decisions;
+- less coupling between runtime-state and reporting reading.
 
-Минусы:
+Cons:
 
-- дополнительная таблица и поддержка согласованности между state и read-model;
-- усложнение write-path при обновлении статуса HITL action.
+- additional table and support for consistency between state and read-model;
+- complicating the write-path when updating the HITL action status.

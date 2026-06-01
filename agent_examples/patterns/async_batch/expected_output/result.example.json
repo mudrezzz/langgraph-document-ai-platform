@@ -1,0 +1,30 @@
+{
+  "pattern": "async_batch",
+  "execution_model": "in_process_framework_workflow",
+  "batch_id": "async-batch-20260602000000-1a2b3c4d",
+  "case_dataset_id": "saa_release_readiness",
+  "batch_size": 2,
+  "continue_on_error": true,
+  "started_at": "2026-06-02T10:00:00+00:00",
+  "completed_at": "2026-06-02T10:00:01+00:00",
+  "total_queries": 3,
+  "completed_queries": 3,
+  "failed_queries": 0,
+  "average_confidence": 0.72,
+  "items": [
+    {
+      "item_index": 0,
+      "batch_index": 0,
+      "query": "What release controls are mandatory before production go-live?",
+      "status": "completed",
+      "confidence": 0.74,
+      "evidence_blocks": 2,
+      "unresolved_gaps": [],
+      "top_sources": [
+        {"doc_id": "release_packet", "version": "v1", "block_id": "block-01"}
+      ],
+      "error": null
+    }
+  ]
+}
+

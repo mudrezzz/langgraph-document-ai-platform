@@ -1,37 +1,37 @@
 # ADR-0059: Template Library MCP boundary
 
-- Статус: Accepted
-- Дата: 2026-04-25
+- Status: Accepted
+- Date: 2026-04-25
 
-## Контекст
+## Context
 
-После ADR-0057 и ADR-0058 persisted template library уже существовала как application boundary и как public HTTP API. Но в MCP-контуре reusable templates еще не были доступны: агентам и automation path приходилось либо работать через HTTP, либо обходить service boundary прямым container wiring.
+After ADR-0057 and ADR-0058, the persisted template library already existed as an application boundary and as a public HTTP API. But in the MCP circuit, reusable templates were not yet available: agents and automation paths had to either work via HTTP or bypass the service boundary with direct container wiring.
 
-Для platform-wide authoring это неудобно: templates должны быть доступны тем же образом, как уже доступны repository documents, retrieval search и generated artifacts. При этом нельзя вводить отдельную MCP-specific template архитектуру, иначе template compilation и persistence начнут расходиться между HTTP, authoring и MCP путями.
+This is inconvenient for platform-wide authoring: templates must be available in the same way that repository documents, retrieval search and generated artifacts are already available. In this case, you cannot introduce a separate MCP-specific template architecture, otherwise template compilation and persistence will begin to diverge between HTTP, authoring and MCP paths.
 
-## Решение
+## Solution
 
-1. Добавить отдельный FastMCP boundary `template-library-mcp`.
-2. Включить только минимальные tools:
+1. Add a separate FastMCP boundary `template-library-mcp`.
+2. Enable only minimal tools:
    - `upsert_template`;
    - `get_template`;
    - `list_templates`.
-3. Реализовать MCP service поверх existing `TemplateLibraryApplicationService`:
-   - `upsert_template` сначала вызывает `compile_template(...)`, затем сохраняет compiled `TemplateSpec`;
-   - `get_template` и `list_templates` читают те же persisted records, что и HTTP/API и authoring path.
-4. Добавить typed MCP schemas в `schemas.mcp.template_library`.
-5. Добавить runtime/smoke scripts по тому же operational pattern, что уже используется для Retrieval/Repository/Artifact Writer MCP.
+3. Implement MCP service on top of the existing `TemplateLibraryApplicationService`:
+- `upsert_template` first calls `compile_template(...)`, then saves the compiled `TemplateSpec`;
+- `get_template` and `list_templates` read the same persisted records as HTTP/API and authoring path.
+4. Add typed MCP schemas to `schemas.mcp.template_library`.
+5. Add runtime/smoke scripts using the same operational pattern that is already used for Retrieval/Repository/Artifact Writer MCP.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- reusable templates теперь доступны и через MCP, что делает template library частью общего agent-facing service surface;
-- MCP path переиспользует existing compiler/persistence boundaries и не расходится с HTTP/API путем;
-- authoring automation можно строить через MCP tools без дополнительной glue-логики.
+- reusable templates are now available via MCP, which makes the template library part of the general agent-facing service surface;
+- MCP path reuses existing compiler/persistence boundaries and does not diverge from the HTTP/API path;
+- authoring automation can be built via MCP tools without additional glue logic.
 
-Минусы:
+Cons:
 
-- MCP boundary пока ограничен только CRUD-like read/write path без delete/archive/version-promotion semantics;
-- нет auth/RBAC и governance policy для template changes;
-- template governance lifecycle closure выполнен в ADR-0063.
+- MCP boundary is currently limited only to CRUD-like read/write path without delete/archive/version-promotion semantics;
+- no auth/RBAC and governance policy for template changes;
+- template governance lifecycle closure made in ADR-0063.

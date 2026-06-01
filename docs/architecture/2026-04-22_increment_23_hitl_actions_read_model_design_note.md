@@ -1,73 +1,73 @@
 # Design Note: Increment 23 (HITL Actions Persistence + Read-Model API)
 
-Дата: 2026-04-22
+Date: 2026-04-22
 
 ## 1. Problem statement
 
-Reviewer actions в HITL контуре хранились внутри checkpoint/state payload.
+Reviewer actions in the HITL circuit were stored inside the checkpoint/state payload.
 
-Это усложняло:
+This made it difficult:
 
-- аудит и фильтрацию действий reviewer;
-- API-доступ к истории reviewer actions;
-- построение аналитики по решениям/нагрузке reviewer.
+- audit and filtering of reviewer actions;
+- API access to reviewer actions history;
+- building analytics on reviewer decisions/load.
 
 ## 2. Scope / Out of scope
 
 Scope:
 
-- отдельная таблица `hitl_actions`;
-- adapter `PostgresHitlActionStore` (+ fallback режим);
-- запись HITL action на ключевых переходах;
-- endpoint `GET /api/v1/hitl/actions` с фильтрами и курсорной пагинацией;
-- тесты unit/integration/e2e + ручной smoke.
+- separate table `hitl_actions`;
+- adapter `PostgresHitlActionStore` (+ fallback mode);
+- recording HITL action at key transitions;
+- endpoint `GET /api/v1/hitl/actions` with filters and cursor pagination;
+- unit/integration/e2e tests + manual smoke.
 
 Out of scope:
 
 - UI/dashboard reviewer;
-- агрегированные SLA/BI-метрики по reviewer actions;
-- сложная модель ролей/доступов reviewer.
+- aggregated SLA/BI metrics based on reviewer actions;
+- complex model of reviewer roles/accesses.
 
-## 3. Какие контракты меняются
+## 3. Which contracts are changing
 
 API:
 
-- новый endpoint `GET /api/v1/hitl/actions`.
+- new endpoint `GET /api/v1/hitl/actions`.
 
 Persistence:
 
-- новая миграция `0008_hitl_actions.sql`.
+- new migration `0008_hitl_actions.sql`.
 
 Backward compatibility:
 
-- существующие endpointы (`/tasks/{task_id}/hitl`, `/hitl/submit`) остаются совместимыми.
+- existing endpoints (`/tasks/{task_id}/hitl`, `/hitl/submit`) remain compatible.
 
-## 4. Риски и совместимость
+## 4. Risks and compatibility
 
-- риск рассинхронизации state и read-model: минимизируется upsert-логикой на каждом переходе action status;
-- `prod` профиль остается совместимым, миграция additive.
+- the risk of state and read-model desynchronization: minimized by upsert logic at each action status transition;
+- `prod` profile remains compatible, migration is additive.
 
 ## 5. Test plan
 
 - Unit:
-  - `InMemoryHitlActionStore` (фильтры, курсоры, валидация cursor).
+- `InMemoryHitlActionStore` (filters, cursors, cursor validation).
 - Integration:
-  - `GET /api/v1/hitl/actions` в real authoring/HITL flow.
+- `GET /api/v1/hitl/actions` in real authoring/HITL flow.
 - E2E:
-  - Postgres e2e проверяет наличие записей в `app.hitl_actions`.
+- Postgres e2e checks for entries in `app.hitl_actions`.
 - Smoke:
-  - `smoke_authoring_async_api` проверяет `hitl_actions_total`.
+- `smoke_authoring_async_api` checks `hitl_actions_total`.
 
 ## 6. Rollout plan
 
-1. Применить миграцию `0008_hitl_actions.sql`.
-2. Развернуть API/worker с новым `HitlActionStore`.
-3. Проверить smoke async authoring + HITL sequence.
-4. Подтвердить API endpoint `GET /api/v1/hitl/actions`.
+1. Apply migration `0008_hitl_actions.sql`.
+2. Deploy the API/worker with the new `HitlActionStore`.
+3. Check smoke async authoring + HITL sequence.
+4. Confirm API endpoint `GET /api/v1/hitl/actions`.
 
 ## 7. Definition of Done
 
-- reviewer actions persisted отдельно от checkpoint;
-- history API доступен и фильтруется по `task_id/decision/reviewer/time`;
-- тесты зеленые (unit/integration/e2e/smoke);
-- docs/ADR/architecture обновлены.
+- reviewer actions persisted separately from checkpoint;
+- history API is available and filtered by `task_id/decision/reviewer/time`;
+- green tests (unit/integration/e2e/smoke);
+- docs/ADR/architecture updated.

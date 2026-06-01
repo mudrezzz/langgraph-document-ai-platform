@@ -1,9 +1,9 @@
 # Env Profile Snippets
 
-Дата обновления: 2026-04-30  
-Статус: Active (P1 onboarding ergonomics)
+Update date: 2026-04-30
+Status: Active (P1 onboarding ergonomics)
 
-Готовые минимальные env-профили для быстрого запуска.
+Ready-made minimal env profiles for quick launch.
 
 ## 1. Local dev (sync + fallback-friendly)
 
@@ -16,7 +16,7 @@ export APP_ASYNC_PROVIDER=inline
 export APP_AUTH_ENABLED=false
 ```
 
-Рекомендуемый smoke:
+Recommended smoke:
 
 ```bash
 bash backend/scripts/smoke_retrieval_api.sh --host 127.0.0.1 --port 8010
@@ -35,7 +35,7 @@ export APP_SLA_TASK_DURATION_MS=180000
 export APP_SLA_QUEUE_WAIT_MS=20000
 ```
 
-Рекомендуемый smoke:
+Recommended smoke:
 
 ```bash
 bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
@@ -63,7 +63,7 @@ export APP_SLA_QUEUE_WAIT_MS=10000
 export APP_RELEASE_GATE_PROFILE=prod
 ```
 
-Опционально для LLM strict gate:
+Optional for LLM strict gate:
 
 ```bash
 export APP_LLM_ENABLED=true
@@ -75,7 +75,7 @@ export OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 export APP_RELEASE_GATE_REQUIRE_LLM_TOKENS=1
 ```
 
-Рекомендуемый smoke:
+Recommended smoke:
 
 ```bash
 bash backend/scripts/async_up.sh
@@ -84,19 +84,19 @@ bash backend/scripts/release_decision_gate.sh --host 127.0.0.1 --port 8090 --gat
 
 ## 4. Quick sanity checks
 
-Для текущего shell:
+For the current shell:
 
 ```bash
 echo "$APP_RUNTIME_PROFILE $APP_ASYNC_PROVIDER $APP_AUTH_ENABLED"
 ```
 
-Проверка API доступности:
+Checking API availability:
 
 ```bash
 curl -sS http://127.0.0.1:8088/health
 ```
 
-## 5. Связанные документы
+## 5. Related documents
 
 - `docs/developer_guide/env_config_reference.md`
 - `docs/developer_guide/quickstart.md`

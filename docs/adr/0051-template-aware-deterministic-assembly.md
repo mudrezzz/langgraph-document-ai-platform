@@ -1,32 +1,32 @@
 # ADR-0051: Template-aware deterministic assembly
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0050 authoring уже поддерживал `TemplateCompiler`, template-aware section contracts и `section_artifacts`, но финальная deterministic assembly все еще оставалась по сути release-readiness specific и опиралась в основном на общий writer draft. Это ограничивало reuse для других document-generation сценариев.
+After ADR-0050, authoring already supported `TemplateCompiler`, template-aware section contracts and `section_artifacts`, but the final deterministic assembly still remained essentially release-readiness specific and relied mainly on the general writer draft. This limited reuse for other document-generation scenarios.
 
-## Решение
+## Solution
 
-1. Расширить `DocumentAssembler`, чтобы он умел собирать документ из:
+1. Extend `DocumentAssembler` so that it can assemble a document from:
    - `TemplateSpec`;
    - `section_artifacts`;
-   - reviewer summary и traceability.
-2. Сохранить backward compatibility:
-   - без template/section artifacts assembler продолжает старый release-readiness path;
-   - при наличии template-aware данных используется section-oriented deterministic assembly.
-3. Не менять публичные API и artifact contract shape.
+- reviewer summary and traceability.
+2. Save backward compatibility:
+- without template/section artifacts assembler continues the old release-readiness path;
+- if template-aware data is available, section-oriented deterministic assembly is used.
+3. Do not change public APIs and artifact contract shapes.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- deterministic assembly становится reusable для разных template-driven задач;
-- section artifacts начинают влиять на итоговый документ, а не только жить в metadata;
-- следующий шаг к полноценному section-by-section authoring pipeline упрощается.
+- deterministic assembly becomes reusable for various template-driven tasks;
+- section artifacts begin to influence the final document, and not just live in the metadata;
+- the next step towards a full section-by-section authoring pipeline is simplified.
 
-Минусы:
+Cons:
 
-- assembly пока еще не использует отдельные assembly rules/catalog beyond inline `TemplateSpec`;
-- writer draft по-прежнему сохраняется как часть итогового документа для наблюдаемости и обратной совместимости.
+- assembly does not yet use separate assembly rules/catalog beyond inline `TemplateSpec`;
+- the writer draft is still retained as part of the final document for observability and backwards compatibility.

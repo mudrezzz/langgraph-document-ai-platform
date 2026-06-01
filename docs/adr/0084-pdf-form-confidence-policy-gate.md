@@ -1,37 +1,37 @@
 # ADR-0084: PDF form-confidence scoring and policy gate
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0082 и ADR-0083 parser уже извлекает form-like блоки и считает coverage для table-like extraction, но quality gate не учитывал надежность извлеченных form key/value данных. В результате частично заполненные или слабо распознанные формы проходили indexing без отдельного сигнала качества.
+After ADR-0082 and ADR-0083, the parser already extracts form-like blocks and calculates coverage for table-like extraction, but the quality gate did not take into account the reliability of the extracted form key/value data. As a result, partially completed or poorly recognized forms were indexed without a separate quality signal.
 
-## Решение
+## Solution
 
-1. Добавить PDF form-quality метрики в parser diagnostics:
+1. Add PDF form-quality metrics to parser diagnostics:
    - `key_value_pairs_total`;
    - `key_value_pairs_extracted`;
    - `field_fill_rate_percent`;
    - `form_confidence_score`.
-2. Прокинуть метрики в `parser_quality.issues` для `pdf_form_like_blocks_detected`.
-3. Расширить `KnowledgeIndexingQualityPolicy` порогом `form_confidence_min_score`:
-   - при score ниже порога policy добавляет synthetic flag `pdf_form_confidence_low`;
-   - режим `warning`/`blocking` настраивается env-параметром.
-4. Расширить aggregate quality summary:
+2. Upload metrics to `parser_quality.issues` for `pdf_form_like_blocks_detected`.
+3. Expand `KnowledgeIndexingQualityPolicy` with the `form_confidence_min_score` threshold:
+- when the score is below the threshold, policy adds a synthetic flag `pdf_form_confidence_low`;
+- `warning`/`blocking` mode is configured by the env parameter.
+4. Expand aggregate quality summary:
    - `documents_with_pdf_form_confidence_low`;
    - `form_confidence_min_score`;
    - `pdf_form_confidence_by_doc` (score/threshold/is_low/blocking).
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- form-like extraction становится измеримым не только по факту извлечения, но и по качеству заполнения;
-- production gate может мягко предупреждать или fail-fast блокировать низкокачественные формы без изменения API;
-- smoke/report path прозрачно показывает threshold и документы с low-confidence.
+- form-like extraction becomes measurable not only by the fact of extraction, but also by the quality of filling;
+- production gate can gently warn or fail-fastly block low-quality forms without changing the API;
+- smoke/report path transparently shows threshold and documents with low-confidence.
 
-Минусы:
+Cons:
 
-- confidence score остается эвристическим baseline (не ML confidence);
-- для сложных multi-line/rotated forms понадобится следующий hardening slice.
+- confidence score remains a heuristic baseline (not ML confidence);
+- for complex multi-line/rotated forms you will need the following hardening slice.

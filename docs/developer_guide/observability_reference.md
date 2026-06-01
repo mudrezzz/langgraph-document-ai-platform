@@ -1,9 +1,9 @@
 # Observability Reference
 
-Дата обновления: 2026-04-30  
-Статус: Active (P1 handbook)
+Update date: 2026-04-30
+Status: Active (P1 handbook)
 
-Источник истины: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`, `backend/packages/application/task_service.py`, `backend/packages/application/authoring_service.py`.
+Source of truth: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`, `backend/packages/application/task_service.py`, `backend/packages/application/authoring_service.py`.
 
 ## 1. Endpoint map
 
@@ -20,7 +20,7 @@ HITL observability:
 
 ## 2. Task events model
 
-`TaskEventItem` ключевые поля:
+`TaskEventItem` key fields:
 
 - `task_id`, `task_type`
 - `from_status`, `to_status`
@@ -28,7 +28,7 @@ HITL observability:
 - `event_payload`
 - `created_at`
 
-События включают как status transitions, так и workflow-node audit payload.
+Events include both status transitions and workflow-node audit payload.
 
 ## 3. Task events summary
 
@@ -36,23 +36,23 @@ HITL observability:
 
 - `total_events`
 - `unique_tasks`
-- `transitions[]`: агрегаты `from_status -> to_status`
+- `transitions[]`: units `from_status -> to_status`
 - `daily[]`, `weekly[]`:
   - `bucket_start`
   - `total_events`
   - `unique_tasks`
 
-Назначение:
+Purpose:
 
-- проверка устойчивости lifecycle;
-- подтверждение наличия ожидаемых transition paths;
-- input для release-gate checks (RG-series).
+- lifecycle stability check;
+- confirmation of the presence of expected transition paths;
+- input for release-gate checks (RG-series).
 
 ## 4. Task observability summary
 
-`TaskObservabilityResponse` включает:
+`TaskObservabilityResponse` includes:
 
-- текущие счетчики:
+- current counters:
   - `total_tasks`, `queued_tasks`, `running_tasks`, `waiting_human_tasks`, `completed_tasks`, `failed_tasks`, `async_tasks`
 - latency:
   - `avg_duration_ms`, `p50_duration_ms`, `p95_duration_ms`, `max_duration_ms`
@@ -86,32 +86,32 @@ HITL observability:
 
 ## 6. SLA interpretation rules
 
-SLA thresholds читаются из env:
+SLA thresholds are read from env:
 
 - `APP_SLA_TASK_DURATION_MS`
 - `APP_SLA_QUEUE_WAIT_MS`
 
-Интерпретация:
+Interpretation:
 
-- если env пустой/невалидный/`<=0`, threshold считается `None` и breach-check отключен;
-- breach counters считаются только при активном threshold;
-- `p50/p95` — nearest-rank percentile semantics для стабильной dashboard интерпретации.
+- if env is empty/invalid/`<=0`, threshold is considered `None` and breach-check is disabled;
+- breach counters are counted only when the threshold is active;
+- `p50/p95` — nearest-rank percentile semantics for stable dashboard interpretation.
 
 ## 7. Practical query patterns
 
-Диагностика проблемной очереди:
+Diagnosis of a problematic queue:
 
 1. `GET /api/v1/tasks/observability/summary?task_type=authoring_pack`
-2. Проверить `queue_wait` метрики и SLA breaches.
-3. Проверить `GET /api/v1/tasks/events?task_type=authoring_pack&to_status=failed`.
+2. Check `queue_wait` metrics and SLA breaches.
+3. Check `GET /api/v1/tasks/events?task_type=authoring_pack&to_status=failed`.
 
-Диагностика HITL bottleneck:
+HITL bottleneck diagnostics:
 
 1. `GET /api/v1/hitl/observability/summary?status=pending`
-2. Проверить `reviewers[]` и `max_iteration`.
-3. Проверить `GET /api/v1/hitl/actions?decision=needs_changes`.
+2. Check `reviewers[]` and `max_iteration`.
+3. Check `GET /api/v1/hitl/actions?decision=needs_changes`.
 
-## 8. Связанные документы
+## 8. Related documents
 
 - `docs/developer_guide/api_reference.md`
 - `docs/developer_guide/release_reproducible_flow.md`

@@ -1,29 +1,29 @@
 # Pattern: Authoring-First Agent
 
-Когда применять:
+When to use:
 
-- нужно генерировать финальный артефакт (`report`, `brief`, `decision memo`);
-- важны structured traceability и управляемый multi-step pipeline;
-- есть правила формата/качества финального текста.
+- you need to generate the final artifact (`report`, `brief`, `decision memo`);
+- structured traceability and managed multi-step pipeline are important;
+- there are rules for the format/quality of the final text.
 
-## Скелет
+## Skeleton
 
-`retrieval -> draft -> reviewer (internal) -> assembly -> artifact`
+`retrieval -> research -> draft -> reviewer -> section authoring -> assembly -> artifact`
 
-## Runnable пример
+## Runnable example
 
 ```bash
-.venv/bin/python agent_examples/run_example.py --pattern authoring_first
+.venv/bin/python agent_examples/patterns/authoring_first/main.py
 ```
 
 ## Extension points
 
-1. Настроить `workflow_mode` (`single_pass|multi_step`).
-2. Добавить/изменить шаблон artifact section structure.
-3. Подключить LLM-провайдер через env contract при необходимости.
+1. Configure `workflow_mode` (`single_pass|multi_step`) and `artifact_format`.
+2. Extend section-contract strategy in `workflow.py` (`template_id`, selection rules).
+3. Customize deterministic writer/review/assembly behavior with domain services.
 
-## Анти-паттерны
+## Anti-patterns
 
-1. Генерировать artifact без source traceability.
-2. Смешивать orchestration c transport-слоем API endpoint.
-3. Ломать backward compatibility authoring payload contracts.
+1. Generate artifact without source traceability.
+2. Hide orchestration behind API transport wrappers in an in-process example.
+3. Break backward compatibility authoring payload contracts.

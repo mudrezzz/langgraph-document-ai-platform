@@ -1,42 +1,42 @@
 # ADR-0085: PDF multi-line form and rotated-layout hardening
 
-- Статус: Accepted
-- Дата: 2026-04-28
+- Status: Accepted
+- Date: 2026-04-28
 
-## Контекст
+## Context
 
-После ADR-0084 quality gate учитывает form-confidence, но extraction baseline для PDF все еще уязвим к двум частым production-кейсам:
+After ADR-0084, the quality gate takes into account form-confidence, but extraction baseline for PDF is still vulnerable to two common production cases:
 
-1. form-like поля с multi-line значениями;
-2. rotated text blocks (90/270°), которые могут участвовать в table/form evidence.
+1. form-like fields with multi-line values;
+2. rotated text blocks (90/270°), which can participate in table/form evidence.
 
-Без этого parser либо теряет часть значения поля, либо не дает явного сигнала, что extraction шел по rotated layout.
+Without this, the parser either loses part of the field value or does not give an explicit signal that the extraction was performed using a rotated layout.
 
-## Решение
+## Solution
 
-1. Расширить form-like parser:
-   - поддержать ключи с пробелами и дефисами;
-   - поддержать multi-line continuation values;
-   - сохранять normalized key/value пары в existing `form_like` tabular path.
-2. Добавить rotated layout hint в PDF block metadata:
-   - `rotated_text=true|false` на page blocks и table_row blocks;
-   - detection через `Page.get_text("dict")` line direction (`dir`).
-3. Добавить parser quality flag `pdf_rotated_layout_detected` и diagnostics metadata:
+1. Extend form-like parser:
+- support keys with spaces and hyphens;
+- support multi-line continuation values;
+- save normalized key/value pairs in the existing `form_like` tabular path.
+2. Add rotated layout hint to PDF block metadata:
+- `rotated_text=true|false` on page blocks and table_row blocks;
+- detection via `Page.get_text("dict")` line direction (`dir`).
+3. Add parser quality flag `pdf_rotated_layout_detected` and diagnostics metadata:
    - `rotated_table_candidates_total`;
    - `rotated_table_candidates_extracted`.
-4. Обновить demo fixture `06_audit_summary.pdf`:
+4. Update demo fixture `06_audit_summary.pdf`:
    - multi-line form value;
-   - rotated form-like line для ручной проверки smoke/demo.
+- rotated form-like line for manual smoke/demo checking.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- лучшее покрытие реальных form-like PDF кейсов без изменения публичных API;
-- rotated-layout path становится наблюдаемым в parser diagnostics;
-- demo/smoke подтверждают hardening в ручном режиме.
+- better coverage of real form-like PDF cases without changing public APIs;
+- rotated-layout path becomes observable in parser diagnostics;
+- demo/smoke confirm hardening in manual mode.
 
-Минусы:
+Cons:
 
-- rotated hint — это lightweight heuristic, а не полноценный layout/OCR pipeline;
-- merged/complex rotated tables остаются следующим этапом hardening.
+- rotated hint is a lightweight heuristic, not a full-fledged layout/OCR pipeline;
+- merged/complex rotated tables remain the next stage of hardening.

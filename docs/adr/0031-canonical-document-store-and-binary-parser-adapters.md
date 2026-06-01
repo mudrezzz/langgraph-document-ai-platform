@@ -1,37 +1,37 @@
-# ADR-0031: Canonical document store и binary parser adapters
+# ADR-0031: Canonical document store and binary parser adapters
 
-- Статус: Accepted
-- Дата: 2026-04-23
+- Status: Accepted
+- Date: 2026-04-23
 
-## Контекст
+## Context
 
-ADR-0030 добавил первый Knowledge Factory MVP: canonical contracts, `domain_docs`, parser `.md/.txt/.json` и `KnowledgeIndexingWorkflow`. Но canonical payload сохранялся через общий document repository boundary, а не через отдельный read-model слой. Также целевой ТЗ требует поддержку PDF/DOCX parsing стандартными библиотеками.
+ADR-0030 added the first Knowledge Factory MVP: canonical contracts, `domain_docs`, parser `.md/.txt/.json` and `KnowledgeIndexingWorkflow`. But the canonical payload was saved through a common document repository boundary, and not through a separate read-model layer. Also, the target specification requires support for PDF/DOCX parsing by standard libraries.
 
-## Решение
+## Solution
 
-1. Добавить отдельный persistence/read-model слой:
+1. Add a separate persistence/read-model layer:
    - `app.canonical_documents`;
    - `app.knowledge_blocks`;
-   - миграция `backend/migrations/0009_canonical_knowledge_store.sql`.
-2. Добавить `CanonicalDocumentApplicationService`.
-3. Добавить `PostgresCanonicalDocumentStore` с in-memory fallback для dev/test.
-4. Переключить `KnowledgeIndexingApplicationService` на canonical store boundary.
-5. Расширить parser boundary форматами `.docx` и `.pdf`.
-6. Использовать lazy imports:
-   - `python-docx` для DOCX;
-   - `PyMuPDF` для PDF.
-7. Зафиксировать зависимости в `backend/pyproject.toml`, но оставить ошибки adapter-level явными, если runtime окружение еще не установило optional package.
+- migration `backend/migrations/0009_canonical_knowledge_store.sql`.
+2. Add `CanonicalDocumentApplicationService`.
+3. Add `PostgresCanonicalDocumentStore` with in-memory fallback for dev/test.
+4. Switch `KnowledgeIndexingApplicationService` to canonical store boundary.
+5. Expand parser boundary with `.docx` and `.pdf` formats.
+6. Use lazy imports:
+- `python-docx` for DOCX;
+- `PyMuPDF` for PDF.
+7. Fix the dependencies in `backend/pyproject.toml`, but leave adapter-level errors explicit if the runtime environment has not yet installed the optional package.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- canonical documents и derived knowledge blocks больше не смешаны с generic document repository;
-- retrieval fabric сможет читать `app.knowledge_blocks` как следующий шаг;
-- binary parser boundary заложен без принудительного выполнения PDF/DOCX tests в окружении без зависимостей.
+- canonical documents and derived knowledge blocks are no longer mixed with the generic document repository;
+- retrieval fabric will be able to read `app.knowledge_blocks` as the next step;
+- binary parser boundary is implemented without forcing PDF/DOCX tests to be executed in an environment without dependencies.
 
-Минусы:
+Cons:
 
-- требуется новая миграция `0009`;
-- PDF/DOCX parsing пока базовый и не включает OCR, tables или rich layout extraction;
-- retrieval еще не переключен на canonical knowledge blocks.
+- new migration `0009` required;
+- PDF/DOCX parsing is still basic and does not include OCR, tables or rich layout extraction;
+- retrieval has not yet been switched to canonical knowledge blocks.

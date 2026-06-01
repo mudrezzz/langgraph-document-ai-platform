@@ -1,26 +1,26 @@
 # ADR-0088: Execution Metrics MVP (day/week events + token/quality observability)
 
-- Статус: Accepted
-- Дата: 2026-04-29
+- Status: Accepted
+- Date: 2026-04-29
 
-## Контекст
+## Context
 
-К концу Increment 31 у нас уже были `task_events` и endpoint `GET /api/v1/tasks/observability/summary`, но для runtime-операций оставались пробелы:
+By the end of Increment 31, we already had `task_events` and endpoint `GET /api/v1/tasks/observability/summary`, but there were still spaces for runtime operations:
 
-- в summary событий не было периодных бакетов (day/week) для быстрых трендов;
-- observability по задачам не включала quality/token метрики retrieval/authoring path;
-- в task lifecycle details не было унифицированного `duration_ms`.
+- in the summary of events there were no periodic buckets (day/week) for fast trends;
+- task observability did not include quality/token metrics retrieval/authoring path;
+- there was no unified `duration_ms` in task lifecycle details.
 
-Для Increment 32 нужен минимальный metrics slice без отдельной telemetry БД и без breaking API changes.
+For Increment 32, you need a minimal metrics slice without a separate telemetry database and without breaking API changes.
 
-## Решение
+## Solution
 
-1. Расширить `GET /api/v1/tasks/events/summary` агрегатами:
-   - `daily[]` и `weekly[]` со структурой:
+1. Expand `GET /api/v1/tasks/events/summary` with aggregates:
+- `daily[]` and `weekly[]` with structure:
      - `bucket_start`;
      - `total_events`;
      - `unique_tasks`.
-2. Расширить `GET /api/v1/tasks/observability/summary` и per-task-type breakdown:
+2. Expand `GET /api/v1/tasks/observability/summary` and per-task-type breakdown:
    - quality metrics:
      - `avg_selected_block_count`;
      - `avg_confidence`;
@@ -30,20 +30,20 @@
      - `llm_tokens_prompt_total`;
      - `llm_tokens_completion_total`;
      - `llm_tokens_total`.
-3. В `TaskApplicationService` автоматически рассчитывать `duration_ms` при наличии `started_at` и `completed_at|failed_at`.
-4. В authoring LLM path добавлять `llm_tokens_*` в draft metadata и task details:
-   - использовать provider usage, если доступен;
-   - при отсутствии usage применять lightweight fallback estimate.
+3. In `TaskApplicationService`, automatically calculate `duration_ms` if `started_at` and `completed_at|failed_at` are present.
+4. In the authoring LLM path, add `llm_tokens_*` to draft metadata and task details:
+- use provider usage if available;
+- in the absence of usage, use lightweight fallback estimate.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- операционный слой получает day/week тренды и базовые quality/token метрики без новой инфраструктуры;
-- API расширен аддитивно и backward-compatible;
-- runtime details становятся более пригодными для SLA/quality dashboards следующего слайса.
+- the operational layer receives day/week trends and basic quality/token metrics without new infrastructure;
+- API extended additively and backward-compatible;
+- runtime details become more suitable for SLA/quality dashboards of the next slice.
 
-Минусы:
+Cons:
 
-- token usage для некоторых gateways может быть оценочным;
-- агрегаты по-прежнему считаются поверх task registry/state payload, а не над выделенной metrics warehouse.
+- token usage for some gateways may be evaluative;
+- aggregates are still considered on top of the task registry/state payload, and not on top of the dedicated metrics warehouse.

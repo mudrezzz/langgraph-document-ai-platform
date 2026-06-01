@@ -1,43 +1,43 @@
 # ADR-0067: Structured Runtime Logging and HITL Observability Summary
 
-- Статус: Accepted
-- Дата: 2026-04-26
+- Status: Accepted
+- Date: 2026-04-26
 
-## Контекст
+## Context
 
-После ADR-0066 execution plane уже стал наблюдаемым через task registry и `/api/v1/tasks/observability/summary`, но оставались два пробела:
+After ADR-0066, the execution plane already became observable through the task registry and `/api/v1/tasks/observability/summary`, but two spaces remained:
 
-- оператору не хватало структурированных runtime log lines по API, Celery worker и HITL continuation path;
-- reviewer/HITL активность была доступна только как список действий через `GET /api/v1/hitl/actions`, без агрегированной сводки для dashboard/manual smoke.
+- the operator lacked structured runtime log lines for API, Celery worker and HITL continuation path;
+- reviewer/HITL activity was available only as a list of actions via `GET /api/v1/hitl/actions`, without an aggregated summary for dashboard/manual smoke.
 
-Для Increment 29 нужен небольшой production-compatible срез, который не вводит отдельную telemetry stack и использует уже существующие read-model/persistence adapters.
+Increment 29 requires a small production-compatible slice that does not introduce a separate telemetry stack and uses already existing read-model/persistence adapters.
 
-## Решение
+## Solution
 
-1. Добавить общий helper `infra.logging.runtime` для one-line JSON logging на stdlib `logging`.
-2. Логировать ключевые execution events в трех runtime точках:
+1. Add a general helper `infra.logging.runtime` for one-line JSON logging on stdlib `logging`.
+2. Log key execution events at three runtime points:
    - FastAPI start/submit endpoints;
    - Celery worker task start/completion/failure;
    - authoring/HITL orchestration events (`queued`, `waiting_human`, `processing`, `completed`, `rejected`).
-3. Оставить correlation через existing `task.details.correlation_id`, `dispatch_id`, `queue_name`, а не вводить отдельный trace context store.
-4. Расширить `HitlActionStore` методом `summarize_actions(...)` и добавить endpoint `GET /api/v1/hitl/observability/summary`.
-5. Строить reviewer/HITL aggregates поверх existing `app.hitl_actions` read-model:
+3. Leave the correlation through the existing `task.details.correlation_id`, `dispatch_id`, `queue_name`, rather than introducing a separate trace context store.
+4. Extend `HitlActionStore` with the `summarize_actions(...)` method and add the `GET /api/v1/hitl/observability/summary` endpoint.
+5. Build reviewer/HITL aggregates on top of the existing `app.hitl_actions` read-model:
    - `total_actions`, `unique_tasks`;
    - pending/queued/processing/completed counts;
    - decision mix (`approve`, `needs_changes`, `reject`);
    - `avg_iteration`, `max_iteration`;
    - reviewer load breakdown.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- оператор получает machine-readable JSON logs без внешней logging platform;
-- troubleshooting async/HITL paths упрощается за счет единых полей `task_id`, `correlation_id`, `dispatch_id`, `queue_name`;
-- reviewer activity становится видна через агрегированный API без новой таблицы/materialized view.
+- the operator receives machine-readable JSON logs without an external logging platform;
+- troubleshooting async/HITL paths is simplified due to single fields `task_id`, `correlation_id`, `dispatch_id`, `queue_name`;
+- reviewer activity becomes visible through the aggregated API without a new table/materialized view.
 
-Минусы:
+Cons:
 
-- logging пока ограничен API/worker/authoring paths и не охватывает все MCP runtime entrypoints;
-- HITL summary строится по текущему read-model слою и пока не содержит периодических SLA buckets;
-- для полноценных production dashboards позже может понадобиться отдельный metrics/log pipeline.
+- logging is currently limited to API/worker/authoring paths and does not cover all MCP runtime entrypoints;
+- HITL summary is built based on the current read-model layer and does not yet contain periodic SLA buckets;
+- for full-fledged production dashboards, a separate metrics/log pipeline may be needed later.

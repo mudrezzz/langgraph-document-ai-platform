@@ -1,42 +1,42 @@
-# ADR-0040: WorkflowFactory с DI-friendly builders
+# ADR-0040: WorkflowFactory with DI-friendly builders
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-Первичная `WorkflowFactory` регистрировала только class type и создавала workflow через empty constructor. Это было достаточно для contract skeleton, но ломало reusable framework boundary: production workflows требуют injected retrievers, stores, gateways, event sinks, policies и runtime context.
+The primary `WorkflowFactory` registered only the class type and created the workflow via an empty constructor. This was sufficient for the contract skeleton, but broke the reusable framework boundary: production workflows require injected retrievers, stores, gateways, event sinks, policies and runtime context.
 
-Также duplicate registration молча перетирал предыдущий workflow, а missing lookup падал обычным `KeyError`, что плохо подходит для bootstrap диагностики.
+Also, duplicate registration silently erased the previous workflow, and missing lookup was thrown with the usual `KeyError`, which is not suitable for bootstrap diagnostics.
 
-## Решение
+## Solution
 
-1. `WorkflowFactory` поддерживает два способа регистрации:
-   - `register("key", WorkflowClass)` для обратной совместимости;
-   - `register_builder("key", builder, metadata={...})` для DI-friendly assembly.
-2. `build("key", **dependencies)` передает dependencies в зарегистрированный builder.
-3. Registration хранится как `WorkflowRegistration`:
+1. `WorkflowFactory` supports two registration methods:
+- `register("key", WorkflowClass)` for backward compatibility;
+- `register_builder("key", builder, metadata={...})` for DI-friendly assembly.
+2. `build("key", **dependencies)` passes dependencies to the registered builder.
+3. Registration is stored as `WorkflowRegistration`:
    - `key`;
    - `builder`;
    - `metadata`.
-4. Duplicate registration запрещен по умолчанию и поднимает `WorkflowRegistrationError`.
-5. Осознанная замена требует `replace=True`.
-6. Missing lookup поднимает `WorkflowNotRegisteredError`.
+4. Duplicate registration is disabled by default and raises `WorkflowRegistrationError`.
+5. Conscious replacement requires `replace=True`.
+6. Missing lookup raises `WorkflowNotRegisteredError`.
 7. Factory exposes:
    - `has(key)`;
    - `list_workflows()`;
    - `metadata(key)`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- workflow bootstrap может оставаться в domain/application layer без service locator;
-- framework contract теперь поддерживает dependencies без изменения application services;
-- capability metadata можно использовать в будущих MCP/discovery слоях;
-- ошибки registry стали явными и тестируемыми.
+- workflow bootstrap can remain in the domain/application layer without a service locator;
+- framework contract now supports dependencies without changing application services;
+- capability metadata can be used in future MCP/discovery layers;
+- registry errors have become explicit and testable.
 
-Минусы:
+Cons:
 
-- factory пока не валидирует runtime Protocol результат builder-а, чтобы не требовать eager instantiation;
-- metadata schema остается свободным `dict`, пока не появился общий capability registry.
+- the factory does not yet validate the runtime Protocol result of the builder, so as not to require eager instantiation;
+- metadata schema remains a free `dict` until a common capability registry appears.

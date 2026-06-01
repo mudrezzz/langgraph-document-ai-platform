@@ -1,0 +1,69 @@
+name: Bug report
+description: Report a reproducible bug in runtime, API, MCP, or examples.
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please provide enough detail to reproduce it.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit SHA
+      description: Git commit SHA, tag, or branch.
+      placeholder: "e.g. 072b17e or v0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      description: OS and version.
+      placeholder: "e.g. Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true
+  - type: input
+    id: python_version
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.12.4"
+    validations:
+      required: true
+  - type: input
+    id: runtime_profile
+    attributes:
+      label: Runtime profile
+      description: APP_RUNTIME_PROFILE and APP_ASYNC_PROVIDER if relevant.
+      placeholder: "e.g. prod + celery"
+    validations:
+      required: true
+  - type: textarea
+    id: run_command
+    attributes:
+      label: Exact run command
+      description: Command that reproduces the issue.
+      placeholder: "python ... / bash backend/scripts/..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual_behavior
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or traceback (no secrets)
+      description: Remove keys, tokens, passwords, and personal data.
+      render: shell
+    validations:
+      required: true

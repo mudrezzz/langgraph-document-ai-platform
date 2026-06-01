@@ -1,43 +1,43 @@
 # ADR-0042: Real TEI embedding and rerank gateways
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-ADR-0033 ввел локальный deterministic `TeiEmbeddingGateway`, а retrieval pipeline уже использовал `TeiRerankGateway`. Это сохраняло testability, но не закрывало production boundary: embeddings и rerank должны уметь ходить в self-hosted Hugging Face Text Embeddings Inference service.
+ADR-0033 introduced a local deterministic `TeiEmbeddingGateway`, and the retrieval pipeline was already using `TeiRerankGateway`. This preserved testability, but did not close the production boundary: embeddings and rerank should be able to go to the self-hosted Hugging Face Text Embeddings Inference service.
 
-TEI exposes HTTP endpoints for embeddings and ranking. Для проекта важно подключить эти endpoints без изменения workflow contracts и без обязательной внешней зависимости в unit/e2e тестах.
+TEI exposes HTTP endpoints for embeddings and ranking. It is important for the project to connect these endpoints without changing workflow contracts and without mandatory external dependencies in unit/e2e tests.
 
-## Решение
+## Solution
 
-1. `TeiEmbeddingGateway` поддерживает HTTP POST в `/embed`:
+1. `TeiEmbeddingGateway` supports HTTP POST to `/embed`:
    - payload: `{"inputs": text, "truncate": true}`;
-   - поддерживаются common response shapes: raw vector, list-of-vectors, `{"embedding": ...}`, OpenAI-like `{"data": [{"embedding": ...}]}`.
-2. `TeiRerankGateway` поддерживает HTTP POST в `/rerank`:
+- common response shapes are supported: raw vector, list-of-vectors, `{"embedding": ...}`, OpenAI-like `{"data": [{"embedding": ...}]}`.
+2. `TeiRerankGateway` supports HTTP POST to `/rerank`:
    - payload: `{"query": query, "texts": candidates, "truncate": true}`;
-   - поддерживаются response shapes со scores и indexed ranking records.
+- response shapes with scores and indexed ranking records are supported.
 3. Env contract:
-   - `TEI_BASE_URL` строит `TEI_BASE_URL/embed` и `TEI_BASE_URL/rerank`;
-   - `TEI_EMBEDDING_URL` и `TEI_RERANK_URL` переопределяют endpoints явно;
-   - `TEI_API_KEY` передается как Bearer token;
-   - `TEI_TIMEOUT_SEC` задает timeout;
-   - `TEI_FALLBACK_ENABLED=true` разрешает deterministic fallback при transport/API ошибке.
-4. Если endpoint не задан, gateway работает в deterministic local mode.
-5. Если endpoint задан и fallback выключен, ошибки TEI пробрасываются наружу.
-6. `ApiContainer` собирает embedding и rerank gateways из env.
-7. `RetrievalApplicationService` принимает injected `rerank_gateway`, поэтому authoring path использует тот же rerank adapter через retrieval service.
+- `TEI_BASE_URL` builds `TEI_BASE_URL/embed` and `TEI_BASE_URL/rerank`;
+- `TEI_EMBEDDING_URL` and `TEI_RERANK_URL` override endpoints explicitly;
+- `TEI_API_KEY` is passed as Bearer token;
+- `TEI_TIMEOUT_SEC` sets timeout;
+- `TEI_FALLBACK_ENABLED=true` allows deterministic fallback in case of transport/API error.
+4. If endpoint is not specified, gateway operates in deterministic local mode.
+5. If endpoint is specified and fallback is disabled, TEI errors are forwarded out.
+6. `ApiContainer` collects embedding and rerank gateways from env.
+7. `RetrievalApplicationService` accepts injected `rerank_gateway`, so the authoring path uses the same rerank adapter via the retrieval service.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- production retrieval fabric может использовать self-hosted TEI без изменения application/workflow contracts;
-- локальные тесты остаются deterministic и не требуют TEI контейнера;
-- strict production behavior возможен через выключенный fallback;
-- authoring получает rerank через существующий retrieval service path.
+- production retrieval fabric can use self-hosted TEI without changing application/workflow contracts;
+- local tests remain deterministic and do not require a TEI container;
+- strict production behavior is possible with fallback disabled;
+- authoring receives rerank through an existing retrieval service path.
 
-Минусы:
+Cons:
 
-- пока нет external TEI integration test, потому что CI/runtime не поднимает TEI service;
-- response parsing намеренно tolerant, но schema должна быть закреплена в отдельном adapter contract после выбора конкретных моделей.
+- there is no external TEI integration test yet, because CI/runtime does not support TEI service;
+- response parsing is intentionally tolerant, but schema must be enshrined in a separate adapter contract after selecting specific models.

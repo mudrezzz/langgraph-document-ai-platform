@@ -1,126 +1,126 @@
 # Framework Concepts
 
-Дата обновления: 2026-04-30  
-Статус: Active (P0 concept guide)
+Update date: 2026-04-30
+Status: Active (P0 concept guide)
 
-Документ дает рабочую mental model framework-слоя: как устроены слои, как идет execution в runtime и где находятся точки расширения.
+The document gives a working mental model of the framework layer: how the layers are arranged, how execution goes in runtime and where the expansion points are located.
 
-## 1. Layer map (что за что отвечает)
+## 1. Layer map (what is responsible for what)
 
-Источник: `backend/packages/*`, `backend/apps/*`.
+Source: `backend/packages/*`, `backend/apps/*`.
 
 - `schemas/*`:
-  - публичные typed contracts для API/MCP/workflow/document/authoring.
-  - это основной слой payload-совместимости.
+- public typed contracts for API/MCP/workflow/document/authoring.
+- This is the main layer of payload compatibility.
 - `framework/*`:
   - reusable primitives (`BaseWorkflow`, `ToolExecutor`, `BaseFastMcpService`, RBAC policy, stores interfaces).
-  - задает execution contracts и extension hooks.
+- sets execution contracts and extension hooks.
 - `application/*`:
-  - orchestration бизнес-сценариев в task lifecycle (`retrieval`, `knowledge_indexing`, `authoring`, `hitl`, `observability`).
-  - связывает framework + domain + infra adapters.
+- orchestration of business scenarios in the task lifecycle (`retrieval`, `knowledge_indexing`, `authoring`, `hitl`, `observability`).
+- connects framework + domain + infra adapters.
 - `domain_*/*`:
-  - доменные pipeline/политики (`domain_rag`, `domain_docs`, `domain_authoring`).
-  - не должны обходить task lifecycle напрямую.
+- domain pipeline/policies (`domain_rag`, `domain_docs`, `domain_authoring`).
+- should not bypass the task lifecycle directly.
 - `infra/*`:
-  - конкретные адаптеры PostgreSQL/pgvector/TEI/OpenRouter/FastMCP/OCR.
+- specific PostgreSQL/pgvector/TEI/OpenRouter/FastMCP/OCR adapters.
 - `apps/*`:
-  - внешние сервисные границы: FastAPI (`apps/api`) и FastMCP (`apps/mcp_*`), async worker (`apps/worker`).
+- external service boundaries: FastAPI (`apps/api`) and FastMCP (`apps/mcp_*`), async worker (`apps/worker`).
 
 ## 2. Runtime execution model
 
-Ключевой контракт: `backend/packages/framework/workflows/base.py`.
+Key contract: `backend/packages/framework/workflows/base.py`.
 
 - `BaseWorkflow.compile()`:
-  - строит invoke/resume graph из `workflow_nodes(is_resume=...)`.
-  - при доступном LangGraph запускается режим `runtime_mode=langgraph`.
-  - без LangGraph используется fallback runtime с тем же node-hook API.
+- builds invoke/resume graph from `workflow_nodes(is_resume=...)`.
+- when LangGraph is available, the `runtime_mode=langgraph` mode is launched.
+- without LangGraph, fallback runtime with the same node-hook API is used.
 - `BaseWorkflow.invoke(payload)`:
-  - валидирует payload через `state_schema()`;
-  - исполняет invoke-ветку графа.
+- validates payload via `state_schema()`;
+- executes the invoke branch of the graph.
 - `BaseWorkflow.resume(payload)`:
-  - исполняет resume-ветку (checkpoint/interrupt continuation).
+- executes the resume branch (checkpoint/interrupt continuation).
 - `task_context.task_id`:
-  - используется как `thread_id` для LangGraph checkpointer (`_resolve_thread_id`).
-  - это основа устойчивого interrupt/resume для long-running задач.
+- used as `thread_id` for LangGraph checkpointer (`_resolve_thread_id`).
+- this is the basis of a stable interrupt/resume for long-running tasks.
 - `WorkflowNodeEventSink`:
-  - node events `started/completed/failed` эмитятся из `BaseWorkflow`;
-  - в приложении мапятся в task audit read-model.
+- node events `started/completed/failed` are issued from `BaseWorkflow`;
+- in the application they map to task audit read-model.
 
 ## 3. Task lifecycle model (API-level)
 
-Источник: `backend/packages/application/task_service.py`, `backend/apps/api/main.py`.
+Source: `backend/packages/application/task_service.py`, `backend/apps/api/main.py`.
 
-- Базовые статусы:
+- Basic statuses:
   - `queued`, `running`, `waiting_human`, `completed`, `failed`.
-- Основной flow:
+- Main flow:
   - `create_task -> update_task(running) -> complete_task|fail_task`.
 - Audit/read-model:
   - `GET /api/v1/tasks`
   - `GET /api/v1/tasks/events`
   - `GET /api/v1/tasks/events/summary`
   - `GET /api/v1/tasks/observability/summary`
-- В `details` сохраняются execution metadata:
+- `details` stores execution metadata:
   - `execution_mode`, `dispatch_id`, `queue_name`, `queued_at`, `started_at`, `completed_at|failed_at`, `queue_wait_ms`, `duration_ms`.
 
 ## 4. Async plane model
 
-Источник: `backend/apps/api/dependencies.py`, `backend/packages/application/*service.py`, `backend/apps/worker/celery_app.py`.
+Source: `backend/apps/api/dependencies.py`, `backend/packages/application/*service.py`, `backend/apps/worker/celery_app.py`.
 
-- Переключение execution plane:
+- Switching execution plane:
   - `APP_ASYNC_PROVIDER=inline|celery`.
-- Для async start endpoint-ов:
-  - task создается в `queued`;
-  - payload ставится в dispatcher queue;
-  - worker исполняет `run_existing_task(...)`.
-- Очереди:
+- For async start endpoints:
+- task is created in `queued`;
+- payload is placed in the dispatcher queue;
+- worker executes `run_existing_task(...)`.
+- Queues:
   - `authoring`: `APP_CELERY_QUEUE`
   - `knowledge-indexing`: `APP_CELERY_INDEXING_QUEUE`
   - `retrieval`: `APP_CELERY_RETRIEVAL_QUEUE`
 
 ## 5. HITL model
 
-Источник: `backend/packages/application/authoring_service.py`, `backend/apps/api/main.py`.
+Source: `backend/packages/application/authoring_service.py`, `backend/apps/api/main.py`.
 
-- HITL endpoint-ы:
+- HITL endpoints:
   - `GET /api/v1/tasks/{task_id}/hitl`
   - `POST /api/v1/tasks/{task_id}/hitl/submit`
   - `GET /api/v1/hitl/actions`
   - `GET /api/v1/hitl/observability/summary`
-- Если `hitl_required=true`, authoring может перейти в `waiting_human`.
-- Submit path принимает reviewer decision (`approve|needs_changes|reject`) и продолжает pipeline через dispatcher plane.
-- Для итеративности используются `idempotency_key` и `expected_iteration`.
+- If `hitl_required=true`, authoring can go to `waiting_human`.
+- Submit path accepts the reviewer decision (`approve|needs_changes|reject`) and continues the pipeline through the dispatcher plane.
+- For iteration, `idempotency_key` and `expected_iteration` are used.
 
 ## 6. Quality gate model
 
-Источник: `backend/packages/application/retrieval_service.py`, `backend/packages/domain_docs/indexing/quality_policy.py`, `backend/packages/application/knowledge_indexing_service.py`.
+Source: `backend/packages/application/retrieval_service.py`, `backend/packages/domain_docs/indexing/quality_policy.py`, `backend/packages/application/knowledge_indexing_service.py`.
 
 - Retrieval quality gate:
-  - `quality_gate_status` выводится из `unresolved_gaps`.
-  - статус обычно `passed|warning|failed` в task details.
+- `quality_gate_status` is derived from `unresolved_gaps`.
+- the status is usually `passed|warning|failed` in task details.
 - Knowledge indexing quality policy:
-  - `KnowledgeIndexingQualityPolicy` дает per-document decision (`accepted/rejected`) и aggregate gate summary.
-  - policy управляется env-контрактом `APP_INDEXING_QUALITY_*`.
-  - rejected documents не должны попадать в canonical persistence/indexed corpus.
+- `KnowledgeIndexingQualityPolicy` gives per-document decision (`accepted/rejected`) and aggregate gate summary.
+- policy is controlled by the env contract `APP_INDEXING_QUALITY_*`.
+- rejected documents should not be included in canonical persistence/indexed corpus.
 
 ## 7. Security/RBAC boundary
 
-Источник: `backend/apps/api/security.py`, `backend/packages/framework/mcp/service.py`.
+Source: `backend/apps/api/security.py`, `backend/packages/framework/mcp/service.py`.
 
-- Единый флаг: `APP_AUTH_ENABLED`.
+- Single flag: `APP_AUTH_ENABLED`.
 - API path:
-  - actor identity через headers `X-Actor-Id`, `X-Actor-Roles`.
-  - sensitive endpoint-ы требуют role checks (`template_admin`, `reviewer`).
+- actor identity via headers `X-Actor-Id`, `X-Actor-Roles`.
+- sensitive endpoints require role checks (`template_admin`, `reviewer`).
 - MCP path:
-  - sensitive tools принимают `actor` + `roles` в payload.
-  - `BaseFastMcpService` централизует authorize + operation scopes (`read|write|action`).
+- sensitive tools accept `actor` + `roles` in payload.
+- `BaseFastMcpService` centralize authorize + operation scopes (`read|write|action`).
 
-## 8. Где расширять, а где не трогать
+## 8. Where to expand and where not to touch
 
-- Расширять:
-  - `domain_*` и `application` orchestration через существующие contracts.
-  - новые API/MCP surfaces через `schemas` + `apps` + docs backlog update.
-- Не считать публичным контрактом:
-  - внутренние детали `framework/*`, `application/*`, `infra/*` классов.
-  - прямые SQL-table internals без отдельной policy фиксации.
+- Expand:
+- `domain_*` and `application` orchestration through existing contracts.
+- new API/MCP surfaces via `schemas` + `apps` + docs backlog update.
+- Not considered a public contract:
+- internal details of `framework/*`, `application/*`, `infra/*` classes.
+- direct SQL-table internals without separate policy fixation.
 
-Перед изменением public behavior сверяйтесь с `docs/developer_guide/public_contract_surface.md`.
+Before changing public behavior, check with `docs/developer_guide/public_contract_surface.md`.

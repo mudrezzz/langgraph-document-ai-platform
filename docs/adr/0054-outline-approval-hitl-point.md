@@ -1,32 +1,32 @@
 # ADR-0054: Outline approval HITL point
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-К этому этапу `Increment 28` уже имел typed `SectionContract`, section-level traceability, template-aware assembly и artifact export, но HITL по-прежнему включался только после section authoring / draft generation. В backlog инкремента изначально был заложен отдельный `outline approval` point, чтобы reviewer мог остановить pipeline раньше, до генерации секционных артефактов.
+By this stage, `Increment 28` already had the `SectionContract` typed, section-level traceability, template-aware assembly and artifact export, but HITL was still only enabled after section authoring / draft generation. A separate `outline approval` point was initially included in the increment backlog so that the reviewer could stop the pipeline earlier, before generating sectional artifacts.
 
-## Решение
+## Solution
 
-1. При `hitl_required=true` и `workflow_mode=multi_step` переводить authoring task в `waiting_human` после построения outline/section contracts, но до section authoring.
-2. Хранить в state `hitl_phase=outline_review` и `outline_snapshot` в `task_context`.
-3. Расширить HITL read-model ответ полями:
+1. With `hitl_required=true` and `workflow_mode=multi_step`, transfer the authoring task to `waiting_human` after constructing outline/section contracts, but before section authoring.
+2. Store `hitl_phase=outline_review` in state and `outline_snapshot` in `task_context`.
+3. Expand the HITL read-model response with fields:
    - `phase`;
    - `outline` (`template_id`, sections, objectives, required keywords, source refs).
-4. При `approve` продолжать обычный pipeline: section authoring -> final review -> assembly/export.
-5. При `needs_changes` на outline phase не запускать rewrite, а возвращать задачу обратно в `waiting_human` с обновленным pending reason.
-6. Публичные endpoints не менять.
+4. When `approve` continue the usual pipeline: section authoring -> final review -> assembly/export.
+5. When `needs_changes` is in the outline phase, do not run rewrite, but return the task back to `waiting_human` with an updated pending reason.
+6. Do not change public endpoints.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- reviewer может остановить authoring раньше и увидеть план документа до генерации секций;
-- future section workflows и reviewer UI проще строить поверх уже typed outline snapshot;
-- expensive steps с section generation не запускаются до outline approval.
+- reviewer can stop authoring earlier and see the document plan before generating sections;
+- future section workflows and reviewer UI are easier to build on top of an already typed outline snapshot;
+- expensive steps with section generation are not launched before outline approval.
 
-Минусы:
+Cons:
 
-- `needs_changes` на outline phase пока не пересчитывает outline автоматически и требует внешнего rerun/input change;
-- текущий HITL flow стал двухфазным (`outline_review` -> `final_review`) только на уровне state/read-model, без отдельного UI.
+- `needs_changes` on the outline phase does not yet recalculate the outline automatically and requires an external rerun/input change;
+- the current HITL flow has become two-phase (`outline_review` -> `final_review`) only at the state/read-model level, without a separate UI.

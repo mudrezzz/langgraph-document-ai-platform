@@ -1,11 +1,11 @@
 # Canonical E2E Walkthrough
 
-Дата обновления: 2026-04-30  
-Статус: Active (P0 practical guide)
+Update date: 2026-04-30
+Status: Active (P0 practical guide)
 
-Цель walkthrough: пройти полный путь `documents -> indexing -> retrieval -> authoring -> HITL -> artifact` через реальные API/scripts.
+The goal of walkthrough is to go the full `documents -> indexing -> retrieval -> authoring -> HITL -> artifact` path through real APIs/scripts.
 
-## 1. Подготовка окружения
+## 1. Preparing the environment
 
 ```bash
 cd /root/langgraph-document-ai-platform
@@ -17,7 +17,7 @@ bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
 ```
 
-Базовый runtime для walkthrough:
+Basic runtime for walkthrough:
 
 ```bash
 export APP_RUNTIME_PROFILE=stage
@@ -28,7 +28,7 @@ export APP_ASYNC_PROVIDER=inline
 
 ## 2. Documents -> canonical indexing
 
-Задача: разобрать demo corpus, применить quality policy, сохранить canonical documents + knowledge blocks.
+Task: disassemble the demo corpus, apply the quality policy, save canonical documents + knowledge blocks.
 
 ```bash
 APP_RUNTIME_PROFILE=stage \
@@ -38,15 +38,15 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_knowledge_indexing_api.sh --host 127.0.0.1 --port 8075 --build-binary-demo-docs
 ```
 
-Проверяем в JSON-выводе:
+We check in the JSON output:
 
 - `status=completed`
-- `file_types` содержит binary форматы (`pdf`, `docx`, `xlsx`, `pptx`)
-- `quality_gate_status` присутствует
+- `file_types` contains binary formats (`pdf`, `docx`, `xlsx`, `pptx`)
+- `quality_gate_status` present
 
 ## 3. Indexing -> retrieval (canonical source)
 
-Задача: выполнить retrieval поверх canonical corpus и pgvector индекса.
+Task: perform retrieval on top of canonical corpus and pgvector index.
 
 ```bash
 APP_RUNTIME_PROFILE=stage \
@@ -56,16 +56,16 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_canonical_retrieval.sh --build-binary-demo-docs
 ```
 
-Проверяем:
+We check:
 
 - `retrieval_backend=pgvector`
 - `embeddings_indexed > 0`
-- `selected_blocks` не пустой
-- в details есть `quality_gate_status` и `unresolved_gaps`
+- `selected_blocks` is not empty
+- in details there are `quality_gate_status` and `unresolved_gaps`
 
 ## 4. Retrieval -> authoring artifact
 
-Задача: получить итоговый authoring артефакт с traceability.
+Task: obtain the final authoring artifact with traceability.
 
 ```bash
 APP_RUNTIME_PROFILE=stage \
@@ -75,15 +75,15 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_authoring_api.sh --host 127.0.0.1 --port 8030 --workflow-mode multi_step
 ```
 
-Проверяем:
+We check:
 
 - `task_status=completed`
-- endpoint `GET /api/v1/tasks/{task_id}/artifact` возвращает `artifact_id`, `content`, `traceability`
-- в `traceability` есть `retrieval_task_id` и `source_refs`
+- endpoint `GET /api/v1/tasks/{task_id}/artifact` returns `artifact_id`, `content`, `traceability`
+- `traceability` has `retrieval_task_id` and `source_refs`
 
 ## 5. Authoring -> HITL loop -> final artifact
 
-Задача: пройти review/approve контур с итерацией `needs_changes -> approve`.
+Task: review/approve the contour with iteration `needs_changes -> approve`.
 
 ```bash
 APP_RUNTIME_PROFILE=stage \
@@ -93,15 +93,15 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/smoke_authoring_async_api.sh --host 127.0.0.1 --port 8050 --workflow-mode multi_step --hitl-required --hitl-decision-sequence needs_changes,approve
 ```
 
-Проверяем:
+We check:
 
-- задача проходит через `waiting_human`
-- в `GET /api/v1/hitl/actions` фиксируются reviewer actions
-- финальный `artifact` доступен после approve
+- the task goes through `waiting_human`
+- reviewer actions are recorded in `GET /api/v1/hitl/actions`
+- final `artifact` available after approve
 
 ## 6. End-to-end report proof
 
-Для человекочитаемого сквозного артефакта:
+For a human-readable end-to-end artifact:
 
 ```bash
 APP_RUNTIME_PROFILE=stage \
@@ -111,12 +111,12 @@ PATH="$(pwd)/.venv/bin:$PATH" \
 bash backend/scripts/demo_release_go_no_go_multifile_case.sh --host 127.0.0.1 --port 8022
 ```
 
-Результат:
+Result:
 
 - `backend/examples/cases/release_go_no_go_multifile_case/output/release_readiness_report.md`
-- разделы `Canonical Quality Summary` и `Canonical Source Mapping`
+- sections `Canonical Quality Summary` and `Canonical Source Mapping`
 
-## 7. Завершение
+## 7. Completion
 
 ```bash
 bash backend/scripts/postgres_down.sh --remove-volumes

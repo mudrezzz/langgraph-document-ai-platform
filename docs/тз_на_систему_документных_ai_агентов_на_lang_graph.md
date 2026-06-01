@@ -1,91 +1,91 @@
-# Техническое задание
-## Система AI-агентов для работы с проектной документацией на базе LangGraph
+# Terms of reference
+## System of AI agents for working with project documentation based on LangGraph
 
-## 1. Назначение документа
+## 1. Purpose of the document
 
-Настоящее техническое задание описывает целевую архитектуру, технологический стек и принципы реализации системы AI-агентов для работы с проектной документацией в проектах внедрения ПО.
+This technical specification describes the target architecture, technology stack and principles for implementing an AI agent system for working with project documentation in software implementation projects.
 
-Документ фиксирует:
-- архитектуру системы на базе LangGraph;
-- стандартизированный технологический стек;
-- состав сервисов и границы ответственности;
-- подход к иерархическому RAG;
-- подход к multi-agent orchestration;
-- HITL-модель;
-- требования к фронтенду, бекенду, MCP, хранению данных и деплою.
+The document records:
+- system architecture based on LangGraph;
+- standardized technology stack;
+- composition of services and boundaries of responsibility;
+- approach to hierarchical RAG;
+- approach to multi-agent orchestration;
+- HITL model;
+- requirements for frontend, backend, MCP, data storage and deployment.
 
-Цель документа — минимизировать количество нестандартизированных решений, уменьшить объем самописной инфраструктуры и использовать зрелые, повторно используемые, понятные в старте компоненты.
-
----
-
-## 2. Цели системы
-
-Система должна:
-- автоматизировать работу бизнес-аналитика с большим массивом проектных документов;
-- поддерживать обработку документов разных форматов и качества;
-- обеспечивать качественный retrieval по многоуровневому knowledge corpus;
-- использовать методологические указания и шаблоны как нормативную основу;
-- генерировать новые документы по шаблонам;
-- обновлять существующие документы;
-- обеспечивать human-in-the-loop на критических этапах;
-- работать в закрытом контуре;
-- быть пригодной для масштабирования и production-эксплуатации.
+The purpose of the document is to minimize the number of non-standardized solutions, reduce the amount of self-written infrastructure and use mature, reusable components that are understandable at the start.
 
 ---
 
-## 3. Основные архитектурные принципы
+## 2. System goals
 
-### 3.1. LangGraph как единый orchestration runtime
-LangGraph используется как основной runtime для:
+The system should:
+- automate the work of a business analyst with a large array of project documents;
+- support processing of documents of different formats and quality;
+- provide high-quality retrieval on a multi-level knowledge corpus;
+- use methodological guidelines and templates as a normative basis;
+- generate new documents using templates;
+- update existing documents;
+- provide human-in-the-loop at critical stages;
+- work in a closed circuit;
+- be suitable for scaling and production operation.
+
+---
+
+## 3. Basic architectural principles
+
+### 3.1. LangGraph as a single orchestration runtime
+LangGraph is used as the main runtime for:
 - stateful agent workflows;
 - multi-agent orchestration;
 - conditional routing;
 - human-in-the-loop;
 - interrupt/resume;
-- checkpointing и долгоживущих процессов.
+- checkpointing and long-lived processes.
 
-### 3.2. Кодовая, а не визуальная оркестрация
-Оркестрация бизнес-логики реализуется кодом на Python.
-Система не должна опираться на визуальные low-code оркестраторы как на ядро исполнения.
+### 3.2. Code-based, not visual, orchestration
+Orchestration of business logic is implemented by Python code.
+The system should not rely on visual low-code orchestrators as the execution core.
 
-### 3.3. LangChain используется ограниченно
-LangChain допускается только как слой адаптеров и готовых интеграций:
-- модели;
+### 3.3. LangChain has limited use
+LangChain is only allowed as a layer of adapters and ready-made integrations:
+- models;
 - embeddings;
 - vector store adapters;
 - retrievers;
 - tools wrappers.
 
-LangChain не должен использоваться как место, где скрыта критическая бизнес-логика системы.
+LangChain should not be used as a place where critical business logic of the system is hidden.
 
-### 3.4. Минимизация числа инфраструктурных компонентов
-В первой production-версии необходимо стремиться к небольшому числу обязательных сервисов.
-Базовый стек должен быть компактным, предсказуемым и поддерживаемым небольшой инженерной командой.
+### 3.4. Minimizing the number of infrastructure components
+In the first production version, you should aim for a small number of required services.
+The core stack should be compact, predictable, and supported by a small engineering team.
 
-### 3.5. Один стандартный путь реализации
-Для каждого класса задач должны быть зафиксированы стандартные технологии.
-Команда не должна выбирать новый стек под каждую подсистему.
+### 3.5. One standard implementation path
+For each class of tasks, standard technologies must be recorded.
+The team should not choose a new stack for each subsystem.
 
 ---
 
-## 4. Обязательный технологический стек
+## 4. Mandatory technology stack
 
 ## 4.1. Backend
-Обязательный стек backend:
+Required backend stack:
 - Python 3.12;
 - FastAPI;
 - LangGraph;
 - Pydantic v2;
 - FastMCP.
 
-### 4.1.1. Роль компонентов
-- **FastAPI** — HTTP API, веб-хуки, admin endpoints, runtime endpoints, ingestion endpoints.
-- **LangGraph** — оркестрация agent workflows, state machines, multi-agent pipelines, HITL.
-- **Pydantic v2** — схемы данных, state contracts, validation.
-- **FastMCP** — стандарт для всех MCP-серверов системы.
+### 4.1.1. Role of Components
+- **FastAPI** - HTTP API, webhooks, admin endpoints, runtime endpoints, ingestion endpoints.
+- **LangGraph** - orchestration of agent workflows, state machines, multi-agent pipelines, HITL.
+- **Pydantic v2** - data schemas, state contracts, validation.
+- **FastMCP** - standard for all MCP servers in the system.
 
 ## 4.2. Frontend
-Обязательный стек frontend:
+Required frontend stack:
 - React;
 - TypeScript;
 - Vite;
@@ -95,115 +95,115 @@ LangChain не должен использоваться как место, гд
 - React Hook Form;
 - Zod.
 
-### 4.2.1. Принцип frontend-стека
-Frontend должен быть:
-- легким в старте;
-- быстрым в разработке internal UI;
-- пригодным для расширения;
-- типобезопасным;
-- удобным для форм, таблиц, review-flow и traceability views.
+### 4.2.1. Frontend stack principle
+Frontend should be:
+- easy to start;
+- quick development of internal UI;
+- suitable for expansion;
+- type safe;
+- convenient for forms, tables, review-flow and traceability views.
 
-## 4.3. Хранилища и база данных
-Обязательный стек хранения:
+## 4.3. Storage and database
+Required storage stack:
 - PostgreSQL;
 - pgvector.
 
-### 4.3.1. PostgreSQL используется как
-- основная транзакционная БД;
-- хранилище metadata;
-- хранилище checkpoint state;
-- база для vector search через pgvector;
-- база для аудита, очередей задач и служебных таблиц.
+### 4.3.1. PostgreSQL is used as
+- main transactional database;
+- metadata storage;
+- checkpoint state storage;
+- base for vector search via pgvector;
+- basis for auditing, task queues and service tables.
 
-### 4.3.2. Принцип минимизации инфраструктуры
-На первом этапе не вводится отдельная vector DB, если PostgreSQL + pgvector покрывают требования по объему и latency.
+### 4.3.2. The principle of minimizing infrastructure
+At the first stage, a separate vector DB is not introduced if PostgreSQL + pgvector covers the volume and latency requirements.
 
 ## 4.4. Model serving
-Обязательный стек model serving для закрытого контура:
-- vLLM — для генеративных LLM;
-- Hugging Face Text Embeddings Inference (TEI) — для embeddings и rerank.
+Required model serving stack for closed loop:
+- vLLM - for generative LLMs;
+- Hugging Face Text Embeddings Inference (TEI) - for embeddings and rerank.
 
-### 4.4.1. Роль model serving слоя
-- генерация текста;
+### 4.4.1. The role of the model serving layer
+- text generation;
 - structured output;
 - embeddings;
 - reranking;
-- при необходимости классификация и lightweight semantic scoring.
+- if necessary, classification and lightweight semantic scoring.
 
-## 4.5. Parsing и extraction
-Стандартный стек обработки документов:
+## 4.5. Parsing and extraction
+Standard document processing stack:
 - PyMuPDF — PDF;
 - OCRmyPDF + Tesseract OCR — scanned PDF;
 - python-docx — DOCX;
 - openpyxl — XLS/XLSX;
 - python-pptx — PPT/PPTX.
 
-### 4.5.1. Принцип extraction-стека
-Для каждого формата используется наиболее стандартная и зрелая библиотека.
-Не допускается построение ключевой extraction-логики на случайных или малоуправляемых инструментах без необходимости.
+### 4.5.1. The extraction stack principle
+The most standard and mature library is used for each format.
+It is not allowed to build key extraction logic on random or poorly controlled tools unless necessary.
 
-## 4.6. API integration и сервисный контракт
-Межсервисные контракты:
-- HTTP/JSON через FastAPI;
-- MCP через FastMCP;
-- OpenAPI для типизации и контрактов;
-- Pydantic-схемы как источник истины для payload contracts.
+## 4.6. API integration and service contract
+Interservice contracts:
+- HTTP/JSON via FastAPI;
+- MCP via FastMCP;
+- OpenAPI for typing and contracts;
+- Pydantic schemes as a source of truth for payload contracts.
 
 ---
 
-## 5. Компоненты системы
+## 5. System components
 
-## 5.1. Состав сервисов
-Минимальный production-контур должен состоять из следующих сервисов.
+## 5.1. Composition of services
+The minimum production circuit should consist of the following services.
 
 ### 5.1.1. API Service
-Назначение:
-- входная точка для UI;
-- создание и запуск задач;
-- выдача статусов;
-- resume для HITL;
-- управление retrieval и authoring request lifecycle.
+Purpose:
+- entry point for the UI;
+- creation and launch of tasks;
+- issuing statuses;
+- resume for HITL;
+- management of retrieval and authoring request lifecycle.
 
-Технологии:
+Technologies:
 - FastAPI;
 - Pydantic;
 - LangGraph runtime integration.
 
 ### 5.1.2. LangGraph Orchestrator Service
-Назначение:
-- исполнение agent workflows;
+Purpose:
+- execution of agent workflows;
 - stateful orchestration;
 - checkpointing;
 - multi-agent coordination;
 - interrupt/resume.
 
-Технологии:
+Technologies:
 - LangGraph;
 - PostgreSQL-based checkpointer.
 
 ### 5.1.3. Ingestion Worker Service
-Назначение:
-- обход файловых источников;
-- парсинг документов;
-- нормализация;
+Purpose:
+- bypassing file sources;
+- document parsing;
+- normalization;
 - metadata extraction;
 - summary building;
 - chunking;
-- upsert в knowledge stores.
+- upsert in knowledge stores.
 
-Технологии:
+Technologies:
 - Python;
-- FastAPI task endpoints или CLI entrypoints;
+- FastAPI task endpoints or CLI entrypoints;
 - extraction stack;
 - PostgreSQL + pgvector.
 
 ### 5.1.4. MCP Services
-Назначение:
-- стандартизированный доступ агентов к внешним действиям и ресурсам.
+Purpose:
+- standardized access of agents to external actions and resources.
 
-Все MCP-сервера реализуются только на FastMCP.
+All MCP servers are implemented only on FastMCP.
 
-Минимальный набор MCP-серверов:
+Minimum set of MCP servers:
 - Document Repository MCP;
 - Retrieval MCP;
 - Artifact Writer MCP;
@@ -211,32 +211,32 @@ Frontend должен быть:
 - Configuration Library MCP.
 
 ### 5.1.5. Model Serving Services
-Назначение:
-- inference для LLM;
+Purpose:
+- inference for LLM;
 - embeddings;
 - rerank.
 
-Сервисы:
+Services:
 - vLLM;
 - TEI.
 
 ### 5.1.6. Frontend Application
-Назначение:
-- запуск user tasks;
-- просмотр статусов;
-- review и approval;
-- просмотр evidence pack;
-- просмотр section digests;
-- просмотр traceability;
-- ручное редактирование и подтверждение артефактов.
+Purpose:
+- launch user tasks;
+- viewing statuses;
+- review and approval;
+- viewing evidence pack;
+- view section digests;
+- view traceability;
+- manual editing and confirmation of artifacts.
 
 ---
 
-## 6. Архитектурные домены
+## 6. Architectural domains
 
 ## 6.1. Knowledge Factory
-Назначение:
-- подготовка и индексация знаний;
+Purpose:
+- preparation and indexing of knowledge;
 - extraction;
 - metadata enrichment;
 - summaries;
@@ -244,7 +244,7 @@ Frontend должен быть:
 - indexing.
 
 ## 6.2. Retrieval Fabric
-Назначение:
+Purpose:
 - query understanding;
 - retrieval planning;
 - metadata filtering;
@@ -254,9 +254,9 @@ Frontend должен быть:
 - evidence pack construction.
 
 ## 6.3. Authoring Workflow
-Назначение:
-- интерпретация методологии;
-- выбор шаблона;
+Purpose:
+- interpretation of methodology;
+- template selection;
 - outline generation;
 - section drafting;
 - review;
@@ -264,27 +264,27 @@ Frontend должен быть:
 - deterministic assembly.
 
 ## 6.4. Governance & Quality
-Назначение:
-- контроль качества parsing;
-- контроль retrieval quality;
-- контроль output quality;
+Purpose:
+- parsing quality control;
+- retrieval quality control;
+- output quality control;
 - drift monitoring;
 - traceability and audit.
 
 ---
 
-## 7. Стандартизированный стек по доменам
+## 7. Standardized stack by domain
 
 ## 7.1. Knowledge Factory
-Обязательные компоненты:
+Required components:
 - Python 3.12;
-- FastAPI или CLI workers;
+- FastAPI or CLI workers;
 - PyMuPDF / OCRmyPDF / python-docx / openpyxl / python-pptx;
 - Pydantic schemas;
 - PostgreSQL + pgvector;
 - TEI embeddings.
 
-### 7.1.1. Выходы Knowledge Factory
+### 7.1.1. Knowledge Factory outputs
 - canonical document JSON;
 - metadata profile;
 - summary artifacts;
@@ -293,19 +293,19 @@ Frontend должен быть:
 - indexing records.
 
 ## 7.2. Retrieval Fabric
-Обязательные компоненты:
+Required components:
 - LangGraph subgraphs;
 - LangChain retriever adapters;
 - PostgreSQL + pgvector;
 - TEI rerank;
 - FastMCP Retrieval Server.
 
-### 7.2.1. Принцип retrieval
-Retrieval не должен быть single-stage semantic search.
-Должен использоваться иерархический каскад.
+### 7.2.1. Retrieval principle
+Retrieval should not be a single-stage semantic search.
+A hierarchical cascade must be used.
 
 ## 7.3. Authoring Workflow
-Обязательные компоненты:
+Required components:
 - LangGraph;
 - FastMCP tool layer;
 - Pydantic structured outputs;
@@ -313,7 +313,7 @@ Retrieval не должен быть single-stage semantic search.
 - frontend review UI.
 
 ## 7.4. Frontend
-Обязательные компоненты:
+Required components:
 - React + TypeScript;
 - Vite;
 - shadcn/ui + Tailwind;
@@ -322,32 +322,32 @@ Retrieval не должен быть single-stage semantic search.
 
 ---
 
-## 8. Иерархический RAG
+## 8. Hierarchical RAG
 
-## 8.1. Общая схема
-Для всех knowledge-intensive сценариев используется иерархический RAG.
+## 8.1. General scheme
+For all knowledge-intensive scenarios, a hierarchical RAG is used.
 
-Этапы:
+Stages:
 1. metadata pre-filter;
-2. retrieval по summary layer;
+2. retrieval by summary layer;
 3. narrowing candidate documents;
-4. retrieval по detailed block layer;
+4. retrieval by detailed block layer;
 5. rerank;
 6. evidence pack assembly.
 
 ## 8.2. Knowledge layers
-Обязательные слои индекса:
+Required index layers:
 
 ### 8.2.1. Methodology / Templates Layer
-Содержит:
-- методологические документы;
-- шаблоны;
-- нормативные указания;
+Contains:
+- methodological documents;
+- templates;
+- regulatory guidelines;
 - style rules;
 - section rules.
 
 ### 8.2.2. Summary Layer
-Содержит:
+Contains:
 - document summary;
 - section summaries;
 - extracted entities;
@@ -357,30 +357,30 @@ Retrieval не должен быть single-stage semantic search.
 - source profiles.
 
 ### 8.2.3. Detailed Blocks Layer
-Содержит:
-- структурные блоки документов;
+Contains:
+- structural blocks of documents;
 - section-aware chunks;
 - table-derived semantic records;
 - slide blocks;
 - source references.
 
 ## 8.3. Chunking
-Chunking должен быть структурным, а не только размерным.
+Chunking should be structural, not just dimensional.
 
-Подходы:
-- DOCX — по heading hierarchy и таблицам;
-- PDF — по логическим блокам и секциям;
-- XLSX — по листам, логическим таблицам и строкам как semantic units;
-- PPTX — по слайдам и секциям.
+Approaches:
+- DOCX - by heading hierarchy and tables;
+- PDF - by logical blocks and sections;
+- XLSX - by sheets, logical tables and rows as semantic units;
+- PPTX - by slides and sections.
 
 ## 8.4. Rerank
-Rerank обязателен для authoring и complex QA сценариев.
-Стандартный инструмент rerank — TEI rerank endpoint.
+Rerank is required for authoring and complex QA scenarios.
+The standard rerank tool is TEI rerank endpoint.
 
 ## 8.5. Evidence Pack
-Evidence pack должен быть стандартным артефактом между retrieval и authoring.
+Evidence pack should be a standard artifact between retrieval and authoring.
 
-Состав:
+Compound:
 - selected sources;
 - selected blocks;
 - methodology refs;
@@ -393,18 +393,18 @@ Evidence pack должен быть стандартным артефактом 
 
 ## 9. LangGraph-first orchestration
 
-## 9.1. Общий принцип
-Каждый сложный процесс реализуется как LangGraph workflow или subgraph.
+## 9.1. General principle
+Each complex process is implemented as a LangGraph workflow or subgraph.
 
-### 9.1.1. В системе не допускается
-- прятать orchestration-логику в UI;
-- прятать orchestration-логику в промптах без явного graph structure;
-- строить критические процессы как длинные линейные цепочки без state.
+### 9.1.1. Not allowed in the system
+- hide orchestration logic in the UI;
+- hide orchestration logic in prompts without an explicit graph structure;
+- build critical processes as long linear chains without state.
 
-## 9.2. Типы graph-процессов
+## 9.2. Types of graph processes
 
 ### 9.2.1. Long-running workflows
-Используются для:
+Used for:
 - ingestion;
 - authoring;
 - review cycles;
@@ -412,7 +412,7 @@ Evidence pack должен быть стандартным артефактом 
 - resumable tasks.
 
 ### 9.2.2. Subgraphs
-Используются для:
+Used for:
 - retrieval pack builder;
 - section authoring engine;
 - template compiler;
@@ -420,7 +420,7 @@ Evidence pack должен быть стандартным артефактом 
 - review engine.
 
 ### 9.2.3. Interrupt-driven workflows
-Используются для:
+Used for:
 - human approval;
 - conflict resolution;
 - low-confidence cases;
@@ -428,13 +428,13 @@ Evidence pack должен быть стандартным артефактом 
 - unresolved evidence gaps.
 
 ## 9.3. Checkpointing
-Checkpointing обязателен для всех долгоживущих процессов.
-State должен сохраняться в PostgreSQL.
+Checkpointing is required for all long-lived processes.
+State must be saved in PostgreSQL.
 
 ## 9.4. Multi-agent orchestration
-Multi-agent схема реализуется как набор специализированных subagents в LangGraph.
+The multi-agent scheme is implemented as a set of specialized subagents in LangGraph.
 
-Минимальный набор agent roles:
+Minimum set of agent roles:
 - Supervisor;
 - Research Agent;
 - Retrieval Planner Agent;
@@ -445,112 +445,112 @@ Multi-agent схема реализуется как набор специали
 
 ---
 
-## 10. MCP-стандарт
+## 10. MCP standard
 
-## 10.1. Общий принцип
-Все MCP-сервера системы реализуются только через FastMCP.
-Другие MCP-фреймворки в проекте не используются.
+## 10.1. General principle
+All MCP servers of the system are implemented only through FastMCP.
+Other MCP frameworks are not used in the project.
 
-## 10.2. Обязательные MCP-серверы
+## 10.2. Required MCP servers
 
 ### 10.2.1. Document Repository MCP
-Функции:
-- чтение исходных документов;
-- чтение generated artifacts;
-- доступ к canonical representations;
+Functions:
+- reading source documents;
+- reading generated artifacts;
+- access to canonical representations;
 - version-aware read.
 
 ### 10.2.2. Retrieval MCP
-Функции:
-- поиск по knowledge layers;
+Functions:
+- search by knowledge layers;
 - metadata filtering;
 - summary retrieval;
 - detailed retrieval;
 - rerank orchestration;
-- выдача evidence pack.
+- issuance of evidence pack.
 
 ### 10.2.3. Artifact Writer MCP
-Функции:
-- запись черновиков;
-- запись финальных документов;
-- экспорт в целевые форматы;
+Functions:
+- recording drafts;
+- recording of final documents;
+- export to target formats;
 - version-aware write.
 
 ### 10.2.4. Review / Approval MCP
-Функции:
-- фиксация review outcomes;
-- регистрация human approvals;
+Functions:
+- recording review outcomes;
+- registration of human approvals;
 - resume payload delivery.
 
 ### 10.2.5. Configuration Library MCP
-Функции:
-- работа с библиотекой типовых конфигураций;
-- поиск аналогов;
-- сравнение конфигураций;
-- сохранение и версионирование конфигурационных артефактов.
+Functions:
+- working with a library of standard configurations;
+- search for analogues;
+- comparison of configurations;
+- saving and versioning configuration artifacts.
 
 ---
 
 ## 11. Frontend
 
-## 11.1. Назначение UI
-UI является базовым рабочим интерфейсом аналитика и reviewer’а.
-UI не является местом выполнения агентной логики.
+## 11.1. Purpose of the UI
+UI is the basic working interface of the analyst and reviewer.
+The UI is not where agent logic is executed.
 
-## 11.2. Обязательные разделы UI
+## 11.2. Required UI Sections
 
 ### 11.2.1. Task Dashboard
-- список задач;
-- статусы;
-- типы задач;
-- фильтры;
-- запуск новых задач.
+- list of tasks;
+- statuses;
+- types of tasks;
+- filters;
+- launching new tasks.
 
 ### 11.2.2. Evidence Review Screen
-- просмотр evidence pack;
-- просмотр источников;
+- viewing evidence pack;
+- viewing sources;
 - traceability;
 - unresolved gaps.
 
 ### 11.2.3. Outline Review Screen
-- просмотр outline;
-- подтверждение структуры;
-- комментарии аналитика.
+- view outline;
+- confirmation of the structure;
+- analyst comments.
 
 ### 11.2.4. Section Review Screen
-- черновик раздела;
+- draft section;
 - review issues;
-- редактирование;
+- editing;
 - approve / send back.
 
 ### 11.2.5. Conflict Resolution Screen
 - conflicting sources;
-- варианты выбора;
-- комментарий аналитика;
-- фиксация решения.
+- selection options;
+- analyst comment;
+- fixation of the decision.
 
 ### 11.2.6. Generated Artifacts Screen
-- просмотр итогового документа;
-- просмотр версий;
-- скачивание;
-- публикация.
+- viewing the final document;
+- viewing versions;
+- download;
+- publication.
 
 ## 11.3. Frontend engineering requirements
-Frontend должен использовать:
-- типизированный API client;
-- TanStack Query для работы с backend data lifecycle;
-- React Hook Form + Zod для форм и review payloads;
-- shadcn/ui для базовых компонентов;
-- Tailwind CSS для layout и theme layer.
+Frontend should use:
+- typed API client;
+- TanStack Query for working with backend data lifecycle;
+- React Hook Form + Zod for forms and review payloads;
+- shadcn/ui for basic components;
+- Tailwind CSS for layout and theme layer.
 
 ---
 
-## 12. Parsing и canonical document model
+## 12. Parsing and canonical document model
 
-## 12.1. Общий принцип
-Все исходные документы должны быть приведены к canonical internal representation.
+## 12.1. General principle
+All source documents must be converted to canonical internal representation.
 
-## 12.2. Canonical document model должен содержать
+## 12.2. Canonical document model must contain
 - doc_id;
 - source_path;
 - version;
@@ -565,9 +565,9 @@ Frontend должен использовать:
 ## 12.3. Parsing rules by format
 
 ### 12.3.1. PDF
-- text extraction через PyMuPDF;
-- scanned PDF через OCRmyPDF + Tesseract;
-- выделение логических блоков;
+- text extraction via PyMuPDF;
+- scanned PDF via OCRmyPDF + Tesseract;
+- allocation of logical blocks;
 - page and section mapping.
 
 ### 12.3.2. DOCX
@@ -594,20 +594,20 @@ Frontend должен использовать:
 
 ---
 
-## 13. Генерация документов
+## 13. Document generation
 
-## 13.1. Общий принцип
-Длинные документы генерируются как управляемое дерево артефактов, а не как единый текст.
+## 13.1. General principle
+Long documents are generated as a managed tree of artifacts rather than as a single text.
 
 ## 13.2. Template Compiler
-Каждый шаблон должен быть предварительно преобразован в:
+Each template must first be converted to:
 - template spec;
 - section contracts;
 - validation rules;
 - assembly rules.
 
 ## 13.3. Authoring sequence
-Общая последовательность:
+General sequence:
 1. template resolution;
 2. methodology interpretation;
 3. outline generation;
@@ -621,8 +621,8 @@ Frontend должен использовать:
 11. save/export.
 
 ## 13.4. Section packet
-Каждый writer agent должен получать только section packet.
-Section packet включает:
+Each writer agent should only receive the section packet.
+Section packet includes:
 - section contract;
 - local objective;
 - project context;
@@ -631,11 +631,11 @@ Section packet включает:
 - relevant state excerpts.
 
 ## 13.5. Section outputs
-Каждый section writer возвращает:
+Each section writer returns:
 - prose draft;
 - section digest.
 
-Section digest содержит:
+Section digest contains:
 - entities;
 - decisions;
 - assumptions;
@@ -645,15 +645,15 @@ Section digest содержит:
 - source refs.
 
 ## 13.6. Final assembly
-Финальная сборка должна быть детерминированной.
-LLM не должен переписывать весь итоговый документ одним большим вызовом.
+The final build must be deterministic.
+The LLM should not rewrite the entire final document in one big call.
 
 ---
 
 ## 14. HITL
 
-## 14.1. Обязательные точки HITL
-Система должна поддерживать interrupt/resume на следующих шагах:
+## 14.1. Mandatory HITL points
+The system must support interrupt/resume in the following steps:
 - outline approval;
 - source conflict resolution;
 - low confidence clarification;
@@ -661,17 +661,17 @@ LLM не должен переписывать весь итоговый док�
 - final document approval.
 
 ## 14.2. Resume contract
-Все resume payloads должны быть строго типизированы Pydantic-схемами.
+All resume payloads must be strongly typed by Pydantic schemas.
 
 ## 14.3. HITL state rules
-После resume процесс должен продолжаться с точки последнего checkpoint без ручного восстановления state.
+After resume, the process should continue from the last checkpoint without manually restoring the state.
 
 ---
 
-## 15. Хранение данных
+## 15. Data storage
 
 ## 15.1. PostgreSQL schema domains
-В PostgreSQL должны быть выделены логические домены таблиц:
+In PostgreSQL, logical table domains must be allocated:
 - documents;
 - document_versions;
 - canonical_documents;
@@ -686,52 +686,52 @@ LLM не должен переписывать весь итоговый док�
 - audit_log.
 
 ## 15.2. Vector storage
-Vector storage реализуется через pgvector.
+Vector storage is implemented via pgvector.
 
 ## 15.3. Metadata filtering
-Metadata filters должны использовать SQL/JSONB поля PostgreSQL и не зависеть от внешней proprietary логики.
+Metadata filters should use PostgreSQL SQL/JSONB fields and not depend on external proprietary logic.
 
 ---
 
-## 16. API и контракты
+## 16. API and contracts
 
-## 16.1. Основные API endpoints
-Минимальный API должен включать:
-- запуск ingestion;
-- запуск retrieval preview;
-- запуск authoring task;
-- получение task status;
-- получение evidence pack;
-- получение draft section;
+## 16.1. Basic API endpoints
+The minimum API should include:
+- launch of ingestion;
+- launch retrieval preview;
+- launch authoring task;
+- getting task status;
+- receiving evidence pack;
+- receiving a draft section;
 - resume HITL task;
 - approve/reject task;
-- получение финального артефакта;
-- просмотр версий документов.
+- receiving the final artifact;
+- viewing document versions.
 
-## 16.2. Контрактность
-Все API payloads должны быть описаны Pydantic-схемами и экспортируемы в OpenAPI.
+## 16.2. Contractuality
+All API payloads must be described by Pydantic schemas and exported to OpenAPI.
 
 ## 16.3. Frontend-backend contract
-Frontend не работает с произвольными JSON-структурами без схем.
-Все формы и payloads должны использовать согласованные схемы.
+Frontend does not work with arbitrary JSON structures without schemas.
+All forms and payloads must use consistent schemas.
 
 ---
 
-## 17. Наблюдаемость и эксплуатация
+## 17. Observability and Operation
 
-## 17.1. Минимальные требования
-Система должна поддерживать:
+## 17.1. Minimum Requirements
+The system must support:
 - structured JSON logging;
 - correlation IDs;
 - traceable task lifecycle;
-- logging для interrupt/resume;
-- audit trail по approvals;
-- измеримые metrics по quality и latency.
+- logging for interrupt/resume;
+- audit trail for approvals;
+- measurable metrics for quality and latency.
 
-## 17.2. Обязательные эксплуатационные события
-Должны логироваться:
-- запуск и завершение task;
-- переход между graph nodes;
+## 17.2. Mandatory operational events
+Must be logged:
+- starting and completing a task;
+- transition between graph nodes;
 - retrieval decisions;
 - low confidence events;
 - human approvals;
@@ -741,139 +741,139 @@ Frontend не работает с произвольными JSON-структу
 
 ---
 
-## 18. Безопасность
+## 18. Security
 
-## 18.1. Общие требования
-Система должна работать в закрытом контуре.
-Данные не должны передаваться в публичные SaaS-сервисы без отдельного согласования.
+## 18.1. General requirements
+The system must operate in a closed loop.
+Data should not be transferred to public SaaS services without separate approval.
 
 ## 18.2. Model serving isolation
-LLM inference, embeddings и rerank должны обслуживаться self-hosted model services.
+LLM inference, embeddings and rerank should be served by self-hosted model services.
 
 ## 18.3. MCP security
-Все MCP-серверы должны:
-- иметь ограниченный scope;
-- выполнять только разрешенные операции;
-- вести audit trail;
-- использовать явные контракты входов/выходов.
+All MCP servers must:
+- have a limited scope;
+- perform only permitted operations;
+- conduct an audit trail;
+- use explicit input/output contracts.
 
 ## 18.4. Frontend and API security
-- аутентификация через корпоративный SSO / OIDC-совместимый механизм;
-- авторизация по ролям;
-- защита approve/resume endpoints;
-- аудит пользовательских действий.
+- authentication via corporate SSO / OIDC-compatible mechanism;
+- authorization by roles;
+- approve/resume endpoints protection;
+- audit of user actions.
 
 ---
 
-## 19. Этапы внедрения
+## 19. Implementation stages
 
-## 19.1. Этап 1 — Core Platform
-Состав:
+## 19.1. Stage 1 - Core Platform
+Compound:
 - FastAPI;
 - LangGraph;
 - PostgreSQL + pgvector;
 - vLLM;
 - TEI;
-- базовый frontend shell;
+- basic frontend shell;
 - FastMCP skeleton.
 
-Цель:
-запустить единый стандартизированный каркас платформы.
+Target:
+launch a single standardized platform framework.
 
-## 19.2. Этап 2 — Knowledge Factory
-Состав:
+## 19.2. Stage 2 - Knowledge Factory
+Compound:
 - parsing stack;
 - canonical document model;
 - metadata extraction;
 - summaries;
 - vector indexing.
 
-Цель:
-получить устойчивый indexing pipeline.
+Target:
+get a stable indexing pipeline.
 
-## 19.3. Этап 3 — Retrieval Fabric
-Состав:
+## 19.3. Stage 3 - Retrieval Fabric
+Compound:
 - hierarchical retrieval;
 - rerank;
 - evidence pack builder;
 - retrieval MCP.
 
-Цель:
-получить production-grade retrieval layer.
+Target:
+get production-grade retrieval layer.
 
-## 19.4. Этап 4 — Authoring Workflow
-Состав:
+## 19.4. Stage 4 - Authoring Workflow
+Compound:
 - template compiler;
 - section authoring engine;
 - review flows;
 - HITL UI;
 - deterministic assembly.
 
-Цель:
-получить рабочую систему генерации документов.
+Target:
+get a working document generation system.
 
-## 19.5. Этап 5 — Governance & Quality
-Состав:
+## 19.5. Stage 5 - Governance & Quality
+Compound:
 - quality evaluation;
 - drift monitoring;
 - audit dashboards;
 - review analytics.
 
-Цель:
-получить управляемую production-систему.
+Target:
+get a managed production system.
 
 ---
 
-## 20. Критерии приемки
+## 20. Acceptance criteria
 
-## 20.1. По платформе
-- LangGraph является единственным orchestration runtime;
-- FastMCP используется для всех MCP-серверов;
-- PostgreSQL + pgvector покрывают state, metadata и vectors;
-- frontend использует согласованный React stack.
+## 20.1. By platform
+- LangGraph is the only orchestration runtime;
+- FastMCP is used for all MCP servers;
+- PostgreSQL + pgvector cover state, metadata and vectors;
+- frontend uses a consistent React stack.
 
-## 20.2. По retrieval
-- retrieval является иерархическим;
-- evidence pack собирается стандартным образом;
-- rerank включен в authoring path.
+## 20.2. By retrieval
+- retrieval is hierarchical;
+- evidence pack is assembled in a standard way;
+- rerank is included in the authoring path.
 
-## 20.3. По authoring
-- документы создаются section-by-section;
-- HITL работает через interrupt/resume;
-- итоговый документ собирается детерминированно;
-- source traceability сохраняется.
+## 20.3. By authoring
+- documents are created section-by-section;
+- HITL works via interrupt/resume;
+- the final document is assembled deterministically;
+- source traceability is preserved.
 
-## 20.4. По эксплуатации
-- задачи можно безопасно возобновлять после interrupt;
-- state сохраняется в PostgreSQL;
-- все критические действия аудируются.
+## 20.4. Instructions for use
+- tasks can be safely resumed after interruption;
+- state is saved in PostgreSQL;
+- all critical actions are audited.
 
 ---
 
-## 21. Стандарты, которые команда обязана соблюдать
+## 21. Standards that the team must comply with
 
-1. Оркестрация — только LangGraph.
-2. MCP — только FastMCP.
-3. HTTP backend — только FastAPI.
-4. Data contracts — только Pydantic.
+1. Orchestration - LangGraph only.
+2. MCP - FastMCP only.
+3. HTTP backend - FastAPI only.
+4. Data contracts - Pydantic only.
 5. Frontend base stack — React + TS + Vite + shadcn/ui + Tailwind + TanStack Query + RHF + Zod.
 6. Primary storage — PostgreSQL + pgvector.
 7. LLM serving — vLLM.
 8. Embeddings and rerank — TEI.
 9. Parsing stack — PyMuPDF / OCRmyPDF / python-docx / openpyxl / python-pptx.
-10. Бизнес-логика не должна быть спрятана в промптах или интеграционных glue scripts без явного graph/state representation.
+10. Business logic should not be hidden in prompts or integration glue scripts without explicit graph/state representation.
 
 ---
 
-## 22. Следующий уровень детализации
+## 22. Next level of detail
 
-Следующим документом после данного ТЗ должен стать архитектурный blueprint, включающий:
-- список сервисов и их репозиториев;
-- точные Pydantic-схемы;
-- перечень LangGraph workflows и subgraphs;
-- перечень MCP-серверов и tool contracts;
+The next document after this TOR should be an architectural blueprint, including:
+- list of services and their repositories;
+- accurate Pydantic diagrams;
+- list of LangGraph workflows and subgraphs;
+- list of MCP servers and tool contracts;
 - PostgreSQL schema design;
 - API contract catalog;
 - frontend screen map;
-- deployment topology для dev / stage / prod.
+- deployment topology for dev/stage/prod.
 

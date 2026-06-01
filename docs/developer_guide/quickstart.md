@@ -1,95 +1,94 @@
 # Quickstart
 
-Дата обновления: 2026-04-30  
-Статус: Entry point для нового разработчика
+Update Date: 2026-05-29
+Status: Entry point for new developers
 
-Этот quickstart отвечает на вопрос:  
-`я зашел в docs/developer_guide, что делать дальше?`
+This quickstart answers one question:
+`I opened docs/developer_guide - what should I do next?`
 
-## 1. За 10 минут: понять карту проекта
+## 1. 10-Minute Orientation
 
-Пройди в таком порядке:
+Read these first:
 
 1. `docs/developer_guide/public_contract_surface.md`
 2. `docs/developer_guide/framework_concepts.md`
 3. `docs/developer_guide/examples_catalog.md`
 
-Результат:
+After this, you should:
 
-- понимаешь, что считается stable/experimental;
-- видишь, где framework, где application/domain/infra;
-- выбираешь ближайший пример под свою задачу.
+- understand what is stable vs experimental;
+- see where framework vs application/domain/infra boundaries are;
+- pick the closest example for your task.
 
-## 2. Выбери цель и иди по маршруту
+## 2. Choose a Goal and Follow the Route
 
-## Цель A: расширить существующий функционал
+## Goal A: Extend existing functionality
 
-Иди по шагам:
-
-1. `docs/developer_guide/extension_handbook.md`  
-   Выбери тип расширения: `workflow | tool | MCP | persistence | domain`.
-2. `docs/developer_guide/extension_recipes.md`  
-   Возьми минимальный change set и quality gate.
-3. Нужны контракты:
+1. Open `docs/developer_guide/extension_handbook.md`.
+   Choose the extension type: `workflow | tool | MCP | persistence | domain`.
+2. Open `docs/developer_guide/extension_recipes.md`.
+   Pick the smallest viable change set and quality gate.
+3. Verify interfaces as needed:
    - HTTP: `docs/developer_guide/api_reference.md`
    - MCP: `docs/developer_guide/mcp_reference.md`
-4. После изменений:
-   - обнови `docs/DOCS_BACKLOG.md`
-   - проверь docs contracts:  
+4. After implementation:
+   - update `docs/DOCS_BACKLOG.md`;
+   - run docs contract checks:
      `.venv/bin/pytest -q backend/tests/unit/test_developer_guide_contracts.py`
 
-## Цель B: быстро создать нового агента/agent flow
+## Goal B: Build a new agent flow quickly
 
-В этом проекте “агент” обычно собирается как:  
-`workflow + tools + (опционально) MCP/API boundary`.
+In this project, an "agent" is typically:
+`workflow + tools + optional API/MCP boundary`
 
-Быстрый путь:
+Fast path:
 
-1. `docs/developer_guide/framework_concepts.md`  
-   Понять runtime модель (`BaseWorkflow`, async plane, HITL).
-2. `docs/developer_guide/extension_handbook.md`  
-   Разделы `Workflow extension` и `Tool extension`.
-3. `docs/framework_extension_guide.md`  
-   Проверить framework constraints и extension hooks.
-4. Нужен внешний интерфейс:
-   - API endpoint: `docs/developer_guide/api_reference.md`
-   - MCP tool: `docs/developer_guide/mcp_reference.md`
-5. Используй пример для старта:
-   - открой `agent_examples/README.md`;
-   - выбери pattern `retrieval_first | authoring_first | hitl_gate`;
-   - запусти `.venv/bin/python agent_examples/run_example.py --pattern <pattern>`.
-6. Для design patterns и extension points:
-   - `docs/developer_guide/design_patterns/README.md`.
+1. `docs/developer_guide/framework_concepts.md`
+   Align on runtime model (`BaseWorkflow`, async plane, HITL).
+2. `docs/developer_guide/extension_handbook.md`
+   Focus on `Workflow extension` and `Tool extension`.
+3. `docs/framework_extension_guide.md`
+   Validate framework constraints and extension hooks.
+4. If an external interface is needed:
+   - HTTP API: `docs/developer_guide/api_reference.md`
+   - MCP tools: `docs/developer_guide/mcp_reference.md`
+5. Bootstrap from runnable examples:
+   - open `agent_examples/README.md`;
+   - choose pattern `retrieval_first | authoring_first | hitl_gate`;
+   - run `.venv/bin/python agent_examples/run_example.py --pattern <pattern>`.
+6. Validate examples with unified harness:
+   - `python agent_examples/tests/run_harness.py --lane fast`;
+   - optional full lane: `python agent_examples/tests/run_harness.py --lane full`.
+7. For reusable templates and extension points:
+   - `docs/developer_guide/design_patterns/README.md`
 
-## Цель C: разобраться с прод-путем и release
+## Goal C: Validate release path and operations
 
 1. `docs/developer_guide/env_profile_snippets.md`
 2. `docs/developer_guide/release_reproducible_flow.md`
 3. `docs/developer_guide/operations_and_release.md`
 4. `docs/developer_guide/observability_reference.md`
 
-## 3. Что читать по роли
+## 3. Role-Based Reading Shortcuts
 
-- Integrator:  
+- Integrator:
   `examples_catalog -> api_reference -> mcp_reference -> env_profile_snippets`
-- Contributor:  
+- Contributor:
   `framework_concepts -> extension_handbook -> extension_recipes -> adr_reading_map`
-- Maintainer:  
+- Maintainer:
   `maintainer_playbook -> observability_reference -> release_reproducible_flow`
 
-## 4. Если нужно именно поднять окружение
+## 4. Runtime Bootstrap References
 
-Этот quickstart про навигацию по документации.  
-Для runtime/bootstrap используй:
+This quickstart is navigation-first.
+For environment/bootstrap steps, use:
 
 1. `docs/developer_guide/env_profile_snippets.md`
 2. `docs/developer_guide/manual_demo_checks.md`
 3. `backend/scripts/README.md`
 
-## 5. Минимальный definition of done для первой задачи
+## 5. Minimum Definition of Done for Your First Task
 
-После первого изменения в коде:
-
-1. Есть working path через smoke/demo.
-2. Обновлены релевантные docs.
-3. Обновлен `docs/DOCS_BACKLOG.md`.
+1. There is a working smoke/demo proof path.
+2. Relevant docs are updated.
+3. `docs/DOCS_BACKLOG.md` is updated.

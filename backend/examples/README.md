@@ -1,69 +1,69 @@
 # Framework Examples Catalog
 
-Дата обновления: 2026-04-30  
-Статус: Active quickstart gallery
+Update date: 2026-04-30
+Status: Active quickstart gallery
 
-Этот каталог показывает минимальные runnable кейсы, чтобы разработчик мог за 5-15 минут увидеть:
+This directory shows minimal runnable cases so that a developer can see in 5-15 minutes:
 
-- как быстро поднять полезный agent flow;
-- как выглядят working path и ожидаемый результат;
-- как перейти от примера к расширению под свой use case.
+- how to quickly raise a useful agent flow;
+- what the working path and expected result look like;
+- how to move from an example to an extension for your own use case.
 
-## Быстрый старт (Linux)
+## Quick start (Linux)
 
-1. Поднять PostgreSQL и применить миграции:
+1. Get PostgreSQL up and apply migrations:
 
 ```bash
 bash backend/scripts/postgres_up.sh
 bash backend/scripts/postgres_migrate.sh
 ```
 
-2. Посмотреть список примеров:
+2. View the list of examples:
 
 ```bash
 .venv/bin/python backend/examples/quickstart_agents.py --list
 ```
 
-3. Запустить любой пример:
+3. Run any example:
 
 ```bash
 .venv/bin/python backend/examples/quickstart_agents.py --example retrieval_faq_assistant --execute
 ```
 
-## Примеры
+## Examples
 
 1. `retrieval_faq_assistant`  
    Pattern: `Retrieval-First Agent`  
-   Что показывает: быстрый retrieval path с evidence pack.
+What it shows: fast retrieval path with evidence pack.
 
 2. `authoring_policy_brief`  
    Pattern: `Authoring-First Agent`  
-   Что показывает: authoring flow с multi-step режимом и traceability.
+What it shows: authoring flow with multi-step mode and traceability.
 
 3. `hitl_review_loop`  
    Pattern: `HITL Gate Pattern`  
-   Что показывает: async authoring + итеративный review (`needs_changes -> approve`).  
-   Перед запуском нужно поднять async plane:
+What it shows: async authoring + iterative review (`needs_changes -> approve`).
+Before starting, you need to raise the async plane:
 
 ```bash
 bash backend/scripts/async_up.sh
 ```
 
-## Режим dry-run (без запуска)
+## Dry-run mode (without startup)
 
-Чтобы проверить итоговую команду без выполнения:
+To test the resulting command without executing:
 
 ```bash
 .venv/bin/python backend/examples/quickstart_agents.py --example authoring_policy_brief
 ```
 
-`dry-run` полезен, когда нужно:
+`dry-run` is useful when needed:
 
-- посмотреть параметры запуска;
-- добавить свои args через `--extra-arg`;
-- встроить запуск в CI/локальный script.
+- view launch parameters;
+- add your args via `--extra-arg`;
+- embed launch into CI/local script.
 
-Пример:
+Example:
 
 ```bash
 .venv/bin/python backend/examples/quickstart_agents.py \
@@ -72,21 +72,21 @@ bash backend/scripts/async_up.sh
   --extra-arg 8210
 ```
 
-## Как протестировать примеры (для тебя)
+## How to test examples (for you)
 
-1. Быстрые unit-тесты каталога примеров:
+1. Quick unit tests of the example catalog:
 
 ```bash
 .venv/bin/pytest -q backend/tests/unit/test_example_quickstart_agents.py
 ```
 
-2. Контрактные docs-тесты (проверяют ссылки на examples/patterns):
+2. Contract docs tests (check links to examples/patterns):
 
 ```bash
 .venv/bin/pytest -q backend/tests/unit/test_developer_guide_contracts.py
 ```
 
-3. Реальный smoke path одного примера:
+3. Real smoke path of one example:
 
 ```bash
 .venv/bin/python backend/examples/quickstart_agents.py --example retrieval_faq_assistant --execute
@@ -94,7 +94,7 @@ bash backend/scripts/async_up.sh
 
 ## Cleanup
 
-После прогона:
+After persecution:
 
 ```bash
 bash backend/scripts/async_down.sh

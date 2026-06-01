@@ -1,45 +1,45 @@
-# ADR-0013: Runtime Profiles, Cursor Task History и аудит переходов статусов
+# ADR-0013: Runtime Profiles, Cursor Task History and audit of status transitions
 
-- Статус: Accepted
-- Дата: 2026-04-19
+- Status: Accepted
+- Date: 2026-04-19
 
-## Контекст
+## Context
 
-После `Increment 8` история задач уже хранилась в PostgreSQL (`app.tasks`), но оставались архитектурные пробелы:
+After `Increment 8` the task history was already stored in PostgreSQL (`app.tasks`), but architectural gaps remained:
 
-- fallback persistence мог использоваться даже в production-контуре;
-- `GET /api/v1/tasks` поддерживал только `limit/offset` без фильтров и курсоров;
-- не было отдельного audit trail переходов статусов задач.
+- fallback persistence could be used even in the production circuit;
+- `GET /api/v1/tasks` supported only `limit/offset` without filters and cursors;
+- there was no separate audit trail of task status transitions.
 
-Для эксплуатации на Ubuntu-сервере нужен более строгий runtime-контур и удобная постраничная навигация по истории без `offset`-дрейфа.
+To operate on an Ubuntu server, you need a more strict runtime outline and convenient page-by-page navigation through the history without `offset` drift.
 
-## Решение
+## Solution
 
-1. Ввести runtime profiles через `APP_RUNTIME_PROFILE`:
-   - допустимые значения: `dev`, `stage`, `prod`;
-   - fallback persistence разрешен только в `dev/stage`;
-   - в `prod` отсутствие `APP_DB_DSN` приводит к ошибке и блокирует in-memory fallback.
-2. Обновить контракт `GET /api/v1/tasks`:
-   - фильтры `status`, `task_type`, `from`, `to`;
-   - курсорная пагинация `cursor -> next_cursor` + флаг `has_more`;
-   - сортировка: `updated_at DESC, task_id DESC`.
-3. Добавить аудит переходов статуса:
-   - SQL миграция `0003_task_events.sql`;
-   - таблица `app.task_events`;
-   - события пишутся при создании задачи и при каждой смене `status`.
-4. Обновить smoke/tests:
-   - unit/integration/e2e покрытие нового контракта;
-   - smoke-скрипты переведены на фильтруемый history-запрос.
+1. Enter runtime profiles via `APP_RUNTIME_PROFILE`:
+- valid values: `dev`, `stage`, `prod`;
+- fallback persistence is allowed only in `dev/stage`;
+- in `prod` the absence of `APP_DB_DSN` leads to an error and blocks in-memory fallback.
+2. Update the contract `GET /api/v1/tasks`:
+- filters `status`, `task_type`, `from`, `to`;
+- cursor pagination `cursor -> next_cursor` + flag `has_more`;
+- sorting: `updated_at DESC, task_id DESC`.
+3. Add an audit of status transitions:
+- SQL migration `0003_task_events.sql`;
+- table `app.task_events`;
+- events are written when a task is created and every time `status` changes.
+4. Update smoke/tests:
+- unit/integration/e2e coverage of a new contract;
+- smoke scripts have been transferred to a filtered history query.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- production-контур стал строже: без БД не запускается critical persistence;
-- история задач масштабируется через cursor-пагинацию и меньше подвержена проблемам `offset`;
-- появился audit trail жизненного цикла задач на уровне статусов.
+- the production circuit has become stricter: critical persistence cannot be launched without a database;
+- task history is scaled through cursor pagination and is less susceptible to `offset` problems;
+- an audit trail of the task life cycle at the status level has appeared.
 
-Минусы:
+Cons:
 
-- контракт `/api/v1/tasks` изменился (offset-пагинация больше не основной путь);
-- audit-события пока сохраняются, но отдельный публичный endpoint чтения событий еще нужен в следующем инкременте.
+- the `/api/v1/tasks` contract has changed (offset pagination is no longer the main path);
+- audit events are saved for now, but a separate public endpoint for reading events is still needed in the next increment.

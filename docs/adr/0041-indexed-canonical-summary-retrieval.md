@@ -1,35 +1,35 @@
 # ADR-0041: Indexed canonical summary retrieval
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-Canonical retrieval уже мог использовать pgvector для detail blocks через `CanonicalVectorRetriever`, но summary слой оставался in-memory: `load_canonical_knowledge_dataset(...)` строил `RetrievedBlock` из `section_summaries`, а `HierarchicalRAGPipeline` искал их через `InMemoryRetriever`.
+Canonical retrieval could already use pgvector for detail blocks through `CanonicalVectorRetriever`, but the summary layer remained in-memory: `load_canonical_knowledge_dataset(...)` built `RetrievedBlock` from `section_summaries`, and `HierarchicalRAGPipeline` looked for them through `InMemoryRetriever`.
 
-Для production retrieval fabric это неполно: summary/detail hierarchy должна работать из indexed corpus, иначе large corpus будет требовать загрузки canonical documents в память перед каждым retrieval task.
+For production retrieval fabric this is incomplete: the summary/detail hierarchy must work from the indexed corpus, otherwise the large corpus will require canonical documents to be loaded into memory before each retrieval task.
 
-## Решение
+## Solution
 
-1. Knowledge Indexing пишет embeddings для двух типов canonical artifacts:
-   - `knowledge_block_embedding` для `content_blocks`;
-   - `knowledge_summary_embedding` для `section_summaries`.
-2. Добавить `CanonicalSummaryVectorRetriever` поверх того же `PgVectorStoreAdapter`.
-3. Сохранить `CanonicalVectorRetriever` для detail layer.
-4. В `build_retrieval_workflow(... knowledge_source="canonical" ...)` использовать pgvector summary/detail retrievers, если доступны `embedding_gateway` и `vector_store`.
-5. Оставить in-memory fallback для demo/bootstrap режима и тестов без vector store.
-6. Разделять summary/detail records через `metadata.kind`, а наружу возвращать обычный `RetrievedBlock` с `metadata.block_kind`.
+1. Knowledge Indexing writes embeddings for two types of canonical artifacts:
+- `knowledge_block_embedding` for `content_blocks`;
+- `knowledge_summary_embedding` for `section_summaries`.
+2. Add `CanonicalSummaryVectorRetriever` on top of the same `PgVectorStoreAdapter`.
+3. Save `CanonicalVectorRetriever` for detail layer.
+4. In `build_retrieval_workflow(... knowledge_source="canonical" ...)` use pgvector summary/detail retrievers if `embedding_gateway` and `vector_store` are available.
+5. Leave in-memory fallback for demo/bootstrap mode and tests without vector store.
+6. Separate summary/detail records via `metadata.kind`, and return the usual `RetrievedBlock` with `metadata.block_kind` to the outside.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- hierarchical retrieval больше не требует in-memory summary layer при indexed canonical corpus;
-- summary/detail records живут в одном vector store и фильтруются через metadata;
-- текущие API и workflow state contracts не меняются;
-- demo fallback остается совместимым.
+- hierarchical retrieval no longer requires an in-memory summary layer when indexed canonical corpus;
+- summary/detail records live in one vector store and are filtered through metadata;
+- current APIs and workflow state contracts do not change;
+- demo fallback remains compatible.
 
-Минусы:
+Cons:
 
-- summary embeddings увеличивают объем `app.embeddings`;
-- metadata schema для vector records пока свободная и требует дальнейшей стабилизации в retrieval adapter contracts.
+- summary embeddings increase the volume of `app.embeddings`;
+- metadata schema for vector records is still free and requires further stabilization in retrieval adapter contracts.

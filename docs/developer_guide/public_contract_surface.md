@@ -1,21 +1,21 @@
 # Public Contract Surface v1
 
-Дата обновления: 2026-04-30  
-Статус: Active (Increment 32 baseline)
+Update date: 2026-04-30
+Status: Active (Increment 32 baseline)
 
-Документ фиксирует границы стабильности framework-слоя для внешнего разработчика.
+The document fixes the boundaries of stability of the framework layer for an external developer.
 
-## 1. Уровни стабильности
+## 1. Stability levels
 
-- `Stable`: поддерживаемый публичный контракт для интеграции и расширения.
-- `Experimental`: доступно для использования, но допускает несовместимые изменения между инкрементами.
-- `Internal`: внутренняя реализация, не является внешним контрактом.
+- `Stable`: supported public contract for integration and extension.
+- `Experimental`: Available for use, but allows inconsistent changes between increments.
+- `Internal`: internal implementation, not an external contract.
 
-Assumption: для `Stable` в v1 сохраняются endpoint/tool names и базовые payload-модели из `schemas`; внутренние поля `details/metadata` могут расширяться.
+Assumption: for `Stable` in v1, endpoint/tool names and core payload models from `schemas` are preserved; internal `details/metadata` fields may expand.
 
 ## 2. Stable: HTTP API surface
 
-Источник истины: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`.
+Source of truth: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`.
 
 - `GET /health`
 - Template Library API:
@@ -47,7 +47,7 @@ Assumption: для `Stable` в v1 сохраняются endpoint/tool names и 
 
 ## 3. Stable: MCP service surface
 
-Источник истины: `backend/packages/infra/fastmcp/*_service.py`, `backend/packages/schemas/mcp/*`.
+Source of truth: `backend/packages/infra/fastmcp/*_service.py`, `backend/packages/schemas/mcp/*`.
 
 - `retrieval-mcp`:
   - `build_evidence_pack` (operation scope: `action`)
@@ -90,7 +90,7 @@ Assumption: для `Stable` в v1 сохраняются endpoint/tool names и 
 
 ## 5. Stable: runtime config keys
 
-Источник истины: `backend/apps/api/dependencies.py`, `backend/apps/api/security.py`, `backend/packages/infra/postgres/config.py`, `backend/apps/worker/celery_app.py`.
+Source of truth: `backend/apps/api/dependencies.py`, `backend/apps/api/security.py`, `backend/packages/infra/postgres/config.py`, `backend/apps/worker/celery_app.py`.
 
 - Core runtime:
   - `APP_RUNTIME_PROFILE=dev|stage|prod`
@@ -100,7 +100,7 @@ Assumption: для `Stable` в v1 сохраняются endpoint/tool names и 
 - Auth/RBAC:
   - `APP_AUTH_ENABLED`
   - API headers: `X-Actor-Id`, `X-Actor-Roles`
-  - MCP payload fields: `actor`, `roles` (для write/sensitive tools)
+- MCP payload fields: `actor`, `roles` (for write/sensitive tools)
 - Async execution plane:
   - `APP_ASYNC_PROVIDER=inline|celery`
   - `APP_CELERY_BROKER_URL`
@@ -118,22 +118,22 @@ Assumption: для `Stable` в v1 сохраняются endpoint/tool names и 
 
 ## 6. Experimental surface (v1)
 
-- Внутреннее наполнение `details` в `TaskStatusResponse` и related observability payload fields.
-- Parser-quality diagnostics и quality flags в canonical indexing/reporting (`parser_quality`, `quality_flags`).
-- Retrieval source-provenance детализация для PDF/table/layout metadata (`layout_kind`, `bbox`, `reading_order_index`).
-- Deterministic similarity internals в `configuration-library-mcp` (`find_similar_configs` scoring model).
-- OCR provider behavior (`sidecar`/`ocrmypdf`) и связанные quality-поля.
+- Internal content of `details` in `TaskStatusResponse` and related observability payload fields.
+- Parser-quality diagnostics and quality flags in canonical indexing/reporting (`parser_quality`, `quality_flags`).
+- Retrieval source-provenance detailing for PDF/table/layout metadata (`layout_kind`, `bbox`, `reading_order_index`).
+- Deterministic similarity internals in `configuration-library-mcp` (`find_similar_configs` scoring model).
+- OCR provider behavior (`sidecar`/`ocrmypdf`) and related quality fields.
 
-## 7. Internal (не внешний контракт)
+## 7. Internal (not an external contract)
 
-- Пакеты `backend/packages/framework/*`, `backend/packages/application/*`, `backend/packages/infra/*` как Python-API для прямого импорта.
-- Внутренние структуры task registry/checkpoint persistence таблиц как расширяемая реализация.
-- Реализация release gate orchestration в Python-скриптах (при стабильности CLI-входов скриптов).
+- Packages `backend/packages/framework/*`, `backend/packages/application/*`, `backend/packages/infra/*` as Python API for direct import.
+- Internal structures of task registry/checkpoint persistence tables as an extensible implementation.
+- Implementation of release gate orchestration in Python scripts (with stability of CLI script inputs).
 
-## 8. Изменение contract surface
+## 8. Changing the contract surface
 
-При изменении любого пункта из разделов `Stable`:
+When changing any item from sections `Stable`:
 
-1. Сначала обновить этот файл.
-2. Затем обновить `docs/DOCS_BACKLOG.md` (статус/notes/date).
-3. Добавить ссылку на изменение в `README.md` и/или `docs/developer_guide/README.md` при изменении маршрута чтения.
+1. First update this file.
+2. Then update `docs/DOCS_BACKLOG.md` (status/notes/date).
+3. Add a change link to `README.md` and/or `docs/developer_guide/README.md` when changing the reading route.

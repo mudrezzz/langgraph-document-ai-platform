@@ -1,61 +1,61 @@
 # Handoff: Ubuntu 24 Server Migration
 
-- Дата: 2026-04-19
-- Последний commit: `d4e4613`
-- Репозиторий: `https://github.com/mudrezzz/langgraph-document-ai-platform`
-- Основная ветка: `main`
+- Date: 2026-04-19
+- Latest commit: `d4e4613`
+- Repository: `https://github.com/mudrezzz/langgraph-document-ai-platform`
+- Main branch: `main`
 
-## 1. Текущее состояние проекта
+## 1. Current state of the project
 
-Система уже поддерживает:
+The system already supports:
 
-- typed FastAPI API для retrieval lifecycle:
+- typed FastAPI API for retrieval lifecycle:
   - `POST /api/v1/tasks/retrieval/start`
   - `GET /api/v1/tasks/{task_id}`
   - `GET /api/v1/tasks/{task_id}/evidence`
   - `POST /api/v1/tasks/{task_id}/resume`
-  - `GET /api/v1/tasks` (история задач)
-- LangGraph execution внутри `BaseWorkflow` (`invoke/resume`);
-- persistence baseline через PostgreSQL + pgvector;
-- персистентный `TaskRegistry` (`app.tasks`, миграция `0002_task_registry.sql`);
-- покрытие тестами:
-  - unit / integration / e2e (включая postgres e2e);
+- `GET /api/v1/tasks` (task history)
+- LangGraph execution inside `BaseWorkflow` (`invoke/resume`);
+- persistence baseline via PostgreSQL + pgvector;
+- persistent `TaskRegistry` (`app.tasks`, migration `0002_task_registry.sql`);
+- test coverage:
+- unit / integration / e2e (including postgres e2e);
 - reference-case:
   - `saa_release_readiness_case`;
-  - smoke/demo сценарии.
+- smoke/demo scripts.
 
-## 2. Что нужно сделать в новом чате (следующая итерация)
+## 2. What needs to be done in the new chat (next iteration)
 
-Цель серверной итерации:
+Goal of server iteration:
 
-1. Развернуть и проверить проект на Ubuntu 24 (не на Windows).
-2. Ввести runtime профили (`dev/stage/prod`) и запретить fallback persistence в `prod`.
-3. Расширить API истории задач:
-   - фильтры (`status`, `task_type`, временной диапазон);
-   - курсорная пагинация.
-4. Добавить аудит переходов статусов задач (`task_events`).
+1. Deploy and test the project on Ubuntu 24 (not on Windows).
+2. Enter runtime profiles (`dev/stage/prod`) and disable fallback persistence in `prod`.
+3. Expand the task history API:
+- filters (`status`, `task_type`, time range);
+- cursor pagination.
+4. Add auditing of task status transitions (`task_events`).
 
-## 3. Минимальное окружение Ubuntu 24
+## 3. Minimal Ubuntu 24 environment
 
-Установить пакеты:
+Install packages:
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip curl ca-certificates gnupg
 ```
 
-Установить Docker + Compose plugin (официальный Docker repo) и добавить пользователя в группу `docker`.
+Install Docker + Compose plugin (official Docker repo) and add the user to the `docker` group.
 
-Требования к Python-зависимостям проекта:
+Requirements for Python dependencies of the project:
 
 - `fastapi`
 - `uvicorn`
 - `pydantic`
 - `psycopg[binary]`
 - `pytest`
-- остальные зависимости из `requirements`/poetry/uv-файла проекта (если будут добавлены в следующих итерациях)
+- other dependencies from the `requirements`/poetry/uv-file of the project (if added in future iterations)
 
-## 4. Базовый запуск на сервере
+## 4. Basic launch on the server
 
 ```bash
 git clone https://github.com/mudrezzz/langgraph-document-ai-platform.git
@@ -73,22 +73,22 @@ python -m pytest backend/tests -q
 bash backend/scripts/postgres_down.sh --remove-volumes
 ```
 
-## 5. Стартовый текст для нового чата
+## 5. Starting text for a new chat
 
 ```text
-Работаем с репозиторием https://github.com/mudrezzz/langgraph-document-ai-platform, ветка main.
-Контекст: реализованы retrieval API, LangGraph runtime, PostgreSQL+pgvector persistence, persistent task registry и endpoint истории задач.
-Нужно продолжить серверную итерацию на Ubuntu 24:
-1) ввести runtime profiles dev/stage/prod и отключить fallback в prod;
-2) расширить GET /api/v1/tasks фильтрами и курсорной пагинацией;
-3) добавить task_events для аудита переходов статусов;
-4) обновить README, ADR и System Architecture Overview;
-5) покрыть новые изменения unit/integration/e2e тестами и прогнать smoke.
-Комментарии в коде — на русском.
+We are working with the repository https://github.com/mudrezzz/langgraph-document-ai-platform, main branch.
+Context: retrieval API, LangGraph runtime, PostgreSQL+pgvector persistence, persistent task registry and task history endpoint are implemented.
+We need to continue the server iteration on Ubuntu 24:
+1) enter runtime profiles dev/stage/prod and disable fallback in prod;
+2) expand GET /api/v1/tasks with filters and cursor pagination;
+3) add task_events to audit status transitions;
+4) update README, ADR and System Architecture Overview;
+5) cover new unit/integration/e2e changes with tests and run smoke.
+Comments in the code are in Russian.
 ```
 
-## 6. Быстрый bootstrap checklist
+## 6. Quick bootstrap checklist
 
-См. отдельный документ:
+See separate document:
 
 - `docs/handoff/2026-04-19_ubuntu24_first_bootstrap_checklist.md`

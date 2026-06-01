@@ -1,38 +1,38 @@
 # ADR-0044: Retrieval MCP indexed canonical tools
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-Retrieval MCP начинался как MVP с одним tool `build_evidence_pack`. После ADR-0041..0043 retrieval fabric уже умеет работать с indexed canonical summary/detail layers, real TEI gateways и quality gates, но MCP boundary не давал агентам прямого доступа к production corpus search и source mapping.
+Retrieval MCP started out as an MVP with one tool `build_evidence_pack`. After ADR-0041..0043, retrieval fabric is already able to work with indexed canonical summary/detail layers, real TEI gateways and quality gates, but the MCP boundary did not give agents direct access to production corpus search and source mapping.
 
-Нельзя вводить отдельную MCP-specific retrieval архитектуру: canonical indexing, pgvector search и source lookup уже имеют application/infra boundaries.
+You cannot introduce a separate MCP-specific retrieval architecture: canonical indexing, pgvector search and source lookup already have application/infra boundaries.
 
-## Решение
+## Solution
 
-1. Расширить `FastMcpRetrievalService` tools:
+1. Extend `FastMcpRetrievalService` tools:
    - `search_summaries`;
    - `search_blocks`;
    - `lookup_source`.
-2. Оставить `build_evidence_pack` без изменения внешнего контракта.
-3. `search_summaries` использует `CanonicalSummaryVectorRetriever` с injected `embedding_gateway` и `vector_store`.
-4. `search_blocks` использует `CanonicalVectorRetriever` с теми же dependencies.
-5. `lookup_source` читает canonical document/block metadata через `CanonicalDocumentApplicationService`.
-6. Добавить typed MCP schemas в `schemas.mcp.retrieval`.
-7. Runtime assembly в `apps/mcp_retrieval/main.py` берет dependencies из existing `ApiContainer`.
+2. Leave `build_evidence_pack` without changing the external contract.
+3. `search_summaries` uses `CanonicalSummaryVectorRetriever` with injected `embedding_gateway` and `vector_store`.
+4. `search_blocks` uses `CanonicalVectorRetriever` with the same dependencies.
+5. `lookup_source` reads canonical document/block metadata via `CanonicalDocumentApplicationService`.
+6. Add typed MCP schemas to `schemas.mcp.retrieval`.
+7. Runtime assembly in `apps/mcp_retrieval/main.py` takes dependencies from the existing `ApiContainer`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- MCP consumers могут искать indexed canonical summaries/details без запуска full retrieval task;
-- source mapping доступен через тот же canonical read boundary, что и ingestion/retrieval reports;
-- Retrieval MCP переиспользует production adapters и не создает параллельный search stack;
-- старый `build_evidence_pack` MCP contract остается совместимым.
+- MCP consumers can search for indexed canonical summaries/details without running the full retrieval task;
+- source mapping is available through the same canonical read boundary as ingestion/retrieval reports;
+- Retrieval MCP reuses production adapters and does not create a parallel search stack;
+- the old `build_evidence_pack` MCP contract remains compatible.
 
-Минусы:
+Cons:
 
-- indexed search tools требуют configured `embedding_gateway` и `vector_store`;
-- operational smoke для прямых MCP calls еще нужно выделить отдельным script slice;
-- metadata schema vector records все еще остается свободной и должна стабилизироваться вместе с retrieval adapter contracts.
+- indexed search tools require configured `embedding_gateway` and `vector_store`;
+- operational smoke for direct MCP calls still needs to be allocated as a separate script slice;
+- metadata schema vector records still remain free and should be stabilized along with retrieval adapter contracts.

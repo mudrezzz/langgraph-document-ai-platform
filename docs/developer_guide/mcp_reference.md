@@ -1,25 +1,25 @@
 # MCP Reference (FastMCP Services)
 
-Дата обновления: 2026-04-30  
-Статус: Active (P0 reference)
+Update date: 2026-04-30
+Status: Active (P0 reference)
 
-Источник истины: `backend/apps/mcp_*/main.py`, `backend/packages/infra/fastmcp/*_service.py`, `backend/packages/schemas/mcp/*.py`.
+Source of truth: `backend/apps/mcp_*/main.py`, `backend/packages/infra/fastmcp/*_service.py`, `backend/packages/schemas/mcp/*.py`.
 
-## 1. Общая MCP policy
+## 1. General MCP policy
 
-Все сервисы наследуют `BaseFastMcpService` и используют единые правила:
+All services inherit `BaseFastMcpService` and use the same rules:
 
 - transport: `fastmcp`
 - policy version: `mcp-policy-v1`
 - operation scopes: `read | write | action`
 - input/output validation: Pydantic (`model_validate` / typed response models)
-- error mapping: доменные ошибки возвращаются как `ValueError` с понятным текстом
+- error mapping: domain errors are returned as `ValueError` with clear text
 
 Auth policy:
 
-- включается через `APP_AUTH_ENABLED=true`
-- sensitive tools требуют `actor` + `roles` в payload
-- роли проверяются per-tool через `_authorize_tool(...)`
+- enabled via `APP_AUTH_ENABLED=true`
+- sensitive tools require `actor` + `roles` in payload
+- roles are checked per tool via `_authorize_tool(...)`
 
 ## 2. Service matrix
 
@@ -62,15 +62,15 @@ Auth policy:
 ## 4. Error semantics
 
 - Validation errors:
-  - некорректный payload -> Pydantic validation error.
+  - incorrect payload -> Pydantic validation error.
 - Auth errors (when enabled):
-  - нет actor/roles при обязательной роли -> authentication/authorization error mapped в operation error.
+  - missing actor/roles for a required role -> authentication/authorization error mapped to operation error.
 - Domain not found/state errors:
-  - например `DocumentNotFoundError`, `TemplateNotFoundError`, `InvalidTaskStateError` -> operation error с текстом причины.
+  - e.g. `DocumentNotFoundError`, `TemplateNotFoundError`, `InvalidTaskStateError` -> operation error with the reason text.
 
-Практическое правило: MCP client должен трактовать tool error как non-2xx operation result и читать текст ошибки.
+Rule of thumb: MCP clients should treat tool errors as failed operations and inspect the error text.
 
-## 5. Runtime entrypoints и smoke
+## 5. Runtime entrypoints and smoke
 
 Run scripts:
 
@@ -90,7 +90,7 @@ Smoke scripts:
 - `backend/scripts/smoke_review_approval_mcp.sh`
 - `backend/scripts/smoke_configuration_library_mcp.sh`
 
-## 6. Связанные документы
+## 6. Related documents
 
 - `docs/developer_guide/public_contract_surface.md`
 - `docs/developer_guide/api_reference.md`

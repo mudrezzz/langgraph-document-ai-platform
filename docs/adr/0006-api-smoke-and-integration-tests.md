@@ -1,31 +1,31 @@
-# ADR-0006: Smoke script и интеграционные тесты API endpoint-ов
+# ADR-0006: Smoke script and integration tests of API endpoints
 
-- Статус: Accepted
-- Дата: 2026-04-17
+- Status: Accepted
+- Date: 2026-04-17
 
-## Контекст
+## Context
 
-После появления API boundary требуется быстрый и воспроизводимый способ проверки runtime-пути endpoint-ов в локальном окружении, а также регрессионное покрытие каждого endpoint-а на тестовом уровне.
+With the introduction of the API boundary, there is a need for a fast and reproducible way to test the runtime path of endpoints in the local environment, as well as regression coverage of each endpoint at the test level.
 
-## Решение
+## Solution
 
-1. Добавить smoke script `backend/scripts/smoke_retrieval_api.ps1`.
-2. В script запускать uvicorn, ждать `health`, затем прогонять путь:
+1. Add smoke script `backend/scripts/smoke_retrieval_api.ps1`.
+2. In the script, launch uvicorn, wait for `health`, then run the path:
    - start;
    - status;
    - evidence;
    - resume.
-3. Добавить `backend/tests/integration/test_api_endpoints.py` с тестами на каждый endpoint (успешные и 404 ветки).
+3. Add `backend/tests/integration/test_api_endpoints.py` with tests for each endpoint (successful and 404 branches).
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- ускорена ручная проверка API без ручного копирования команд;
-- каждый endpoint имеет интеграционное покрытие;
-- легче контролировать регрессии task lifecycle.
+- manual API checking has been accelerated without manually copying commands;
+- each endpoint has integration coverage;
+- it is easier to control task lifecycle regressions.
 
-Минусы:
+Cons:
 
-- smoke script пока рассчитан на локальный single-process запуск;
-- не покрывает распределенную конфигурацию и внешние сервисы production-контура.
+- smoke script is currently designed for local single-process launch;
+- does not cover distributed configuration and external services of the production circuit.

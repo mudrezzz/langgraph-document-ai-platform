@@ -1,40 +1,40 @@
-# ADR-0020: Multi-File Ingestion и Retrieval MCP MVP
+# ADR-0020: Multi-File Ingestion and Retrieval MCP MVP
 
-- Статус: Accepted
-- Дата: 2026-04-20
+- Status: Accepted
+- Date: 2026-04-20
 
-## Контекст
+## Context
 
-После `Increment 14` retrieval поддерживал встроенные датасеты (`case_dataset_id`) и file-based JSON (`case_dataset_path`), но в реальных ручных прогонах вход обычно приходит как набор документов, а не один заранее собранный JSON.
+After `Increment 14`, retrieval supported built-in datasets (`case_dataset_id`) and file-based JSON (`case_dataset_path`), but in actual manual runs the input usually comes as a collection of documents rather than a single pre-assembled JSON.
 
-Также в архитектурном плане требовался первый рабочий FastMCP runtime сервис для постепенного перехода от API-only boundary к MCP boundary.
+Also in architectural terms, the first working FastMCP runtime service was required for a gradual transition from the API-only boundary to the MCP boundary.
 
-## Решение
+## Solution
 
-1. Добавить новый режим источника данных `task_context.case_dataset_dir`:
-   - ingestion директории с файлами `.md/.txt/.json`;
-   - построение summary/detail блоков в runtime без промежуточной ручной сборки JSON.
-2. Зафиксировать приоритет источников retrieval dataset:
+1. Add a new data source mode `task_context.case_dataset_dir`:
+- ingestion directory with files `.md/.txt/.json`;
+- building summary/detail blocks at runtime without intermediate manual JSON assembly.
+2. Fix the priority of retrieval dataset sources:
    - `case_dataset_path` -> `case_dataset_dir` -> `case_dataset_id`.
-3. Добавить новый realistic demo-case:
+3. Add a new realistic demo-case:
    - `backend/examples/cases/release_go_no_go_multifile_case`.
-4. Добавить Retrieval MCP MVP:
+4. Add Retrieval MCP MVP:
    - `apps/mcp_retrieval/main.py`;
    - `FastMcpRetrievalService`;
-   - минимальный MCP tool `build_evidence_pack`.
-5. Обновить smoke/demo контур:
-   - `smoke_retrieval_api.sh/.ps1` поддерживают `case_dataset_dir`.
+- minimal MCP tool `build_evidence_pack`.
+5. Update smoke/demo contour:
+- `smoke_retrieval_api.sh/.ps1` support `case_dataset_dir`.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- ручной smoke/demo ближе к реальной эксплуатации (несколько входных артефактов);
-- retrieval API получает более гибкий ingestion-контур без поломки текущих путей;
-- в системе появился первый рабочий MCP runtime boundary для retrieval домена.
+- manual smoke/demo is closer to real operation (several input artifacts);
+- retrieval API gets a more flexible ingestion circuit without breaking current paths;
+- the first working MCP runtime boundary for the retrieval domain appeared in the system.
 
-Минусы:
+Cons:
 
-- ingestion пока покрывает только `.md/.txt/.json` (без PDF/DOCX/OCR);
-- Retrieval MCP пока содержит минимальный набор tool-ов и не закрывает полный контракт blueprint;
-- для production MCP-нужд потребуются auth/rate-limit/observability политики и отдельный deploy profile.
+- ingestion currently only covers `.md/.txt/.json` (without PDF/DOCX/OCR);
+- Retrieval MCP still contains a minimal set of tools and does not cover the full blueprint contract;
+- for production MCP needs, auth/rate-limit/observability policies and a separate deployment profile will be required.

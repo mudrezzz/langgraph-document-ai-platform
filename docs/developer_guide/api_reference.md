@@ -1,9 +1,9 @@
 # API Reference (FastAPI)
 
-Дата обновления: 2026-04-30  
-Статус: Active (P0 reference)
+Update date: 2026-04-30
+Status: Active (P0 reference)
 
-Источник истины: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`.
+Source of truth: `backend/apps/api/main.py`, `backend/packages/schemas/api/contracts.py`.
 
 ## 1. Health
 
@@ -100,23 +100,23 @@
   - invalid cursor
   - workflow execution error
 - `401 Unauthorized`:
-  - нет actor identity при включенном `APP_AUTH_ENABLED` и required role
+  - no actor identity when `APP_AUTH_ENABLED` and required role are enabled
 - `403 Forbidden`:
-  - actor без нужной роли
+  - actor without the required role
 - `404 Not Found`:
-  - task/template/artifact/link не найден
+  - task/template/artifact/link not found
 - `409 Conflict`:
   - invalid task state
   - invalid template status transition
 
 ## 8. Auth headers (API boundary)
 
-При `APP_AUTH_ENABLED=true` для защищенных endpoint-ов используются:
+With `APP_AUTH_ENABLED=true` for protected endpoints the following is used:
 
 - `X-Actor-Id`
 - `X-Actor-Roles` (comma-separated roles)
 
-## 9. Связанные документы
+## 9. Related documents
 
 - `docs/developer_guide/public_contract_surface.md`
 - `docs/developer_guide/framework_concepts.md`

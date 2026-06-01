@@ -1,136 +1,136 @@
-# device_search — агент подбора техники
+# device_search - equipment selection agent
 
-Принимает запрос на разговорном языке ("нужен планшет для чтения до 25 000 руб.")
-и возвращает аналитический Markdown-отчёт: ранжирование устройств с оценками
-по критериям, ссылками на источники и выдержками из реальных отзывов.
+Accepts requests in colloquial language (“I need a tablet for reading up to 25,000 rubles.”)
+and returns an analytical Markdown report: ranking devices with ratings
+according to criteria, links to sources and excerpts from real reviews.
 
-Бесплатный поиск через DuckDuckGo — API-ключ не нужен.
-Требуется только `OPENROUTER_API_KEY` для LLM-вызовов.
+Free search via DuckDuckGo - no API key needed.
+Only `OPENROUTER_API_KEY` is required for LLM calls.
 
 ---
 
-## Архитектура
+## Architecture
 
-Три последовательных `BaseWorkflow` с двумя HITL-паузами между ними:
+Three consecutive `BaseWorkflow` with two HITL pauses between them:
 
 ```
 [Phase 1] DevicePlanningWorkflow
-    parse_intent   — разбирает запрос: тип устройства, бюджет, цели
-    map_criteria   — деcomposes цели в измеримые технические критерии
+parse_intent - parses the request: device type, budget, goals
+map_criteria - decomposes goals into measurable technical criteria
 
-    ↓ HITL-1: показ критериев → подтвердить или скорректировать
-               при корректировке Phase 1 перезапускается с уточнением
+↓ HITL-1: display criteria → confirm or adjust
+when adjusted, Phase 1 restarts with clarification
 
 [Phase 2] DeviceResearchWorkflow
-    search_listings    — ищет кандидатов через DuckDuckGo
-    gather_evidence    — собирает бенчмарки и обзоры по каждому критерию
-    enrich_reviews     — находит отзывы покупателей, маппит на критерии
-    score_and_compare  — оценивает каждое устройство по каждому критерию
+search_listings - searches for candidates via DuckDuckGo
+gather_evidence - collects benchmarks and reviews for each criterion
+enrich_reviews - finds customer reviews, maps to criteria
+score_and_compare - scores each device for each criterion
 
-    ↓ HITL-2: показ ранжирования с числами → подтвердить или оставить комментарий
+↓ HITL-2: showing rankings with numbers → confirm or leave a comment
 
 [Phase 3] DeviceReportWorkflow
-    generate_report    — собирает Markdown-отчёт
+generate_report — generates a Markdown report
 ```
 
-Все три workflow разделяют один `DeviceSearchEventSink` —
-единый таймлайн выполнения узлов накапливается в памяти и печатается в конце.
+All three workflows share one `DeviceSearchEventSink` -
+a single timeline of node execution is accumulated in memory and printed at the end.
 
 ---
 
-## Ключевые концепции
+## Key Concepts
 
-### Критерии с measurability
+### Criteria with measurability
 
-Каждый критерий получает метку `measurability`:
+Each criterion is labeled `measurability`:
 
-- `searchable` — можно проверить через поиск (ppi, RAM, ёмкость батареи).
-  Для таких критериев агент реально ищет бенчмарки и обзоры.
-- `inferred` — субъективно или не поддаётся прямой проверке
-  (удобство держать в руках, дизайн, экосистема).
-  Эти критерии участвуют в оценке и отчёте, но поисковые запросы по ним
-  не делаются — на них нет объективных источников.
+- `searchable` - ​​can be checked through search (ppi, RAM, battery capacity).
+For such criteria, the agent actually looks for benchmarks and reviews.
+- `inferred` - ​​subjective or not directly verifiable
+(comfort to hold, design, ecosystem).
+These criteria are included in the evaluation and report, but search queries for them
+are not done - there are no objective sources on them.
 
-### Доказательная база
+### Evidence base
 
-Каждая оценка (`CriterionScore`) содержит список `evidence`:
-URL источника, заголовок, релевантный сниппет, тип
-(`benchmark / expert_review / user_review`) и confidence.
+Each evaluation (`CriterionScore`) contains a list of `evidence`:
+Source URL, Title, Relevant Snippet, Type
+(`benchmark/expert_review/user_review`) and confidence.
 
-При HITL-2 агент показывает не просто "экран плоховат",
-а реальное измерение с порогом и ссылкой:
+With HITL-2, the agent does not just show “the screen is not good”,
+and the real measurement with threshold and reference:
 
 ```
-✗ Качество экрана: 4.2/10  [требуется: ppi >= 227, IPS да]
-  → Разрешение 1280×800, 189 ppi — значительно ниже порога 227 ppi. TFT матрица.
-  источник: https://gsmarena.com/lenovo_tab_m10-9616.php
+✗ Screen quality: 4.2/10 [required: ppi >= 227, IPS yes]
+→ Resolution 1280x800, 189 ppi - significantly below the 227 ppi threshold. TFT matrix.
+source: https://gsmarena.com/lenovo_tab_m10-9616.php
 ```
 
-### Трасса рассуждений
+### Reasoning route
 
-`DeviceSearchState.reasoning_trace` — список записей, одна на каждый узел:
+`DeviceSearchState.reasoning_trace` — list of entries, one for each node:
 
 ```json
 [
-  { "node": "parse_intent", "device_type": "планшет", "budget_rub": 25000 },
+{ "node": "parse_intent", "device_type": "tablet", "budget_rub": 25000 },
   { "node": "map_criteria", "criteria": [...] },
   { "node": "search_listings",
-    "queries_used": ["планшет ppi дисплей до 25000..."],
+"queries_used": ["tablet ppi display up to 25000..."],
     "raw_results_count": 30,
     "will_score": ["Samsung Tab A9", "Xiaomi Pad 6"],
-    "excluded_from_scoring": [{"name": "Teclast T30", "reason": "позиция > 4"}] },
+"excluded_from_scoring": [{"name": "Teclast T30", "reason": "position > 4"}] },
   { "node": "gather_evidence",
-    "criteria_skipped_inferred": ["Удобство в руке"],
+"criteria_skipped_inferred": ["Comfort in hand"],
     "evidence_items_total": 48 },
   { "node": "score_and_compare", "ranking": [...] }
 ]
 ```
 
-Трасса попадает в итоговый JSON под ключом `reasoning_trace`.
+The trace ends up in the final JSON under the key `reasoning_trace`.
 
 ---
 
-## Структура файлов
+## File structure
 
 ```
 device_search/
-├── agent.py        # DeviceSearchAgent — оркестрация трёх фаз + два HITL-порога
+├── agent.py # DeviceSearchAgent - orchestration of three phases + two HITL thresholds
 ├── workflow.py     # DevicePlanningWorkflow, DeviceResearchWorkflow, DeviceReportWorkflow
-│                   # + _DeviceSearchHandlersMixin с семью обработчиками узлов
-├── state.py        # Pydantic-контракты: DeviceSearchState, ConsumerCriterion,
+│ # + _DeviceSearchHandlersMixin with seven node handlers
+├── state.py # Pydantic contracts: DeviceSearchState, ConsumerCriterion,
 │                   # CriterionScore, EvidenceItem, DeviceScore, HITLState
-├── search_tools.py # DuckDuckGo-обёртки: листинги, бенчмарки, отзывы
-├── prompts.py      # Шесть LLM-промптов (parse_intent → generate_report)
-├── event_sink.py   # DeviceSearchEventSink — per-node тайминги, timeline
-├── config.py       # DeviceSearchConfig — читает env vars
-├── main.py         # Точка входа с CLI-флагами
+├── search_tools.py # DuckDuckGo-wrappers: listings, benchmarks, reviews
+├── prompts.py # Six LLM prompts (parse_intent → generate_report)
+├── event_sink.py # DeviceSearchEventSink — per-node timings, timeline
+├── config.py # DeviceSearchConfig - reads env vars
+├── main.py # Entry point with CLI flags
 └── sample_input/
-    └── query.txt   # Дефолтный запрос для быстрого старта
+└── query.txt # Default query for quick start
 ```
 
 ---
 
-## Запуск
+## Launch
 
-### Быстрый старт
+### Quick start
 
 ```bash
 export OPENROUTER_API_KEY="sk-or-..."
-export OPENROUTER_MODEL="anthropic/claude-3-5-haiku"   # опционально
+export OPENROUTER_MODEL="anthropic/claude-3-5-haiku" # optional
 
 .venv/bin/python agent_examples/patterns/device_search/main.py \
-  --query "Нужен планшет для чтения книг и браузинга, бюджет до 25000 рублей"
+--query "You need a tablet for reading books and browsing, budget up to 25,000 rubles"
 ```
 
-### Автоматический режим (без HITL-пауз)
+### Automatic mode (without HITL pauses)
 
 ```bash
 .venv/bin/python agent_examples/patterns/device_search/main.py \
-  --query "Нужен планшет для чтения" \
+--query "Reading tablet needed" \
   --non-interactive
 ```
 
-### Через общий раннер
+### Through a shared runner
 
 ```bash
 .venv/bin/python agent_examples/run_example.py --pattern device_search
@@ -138,23 +138,23 @@ export OPENROUTER_MODEL="anthropic/claude-3-5-haiku"   # опционально
 
 ---
 
-## Разбор итогового JSON
+## Parsing the resulting JSON
 
-Агент печатает результат в stdout. Ключевые поля:
+The agent prints the result to stdout. Key fields:
 
-| Поле | Что содержит |
+| Field | What contains |
 |---|---|
-| `reasoning_trace` | Полная трасса: что искал, что пропустил, почему |
-| `ranking[i].criterion_scores[j].assessment` | Оценка с реальными числами |
-| `ranking[i].criterion_scores[j].evidence` | Источники с URL и сниппетами |
-| `ranking[i].review_insights` | Наблюдения из реальных отзывов |
-| `node_timeline` | Тайминги каждого узла (мс) |
-| `node_failures` | Узлы, упавшие с ошибкой |
-| `unresolved_gaps` | Что не удалось найти или подтвердить |
-| `confidence` | Средняя уверенность по доказательной базе (0–1) |
-| `final_report` | Итоговый Markdown-отчёт |
+| `reasoning_trace` | Full route: what I was looking for, what I missed, why |
+| `ranking[i].criterion_scores[j].assessment` | Valuation with real numbers |
+| `ranking[i].criterion_scores[j].evidence` | Sources with URLs and snippets |
+| `ranking[i].review_insights` | Observations from real reviews |
+| `node_timeline` | Timings of each node (ms) |
+| `node_failures` | Nodes that failed |
+| `unresolved_gaps` | What could not be found or confirmed |
+| `confidence` | Average confidence by evidence (0–1) |
+| `final_report` | Final Markdown report |
 
-Пример: посмотреть трассу из командной строки:
+Example: view the trace from the command line:
 
 ```bash
 .venv/bin/python agent_examples/patterns/device_search/main.py \
@@ -169,21 +169,21 @@ for step in r['reasoning_trace']:
 
 ---
 
-## Что менять в первую очередь
+## What to change first
 
-**Тип устройства** — просто меняй запрос (`--query "ноутбук для работы до 80 000 руб."`),
-агент сам разберёт категорию и переведёт в английский для поиска.
+**Device type** - just change the query (`--query "laptop for work up to 80,000 rubles."`),
+the agent himself will parse the category and translate it into English for search.
 
-**Качество поиска** — `search_tools.py::search_marketplace_listings`.
-Сейчас таргетирует ixbt.com, 4pda, ichip, gsmarena. Добавь свои домены или
-измени запросы под конкретный маркетплейс.
+**Quality requested** — `search_tools.py::search_marketplace_listings`.
+Currently targeting ixbt.com, 4pda, ichip, gsmarena. Add your domains or
+change requests for a specific marketplace.
 
-**Критерии** — `prompts.py::MAP_CRITERIA_PROMPT`. Если нужны специфические
-технические параметры (например, для B2B закупок) — уточни промпт.
+**Criteria** - `prompts.py::MAP_CRITERIA_PROMPT`. If you need specific
+technical parameters (for example, for B2B purchases) - specify the prompt.
 
-**Количество кандидатов** — `workflow.py::MAX_DEVICES_TO_SCORE` (сейчас 4).
-Больше кандидатов → больше поисковых запросов → дольше выполнение.
+**Number of candidates** - `workflow.py::MAX_DEVICES_TO_SCORE` (currently 4).
+More candidates → more search queries → longer execution time.
 
-**LLM-модель** — переменная `OPENROUTER_MODEL`. Более сильная модель
-(claude-opus, gpt-4o) даёт точнее оценки, слабая (haiku, gemini-flash) —
-быстрее и дешевле.
+**LLM-model** – variable `OPENROUTER_MODEL`. Stronger model
+(claude-opus, gpt-4o) gives more accurate estimates, weak (haiku, gemini-flash) -
+faster and cheaper.

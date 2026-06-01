@@ -1,31 +1,31 @@
 # ADR-0050: TemplateCompiler and template-aware section contracts
 
-- Статус: Accepted
-- Дата: 2026-04-24
+- Status: Accepted
+- Date: 2026-04-24
 
-## Контекст
+## Context
 
-После ADR-0049 authoring domain уже поддерживал section contracts, packets и deterministic section authoring, но секции по-прежнему были фактически зафиксированы на release-readiness use case. Для более широкого набора аналитических сценариев нужен был template-aware слой, который мог бы задавать section structure без переписывания authoring orchestration.
+After ADR-0049, the authoring domain already supported section contracts, packets, and deterministic section authoring, but sections were still effectively locked into the release-readiness use case. For a broader set of analytical scenarios, a template-aware layer was needed that could define the section structure without rewriting the authoring orchestration.
 
-## Решение
+## Solution
 
-1. Добавить `TemplateCompiler` в `domain_docs`.
-2. Оставить `TemplateSpec` как typed template contract и разрешить компиляцию из `task_context.template_id` + `task_context.template_payload`.
-3. Расширить `SectionContractBuilder`, чтобы он умел строить section contracts из `TemplateSpec`.
-4. Интегрировать template-aware path в `AuthoringApplicationService` как optional internal behavior:
+1. Add `TemplateCompiler` to `domain_docs`.
+2. Leave `TemplateSpec` as a typed template contract and allow compilation from `task_context.template_id` + `task_context.template_payload`.
+3. Extend `SectionContractBuilder` so that it can build section contracts from `TemplateSpec`.
+4. Integrate template-aware path into `AuthoringApplicationService` as an optional internal behavior:
    - default template: `release_readiness`;
-   - custom templates через `task_context.template_id` и `task_context.template_payload`.
-5. Публичный API при этом не менять.
+- custom templates via `task_context.template_id` and `task_context.template_payload`.
+5. Do not change the public API.
 
-## Последствия
+## Consequences
 
-Плюсы:
+Pros:
 
-- authoring layer больше не зашит только под release-readiness report;
-- появляется reusable template boundary для будущих document-generation scenarios;
-- section contracts и section artifacts теперь могут строиться из внешне задаваемого template spec.
+- the authoring layer is no longer reserved only for the release-readiness report;
+- a reusable template boundary appears for future document-generation scenarios;
+- section contracts and section artifacts can now be built from an externally specified template spec.
 
-Минусы:
+Cons:
 
-- template storage/catalog пока отсутствует, используется inline payload в `task_context`;
-- deterministic assembly пока еще не template-driven до конца.
+- template storage/catalog is not yet available, inline payload is used in `task_context`;
+- deterministic assembly is not yet completely template-driven.

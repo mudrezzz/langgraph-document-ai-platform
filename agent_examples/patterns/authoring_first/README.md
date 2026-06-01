@@ -1,62 +1,93 @@
-# authoring_first — создание артефакта через API
+﻿# authoring_first - in-process artifact assembly
 
-Агент, демонстрирующий API-driven путь: запускает задачу через HTTP-эндпоинт,
-дожидается результата и возвращает готовый артефакт с traceability-секциями.
-
----
-
-## Что делает
-
-Отправляет запрос на создание документа через `POST /authoring/start`,
-синхронно дожидается завершения задачи и возвращает артефакт — структурированный
-документ с разделами traceability (откуда взяты данные).
-
-```
-Запрос
-  → POST /authoring/start  → task_id
-  → GET  /task/{task_id}   → статус (polling до completed)
-  → GET  /artifact/{id}    → артефакт + traceability
-```
+A minimal agent showing explicit authoring composition over framework/domain contracts
+without HTTP transport: retrieval -> research -> draft -> review -> section authoring -> assembly.
 
 ---
 
-## Архитектурный смысл
+## What it does
 
-Это паттерн **API-driven**: агент общается с развёрнутым бэкендом через HTTP.
-Полезно, когда агент работает в отдельном процессе или на другой машине,
-и не может напрямую импортировать фреймворк.
+Builds a final artifact in one Python process:
 
-Обратная сторона — нужна инфраструктура (PostgreSQL), есть сетевые задержки,
-трасса видна только через API. Для новых агентов рекомендуется in-process
-паттерн (`retrieval_first`, `device_search`).
+1. runs retrieval workflow to collect evidence;
+2. builds research summary and deterministic writer draft;
+3. runs reviewer heuristics;
+4. builds template-based section contracts;
+5. generates section artifacts;
+6. assembles and exports final document.
+
+```text
+Request
+  -> RetrievalWorkflow.invoke()
+  -> ResearchSummaryBuilder
+  -> WriterDraftService
+  -> SectionReviewService
+  -> SectionAuthoringWorkflow (per section)
+  -> DocumentAssemblyWorkflow
+  -> Final artifact
+```
 
 ---
 
-## Структура файлов
+## Architectural meaning
 
-```
+This is an **in-process** pattern: the agent imports framework/domain modules as a library
+and executes everything in memory. No HTTP client and no backend runtime are required.
+
+This is the recommended model for contributors who extend workflow logic directly.
+
+---
+
+## File structure
+
+```text
 authoring_first/
-├── agent.py    # AuthoringFirstAgent — start → poll → get artifact
-├── config.py   # AuthoringFirstConfig — workflow_mode, draft_strategy, dataset
-└── prompts.py  # DEFAULT_QUERY — дефолтный вопрос
+|- agent.py            # composition root and final response shaping
+|- workflow.py         # explicit authoring pipeline orchestration
+|- tools.py            # small helpers for context/steps/preview
+|- config.py           # pattern config (dataset, mode, title, format)
+|- prompts.py          # DEFAULT_QUERY
+|- main.py             # direct entrypoint
+|- expected_output/
+|  |- result.example.json
+|- tests/
+|  |- test_agent.py
 ```
 
 ---
 
-## Запуск
+## Launch
 
-Требуется запущенный PostgreSQL с применёнными миграциями:
+Direct pattern run:
 
 ```bash
-bash backend/scripts/postgres_up.sh
-bash backend/scripts/postgres_migrate.sh
+.venv/bin/python agent_examples/patterns/authoring_first/main.py
+```
+
+Through the general runner:
+
+```bash
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
+Dry-run metadata check:
+
+```bash
+.venv/bin/python agent_examples/run_example.py --pattern authoring_first --dry-run
+```
+
 ---
 
-## Что менять в первую очередь
+## Tests
 
-1. `prompts.py` — изменить запрос (`DEFAULT_QUERY`).
-2. `config.py` — переключить `workflow_mode` (`standard` / `deep`) или `draft_strategy`.
-3. `agent.py` — добавить post-processing артефакта под свои нужды.
+```bash
+.venv/bin/pytest -q agent_examples/patterns/authoring_first/tests/test_agent.py
+```
+
+---
+
+## What to change first
+
+1. `prompts.py` - change the business question.
+2. `config.py` - switch `workflow_mode`, dataset, artifact title/format.
+3. `workflow.py` - adjust section contract strategy or assembly behavior.
