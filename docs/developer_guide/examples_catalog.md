@@ -1,6 +1,6 @@
 # Examples Catalog
 
-Update date: 2026-04-30
+Update date: 2026-06-02
 Status: Active (P2 cookbook)
 
 Directory of reusable scripts for integrators.
@@ -103,6 +103,8 @@ Expected proof:
 - We need the final document -> `Authoring-first`.
 - Need tool integration for agent -> `MCP-first`.
 - We need a multi-format ingestion pipeline -> `Canonical ingestion + retrieval`.
+- We need queue-like processing for many retrieval prompts -> `Async batch` (`agent_examples/patterns/async_batch`).
+- We need one core agent behind MCP tools -> `MCP tool facade` (`agent_examples/patterns/mcp_tool_facade`).
 
 ## 6. Related docs
 

@@ -17,6 +17,8 @@ def test_pattern_index_matches_choices() -> None:
     assert PATTERN_INDEX["retrieval_first"].execution_model == "in_process_framework_workflow"
     assert PATTERN_INDEX["authoring_first"].execution_model == "in_process_framework_workflow"
     assert PATTERN_INDEX["hitl_gate"].execution_model == "in_process_framework_workflow"
+    assert PATTERN_INDEX["async_batch"].execution_model == "in_process_framework_workflow"
+    assert PATTERN_INDEX["mcp_tool_facade"].execution_model == "in_process_framework_workflow"
 
 
 @pytest.mark.parametrize(

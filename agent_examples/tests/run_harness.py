@@ -44,6 +44,8 @@ def run_fast_lane() -> None:
         [sys.executable, "-m", "pytest", "-q", "agent_examples/patterns/retrieval_first/tests/test_agent.py"],
         [sys.executable, "-m", "pytest", "-q", "agent_examples/patterns/authoring_first/tests/test_agent.py"],
         [sys.executable, "-m", "pytest", "-q", "agent_examples/patterns/hitl_gate/tests/test_agent.py"],
+        [sys.executable, "-m", "pytest", "-q", "agent_examples/patterns/async_batch/tests/test_agent.py"],
+        [sys.executable, "-m", "pytest", "-q", "agent_examples/patterns/mcp_tool_facade/tests/test_agent.py"],
         [sys.executable, "-m", "pytest", "-q", "agent_examples/tests/test_run_example.py"],
         [sys.executable, "-m", "pytest", "-q", "backend/tests/unit/test_agent_examples_contracts.py"],
     ]

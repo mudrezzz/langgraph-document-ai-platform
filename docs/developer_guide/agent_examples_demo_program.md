@@ -1,7 +1,7 @@
 # Agent Examples Demo Program (In-Process)
 
-Update date: 2026-05-29
-Status: In Progress (DOC-030, DOC-031, DOC-032, and DOC-033 completed; DOC-034..DOC-035 pending)
+Update date: 2026-06-02
+Status: Completed for current scope (DOC-030..DOC-035 completed)
 
 ## 1. Product Goal
 
@@ -152,8 +152,8 @@ Each pattern must contain:
 
 ## 9.2 P1 (next)
 
-1. Add `async_batch` pattern demo.
-2. Add `mcp_tool_facade` pattern demo.
+1. Add `async_batch` pattern demo. (Done)
+2. Add `mcp_tool_facade` pattern demo. (Done)
 3. Add template `create-your-agent` (copy-and-modify starter kit).
 
 ## 10. Definition of Done (per pattern)

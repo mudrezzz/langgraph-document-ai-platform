@@ -1,6 +1,6 @@
 # Design Patterns Library
 
-Update date: 2026-05-29
+Update date: 2026-06-02
 Status: Active
 
 This library is needed when a developer asks:
@@ -37,9 +37,19 @@ When: you need a reviewer loop and a secure approve/rework path.
 Doc: `docs/developer_guide/design_patterns/pattern_hitl_gate.md`
 Example: `agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
 
+4. Async Batch Pattern  
+When: you need to process multiple independent queries in bounded chunks with partial-failure handling.
+Doc: `docs/developer_guide/design_patterns/pattern_async_batch.md`
+Example: `agent_examples/run_example.py --pattern async_batch`
+
+5. MCP Tool Facade Pattern  
+When: you need to expose core agent logic via MCP tools without mixing transport concerns into domain logic.
+Doc: `docs/developer_guide/design_patterns/pattern_mcp_tool_facade.md`
+Example: `agent_examples/run_example.py --pattern mcp_tool_facade`
+
 Note on current status:
 
-- `retrieval_first`, `authoring_first`, and `hitl_gate` are in-process patterns.
+- `retrieval_first`, `authoring_first`, `hitl_gate`, `async_batch`, and `mcp_tool_facade` are in-process patterns.
 - async transport-specific behavior can be layered later on top of the same state model.
 
 ## Checking

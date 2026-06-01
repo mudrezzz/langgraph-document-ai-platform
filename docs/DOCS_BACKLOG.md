@@ -1,7 +1,7 @@
 # Documentation Backlog (Framework)
 
 Start Date: 2026-04-30  
-Last Update: 2026-05-29  
+Last Update: 2026-06-02  
 Status: Active (living document)
 
 ## Purpose
@@ -62,8 +62,8 @@ This backlog is the single source of truth for framework-layer developer documen
 | DOC-031 | P0 | Authoring Pattern Rebuild | Rebuild `authoring_first` as an in-process agent with an explicit artifact assembly model | Reworked authoring pattern folder + tests + expected output | Done | 2026-05-29 | Closed Slice 34.1.1: `authoring_first` moved to in-process composition (`main.py + workflow.py + tools.py`), added pattern tests and expected output proof, synchronized runner/docs for execution-model consistency, and preserved CLI entrypoint compatibility (`run_example.py --pattern authoring_first`). |
 | DOC-032 | P0 | HITL Pattern Rebuild | Rebuild `hitl_gate` as an in-process pattern with reviewer loop contract | Reworked hitl pattern folder + tests + expected output | Done | 2026-05-29 | Closed Slice 34.2.1: `hitl_gate` moved to in-process reviewer loop (`main.py + workflow.py + tools.py`), added pattern tests and expected output proof, updated runner/docs status, and preserved CLI entrypoint compatibility (`run_example.py --pattern hitl_gate`). |
 | DOC-033 | P0 | Examples Test Harness | Add unified fast/full test lanes for `agent_examples` (structure/unit/smoke) | Test matrix doc + CI-ready command set | Done | 2026-05-29 | Closed Slice 34.3.1: added unified harness `agent_examples/tests/run_harness.py` with `fast/full` lanes and optional external-LLM smoke gating; synced docs routes and contracts. |
-| DOC-034 | P1 | Async Batch Pattern | Add a separate in-process demo pattern for batch/long-running scenarios | `patterns/async_batch/*` + docs/tests | Planned | 2026-04-30 | After stabilization of the three basic P0 patterns. |
-| DOC-035 | P1 | MCP Facade Pattern | Add a separate demo pattern `agent as MCP tools` on top of the core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Planned | 2026-04-30 | Should show the separation of core logic and MCP transport adapter. |
+| DOC-034 | P1 | Async Batch Pattern | Add a separate in-process demo pattern for batch/long-running scenarios | `patterns/async_batch/*` + docs/tests | Done | 2026-06-02 | Closed Slice 34.4.1: added `agent_examples/patterns/async_batch/*` (agent/workflow/tools/main/tests/sample input/expected output), integrated `run_example.py` and harness/contracts, and synced design patterns/examples docs routes. |
+| DOC-035 | P1 | MCP Facade Pattern | Add a separate demo pattern `agent as MCP tools` on top of the core agent logic | `patterns/mcp_tool_facade/*` + docs/tests | Done | 2026-06-02 | Closed Slice 34.5.1: added `agent_examples/patterns/mcp_tool_facade/*` with explicit core-agent vs MCP-style adapter split, integrated runner/tests/contracts, and synced pattern/docs routes. |
 | DOC-036 | P0 | OSS Program Planning | Fix a single improvement program contributor funnel with iterations and slices | `docs/developer_guide/oss_contributor_funnel_program.md` + sync links | Done | 2026-05-28 | Closed Slice 33.8.1: program moved to operational format (iteration register + slice DoD + KPI baseline), synced links in `README.md` and `CONTRIBUTING.md`, and aligned policy wording for AI-assisted contribution semantics. |
 | DOC-037 | P0 | Packaging Integrity | Synchronize package license/readme metadata with OSS policy repository | `backend/packages/pyproject.toml` + `backend/packages/README.md` | Done | 2026-05-26 | Closed Slice 33.1.1 and 33.1.2: package license metadata aligned (`Apache-2.0`), added package-level README under `readme = \"README.md\"`. |
 | DOC-038 | P0 | README No-Infra Entry | Add no-infra first-success path and expected output to root README | `README.md` update (2-minute demo + output proof) | Done | 2026-05-26 | Added `2-Minute Demo: No Docker, No Postgres` block with dry-run/execute commands, explicit no-infra scope and expected output; The production smoke path is left below. |
@@ -78,6 +78,8 @@ This backlog is the single source of truth for framework-layer developer documen
 
 ## Backlog Change Log
 
+- 2026-06-02: Closed DOC-035 / Slice 34.5.1 (mcp_tool_facade in-process pattern): added `agent_examples/patterns/mcp_tool_facade/*`, wired `run_example.py` + harness/contracts, and synchronized docs routes (`agent_examples/README.md`, root `README.md`, design patterns, examples catalog, demo program).
+- 2026-06-02: Closed DOC-034 / Slice 34.4.1 (async_batch in-process pattern): added `agent_examples/patterns/async_batch/*`, wired `run_example.py` + harness/contracts, and synchronized docs routes (`agent_examples/README.md`, root `README.md`, design patterns, examples catalog, demo program).
 - 2026-05-29: Closed DOC-033 / Slice 34.3.1 (examples test harness): added `agent_examples/tests/run_harness.py`, documented fast/full lane matrix in `docs/developer_guide/agent_examples_test_harness.md`, and linked harness commands from README/quickstart/agent examples docs.
 - 2026-05-29: Closed DOC-032 / Slice 34.2.1 (hitl_gate in-process replatform): implemented in-process reviewer loop with `needs_changes -> approve` contract, added tests and expected output, and synchronized docs/runner messaging.
 - 2026-05-29: Closed DOC-031 / Slice 34.1.1 (authoring-first in-process replatform): updated `agent_examples/patterns/authoring_first/*` to explicit in-process artifact assembly flow, added tests and expected output, and synced design/docs references.

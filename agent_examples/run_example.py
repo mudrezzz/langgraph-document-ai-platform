@@ -15,12 +15,17 @@ from agent_examples.common.path_setup import ensure_backend_paths
 ensure_backend_paths(repo_root=Path(__file__).resolve().parents[1])
 
 from agent_examples.common.io_utils import print_json, write_json
+from agent_examples.patterns.async_batch.agent import AsyncBatchAgent
+from agent_examples.patterns.async_batch.config import AsyncBatchConfig
+from agent_examples.patterns.async_batch.prompts import DEFAULT_QUERIES as ASYNC_BATCH_QUERIES
 from agent_examples.patterns.authoring_first.agent import AuthoringFirstAgent
 from agent_examples.patterns.authoring_first.config import AuthoringFirstConfig
 from agent_examples.patterns.authoring_first.prompts import DEFAULT_QUERY as AUTHORING_QUERY
 from agent_examples.patterns.hitl_gate.agent import HitlGateAgent
 from agent_examples.patterns.hitl_gate.config import HitlGateConfig
 from agent_examples.patterns.hitl_gate.prompts import DEFAULT_QUERY as HITL_QUERY
+from agent_examples.patterns.mcp_tool_facade.agent import run_demo_tool_call
+from agent_examples.patterns.mcp_tool_facade.prompts import DEFAULT_QUERY as MCP_FACADE_QUERY
 from agent_examples.patterns.device_search.agent import DeviceSearchAgent
 from agent_examples.patterns.device_search.config import DeviceSearchConfig
 from agent_examples.patterns.device_search.prompts import DEFAULT_QUERY as DEVICE_SEARCH_QUERY
@@ -28,7 +33,7 @@ from agent_examples.patterns.retrieval_first.agent import RetrievalFirstAgent
 from agent_examples.patterns.retrieval_first.config import RetrievalFirstConfig
 from agent_examples.patterns.retrieval_first.prompts import DEFAULT_QUERY as RETRIEVAL_QUERY
 
-PATTERN_CHOICES = ("retrieval_first", "authoring_first", "hitl_gate", "device_search")
+PATTERN_CHOICES = ("retrieval_first", "authoring_first", "hitl_gate", "device_search", "async_batch", "mcp_tool_facade")
 
 
 @dataclass(frozen=True)
@@ -62,6 +67,18 @@ PATTERN_INDEX = {
         pattern_id="device_search",
         title="Device Search Agent",
         default_query=DEVICE_SEARCH_QUERY,
+        execution_model="in_process_framework_workflow",
+    ),
+    "async_batch": PatternDescriptor(
+        pattern_id="async_batch",
+        title="Async Batch Agent",
+        default_query=ASYNC_BATCH_QUERIES[0],
+        execution_model="in_process_framework_workflow",
+    ),
+    "mcp_tool_facade": PatternDescriptor(
+        pattern_id="mcp_tool_facade",
+        title="MCP Tool Facade Agent",
+        default_query=MCP_FACADE_QUERY,
         execution_model="in_process_framework_workflow",
     ),
 }
@@ -111,9 +128,20 @@ def _run_in_process_hitl(query: str, hitl_decisions: list[str]) -> dict[str, Any
     return agent.run(query=query, decisions=hitl_decisions)
 
 
+def _run_in_process_async_batch(query: str, has_custom_query: bool) -> dict[str, Any]:
+    agent = AsyncBatchAgent(config=AsyncBatchConfig())
+    queries = [query] if has_custom_query else list(ASYNC_BATCH_QUERIES)
+    return agent.run(queries=queries)
+
+
+def _run_in_process_mcp_tool_facade(query: str) -> dict[str, Any]:
+    return run_demo_tool_call(query=query)
+
+
 def main() -> None:
     args = build_parser().parse_args()
     descriptor = PATTERN_INDEX[args.pattern]
+    has_custom_query = bool(args.query.strip())
 
     query = args.query.strip() or descriptor.default_query
     hitl_decisions = parse_hitl_decisions(args.hitl_decisions)
@@ -131,7 +159,7 @@ def main() -> None:
         "execution_model": descriptor.execution_model,
         "notes": [
             "Pattern code is located in agent_examples/patterns/<pattern>/.",
-            "retrieval_first, authoring_first, hitl_gate, and device_search are in-process patterns.",
+            "retrieval_first, authoring_first, hitl_gate, device_search, async_batch, and mcp_tool_facade are in-process patterns.",
         ],
     }
 
@@ -145,6 +173,10 @@ def main() -> None:
         result = _run_in_process_authoring(query=query)
     elif args.pattern == "device_search":
         result = _run_in_process_device_search(query=query)
+    elif args.pattern == "async_batch":
+        result = _run_in_process_async_batch(query=query, has_custom_query=has_custom_query)
+    elif args.pattern == "mcp_tool_facade":
+        result = _run_in_process_mcp_tool_facade(query=query)
     elif args.pattern == "hitl_gate":
         result = _run_in_process_hitl(query=query, hitl_decisions=hitl_decisions)
     else:

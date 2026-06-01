@@ -1,0 +1,9 @@
+from __future__ import annotations
+
+
+DEFAULT_QUERIES = [
+    "What release controls are mandatory before production go-live?",
+    "What unresolved risks were found in the latest audit summary?",
+    "What evidence is required for rollback readiness?",
+]
+

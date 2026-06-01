@@ -18,6 +18,8 @@ def test_developer_guide_index_links_expected_pages() -> None:
         "docs/developer_guide/design_patterns/pattern_retrieval_first.md",
         "docs/developer_guide/design_patterns/pattern_authoring_first.md",
         "docs/developer_guide/design_patterns/pattern_hitl_gate.md",
+        "docs/developer_guide/design_patterns/pattern_async_batch.md",
+        "docs/developer_guide/design_patterns/pattern_mcp_tool_facade.md",
         "docs/developer_guide/agent_examples_test_harness.md",
         "docs/developer_guide/public_contract_surface.md",
         "docs/developer_guide/framework_concepts.md",

@@ -196,6 +196,18 @@ Authoring-first starter:
 .venv/bin/python agent_examples/run_example.py --pattern authoring_first
 ```
 
+Async batch starter:
+
+```bash
+.venv/bin/python agent_examples/run_example.py --pattern async_batch
+```
+
+MCP tool facade starter:
+
+```bash
+.venv/bin/python agent_examples/run_example.py --pattern mcp_tool_facade
+```
+
 ## Example Gallery And Patterns
 
 - Product-style Python agent examples (single folder, no framework internals required):
@@ -203,8 +215,10 @@ Authoring-first starter:
   - `.venv/bin/python agent_examples/run_example.py --pattern retrieval_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern authoring_first`
   - `.venv/bin/python agent_examples/run_example.py --pattern hitl_gate --hitl-decisions needs_changes,approve`
+  - `.venv/bin/python agent_examples/run_example.py --pattern async_batch`
+  - `.venv/bin/python agent_examples/run_example.py --pattern device_search`
   - `python agent_examples/tests/run_harness.py --lane fast` (unified examples pre-check)
-  - current status: `retrieval_first`, `authoring_first`, and `hitl_gate` are in-process framework patterns.
+  - current status: `retrieval_first`, `authoring_first`, `hitl_gate`, `async_batch`, `mcp_tool_facade`, and `device_search` are in-process framework patterns.
 - Design patterns library:
   - `docs/developer_guide/design_patterns/README.md`
   - Retrieval-First, Authoring-First, HITL Gate templates with runnable paths.

@@ -29,6 +29,8 @@ Unified reading path by role:
    - `docs/developer_guide/design_patterns/pattern_retrieval_first.md`
    - `docs/developer_guide/design_patterns/pattern_authoring_first.md`
    - `docs/developer_guide/design_patterns/pattern_hitl_gate.md`
+   - `docs/developer_guide/design_patterns/pattern_async_batch.md`
+   - `docs/developer_guide/design_patterns/pattern_mcp_tool_facade.md`
    - `docs/developer_guide/agent_examples_test_harness.md`
    - `docs/developer_guide/api_reference.md`
    - `docs/developer_guide/mcp_reference.md`

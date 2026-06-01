@@ -51,6 +51,20 @@ def test_agent_examples_contains_required_structure() -> None:
         "agent_examples/patterns/hitl_gate/tests/test_agent.py",
         "agent_examples/patterns/hitl_gate/expected_output/result.example.json",
         "agent_examples/patterns/hitl_gate/README.md",
+        "agent_examples/patterns/async_batch/agent.py",
+        "agent_examples/patterns/async_batch/workflow.py",
+        "agent_examples/patterns/async_batch/tools.py",
+        "agent_examples/patterns/async_batch/main.py",
+        "agent_examples/patterns/async_batch/tests/test_agent.py",
+        "agent_examples/patterns/async_batch/expected_output/result.example.json",
+        "agent_examples/patterns/async_batch/README.md",
+        "agent_examples/patterns/mcp_tool_facade/agent.py",
+        "agent_examples/patterns/mcp_tool_facade/workflow.py",
+        "agent_examples/patterns/mcp_tool_facade/tools.py",
+        "agent_examples/patterns/mcp_tool_facade/main.py",
+        "agent_examples/patterns/mcp_tool_facade/tests/test_agent.py",
+        "agent_examples/patterns/mcp_tool_facade/expected_output/result.example.json",
+        "agent_examples/patterns/mcp_tool_facade/README.md",
     ]
     for path in required_paths:
         assert (REPO_ROOT / path).exists(), path
@@ -127,3 +141,39 @@ def test_hitl_pattern_main_runs_in_process() -> None:
     assert payload["pattern"] == "hitl_gate"
     assert payload["execution_model"] == "in_process_framework_workflow"
     assert payload["task_status"] == "completed"
+
+
+def test_async_batch_pattern_main_runs_in_process() -> None:
+    python_bin = _resolve_python_bin()
+    completed = subprocess.run(
+        [
+            python_bin,
+            str(AGENT_EXAMPLES_ROOT / "patterns" / "async_batch" / "main.py"),
+            "--batch-size",
+            "2",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+    assert payload["pattern"] == "async_batch"
+    assert payload["execution_model"] == "in_process_framework_workflow"
+    assert payload["total_queries"] >= 1
+
+
+def test_mcp_tool_facade_pattern_main_runs_in_process() -> None:
+    python_bin = _resolve_python_bin()
+    completed = subprocess.run(
+        [
+            python_bin,
+            str(AGENT_EXAMPLES_ROOT / "patterns" / "mcp_tool_facade" / "main.py"),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+    assert payload["pattern"] == "mcp_tool_facade"
+    assert payload["execution_model"] == "in_process_framework_workflow"
+    assert payload["tool_invocation"]["tool_name"] == "search_evidence"

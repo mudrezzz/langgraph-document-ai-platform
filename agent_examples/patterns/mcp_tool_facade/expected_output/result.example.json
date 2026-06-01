@@ -1,0 +1,29 @@
+{
+  "pattern": "mcp_tool_facade",
+  "execution_model": "in_process_framework_workflow",
+  "adapter_kind": "in_process_mcp_style_facade",
+  "service": {
+    "service_name": "example-mcp-facade",
+    "service_version": "v1",
+    "execution_model": "in_process_framework_workflow",
+    "tool_names": ["get_service_metadata", "search_evidence"],
+    "tool_scopes": {
+      "search_evidence": "action",
+      "get_service_metadata": "read"
+    }
+  },
+  "tool_invocation": {
+    "tool_name": "search_evidence",
+    "called_at": "2026-06-02T10:00:00+00:00",
+    "result": {
+      "query": "Summarize mandatory release controls and supporting evidence.",
+      "confidence": 0.74,
+      "evidence_blocks": 2,
+      "top_sources": [
+        {"doc_id": "release_packet", "version": "v1", "block_id": "block-01"}
+      ],
+      "unresolved_gaps": []
+    }
+  }
+}
+
